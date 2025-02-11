@@ -1,11 +1,9 @@
-import time
 from yookassa import Configuration, Receipt
 from yookassa import Payment
+from yookassa.domain.common.confirmation_type import ConfirmationType
 from yookassa.domain.models.currency import Currency
 from yookassa.domain.models.receipt import Receipt
-from yookassa.domain.common.confirmation_type import ConfirmationType
 from yookassa.domain.request.payment_request_builder import PaymentRequestBuilder
-import yookassa.invoice
 
 from env import shop_id, secret_key
 

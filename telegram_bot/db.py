@@ -281,7 +281,7 @@ async def update_partner(partner_id: int, **kwargs):
         await cursor.execute(f"UPDATE partners SET {updations} WHERE partner_id == {partner_id}")
         await conn.commit()
 
-async def checker_cycle():   
+async def checker_cycle():
     while True:
         subscriptions = await get_subscriptions(end_ts=time.time())
         if subscriptions:
@@ -289,7 +289,7 @@ async def checker_cycle():
                 await bot.send_message(subscription["user_id"], "🪫 <b>Ваша подписка закончилась!</b>", parse_mode="html")
                 await remove_subscription(subscription["user_id"])
                 await asyncio.sleep(0.03)
-                
+
         await get_redeemed_promo(restart_old_ones=True)
         await asyncio.sleep(1)
 

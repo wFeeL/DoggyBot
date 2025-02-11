@@ -1,16 +1,15 @@
+import time
 from datetime import datetime
-import json
-import re
+
+from aiogram import F, types, Router
 from aiogram.filters import Command
 from aiogram.types import Message
-from aiogram import F, Bot, types, filters
 
-import time
+from telegram_bot import db, env
 
-from env import dp, bot
-import db
+router = Router()
 
-@dp.message(Command("start"))
+@router.message(Command("start"))
 async def start(message: Message):
     user = await db.get_users(message.from_user.id, multiple=False)
     
@@ -52,7 +51,7 @@ async def start(message: Message):
     
     await message.answer(answer_text, parse_mode="html", reply_markup=start_markup)
 
-@dp.message(Command("usepromo"))
+@router.message(Command("usepromo"))
 async def use_promo_handler(message: Message):
     promocode = message.text.split(" ")[1]
     
@@ -91,7 +90,7 @@ async def use_promo_handler(message: Message):
     else:
         await message.answer(f"⚠ <b>Введён промокод неверного формата.</b>", parse_mode="html")
 
-@dp.message(Command(commands=["admin", "ap", "panel"]))
+@router.message(Command(commands=["admin", "ap", "panel"]))
 async def admin_panel_handler(message: Message):
     user = await db.get_users(message.from_user.id)
     if user["level"] > 2:
@@ -123,7 +122,7 @@ async def admin_panel(message: Message, user: dict, edit: bool = True):
         
     await message.answer(text=f"""🛡 <b>Админ-панель:</b>""", parse_mode="html", reply_markup=admin_panel_markup)
 
-@dp.message(F.content_type == types.ContentType.WEB_APP_DATA)
+@router.message(F.content_type == types.ContentType.WEB_APP_DATA)
 async def webapp_catch(message: Message):
     profile = await db.get_user_profile(message.from_user.id)
     if profile["full_name"] is None:
@@ -141,6 +140,6 @@ async def webapp_catch(message: Message):
         await db.update_user_profile(message.from_user.id, full_name=valid_data["human"]["full_name"], birth_date=datetime.strptime(valid_data["human"]["birth_date"], "%Y-%m-%d").timestamp(), phone_number=valid_data["human"]["phone_number"], about_me=valid_data["human"]["about_me"])
         for pet in valid_data["pets"]:
             await db.add_pet(message.from_user.id, pet["weight"], pet["name"], datetime.strptime(pet["birth_date"], "%Y-%m-%d").timestamp(), pet["gender"], pet["type"], pet["breed"])
-        await bot.send_message(message.chat.id, f"✅ <b>Ваш профиль успешно заполнен.</b>", parse_mode="html", reply_markup=profile_markup)
+        await env.bot.send_message(message.chat.id, f"✅ <b>Ваш профиль успешно заполнен.</b>", parse_mode="html", reply_markup=profile_markup)
     else:
         await message.answer("❌ <b>Предоставлены недействительные данные.</b>", parse_mode="html")
