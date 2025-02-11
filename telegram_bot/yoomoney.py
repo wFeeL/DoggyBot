@@ -5,7 +5,7 @@ from yookassa.domain.models.currency import Currency
 from yookassa.domain.models.receipt import Receipt
 from yookassa.domain.request.payment_request_builder import PaymentRequestBuilder
 
-from env import shop_id, secret_key
+from telegram_bot.env import shop_id, secret_key
 
 Configuration.configure(str(shop_id), secret_key)
 

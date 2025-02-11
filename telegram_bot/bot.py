@@ -1,8 +1,8 @@
 import asyncio
 import locale
 from telegram_bot import db
-from env import dp, bot
-from handler import message, callback
+from telegram_bot.env import dp, bot
+from telegram_bot.handler import message, callback
 
 locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
 

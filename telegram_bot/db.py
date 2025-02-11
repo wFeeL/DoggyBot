@@ -9,7 +9,7 @@ from uuid import uuid4
 
 import aiosqlite
 
-from env import bot
+from telegram_bot.env import bot
 
 def generate_promocode():
     return "DL" + ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(6))
