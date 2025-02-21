@@ -1,1 +1,1 @@
-from . import env, db, yoomoney, bot
+from . import env, db, bot

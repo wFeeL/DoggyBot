@@ -14,9 +14,6 @@ from telegram_bot.env import bot
 def generate_promocode():
     return "DL" + ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(6))
 
-def get_settings():
-    return json.load(open("settings.json", "r", encoding="UTF-8"))
-
 async def get_users(user_id: int = None, promocode: str = None, level: int = None, multiple: bool = True):
     async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row

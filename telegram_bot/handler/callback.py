@@ -9,7 +9,6 @@ from aiogram.types import CallbackQuery
 from telegram_bot import db
 from telegram_bot.env import PartnerForm, bot, oferta_url, webapp_url, support_username
 from telegram_bot.handler.message import admin_panel
-from telegram_bot.yoomoney import check_invoice, create_invoice
 
 router = Router()
 
@@ -129,91 +128,93 @@ async def callback_handler(c: CallbackQuery, state: FSMContext):
             await message.answer(text=answer_text, parse_mode="html", reply_markup=catigories_markup_)
 
     elif c.data == "subscription":
-        subscription = await db.get_subscriptions(user_id=c.from_user.id)
-        if subscription:
-            subscription = subscription[-1]
-            if subscription["end_date"] < time.time():
-                subscription = None
-
-        if subscription is None:
-            user_profile = await db.get_user_profile(c.from_user.id)
-
-            settings = db.get_settings()
-
-            keyboard = []
-            if user_profile["full_name"]:
-                keyboard.append([types.InlineKeyboardButton(text="💳 Оформить подписку",
-                                                            callback_data=f"create_invoice:{settings["length"]}:{settings["price"]}")])
-            else:
-                keyboard.append([types.InlineKeyboardButton(text="🪪 Заполнить данные", callback_data="fill_profile")])
-
-            keyboard.append([types.InlineKeyboardButton(text="🔙 Назад", callback_data=f"menu")])
-
-            buy_subscription_markup = types.InlineKeyboardMarkup(inline_keyboard=keyboard)
-            await message.edit_text(f"""🔋 <b>Подписка</b>
-
-⏲ <b>Срок действия:</b> <code>{int(settings["length"] / 31)} мес.</code>
-💰 <b>Стоимость подписки:</b> <code>{settings["price"]}р</code>
-
-<i>Оформляя подписку, вы подтверждаете что вы ознакомились и согласны с <a href="{oferta_url}">условиями оферты</a></i>
-{'\n<blockquote>Перед оформлением подписки обязательно заполните данные о себе и своих питомцах, после этого перезайдите во вкладку "Подписка" и под сообщением появится кнопка для оформления подписки.</blockquote>' if not user_profile["full_name"] else ""}
-""", parse_mode="html", reply_markup=buy_subscription_markup, disable_web_page_preview=True)
+        pass
+#         subscription = await db.get_subscriptions(user_id=c.from_user.id)
+#         if subscription:
+#             subscription = subscription[-1]
+#             if subscription["end_date"] < time.time():
+#                 subscription = None
+#
+#         if subscription is None:
+#             user_profile = await db.get_user_profile(c.from_user.id)
+#
+#
+#             keyboard = []
+#             if user_profile["full_name"]:
+#                 keyboard.append([types.InlineKeyboardButton(text="💳 Оформить подписку",
+#                                                             callback_data=f"create_invoice:{settings["length"]}:{settings["price"]}")])
+#             else:
+#                 keyboard.append([types.InlineKeyboardButton(text="🪪 Заполнить данные", callback_data="fill_profile")])
+#
+#             keyboard.append([types.InlineKeyboardButton(text="🔙 Назад", callback_data=f"menu")])
+#
+#             buy_subscription_markup = types.InlineKeyboardMarkup(inline_keyboard=keyboard)
+#             await message.edit_text(f"""🔋 <b>Подписка</b>
+#
+# ⏲ <b>Срок действия:</b> <code>{int(settings["length"] / 31)} мес.</code>
+# 💰 <b>Стоимость подписки:</b> <code>{settings["price"]}р</code>
+#
+# <i>Оформляя подписку, вы подтверждаете что вы ознакомились и согласны с <a href="{oferta_url}">условиями оферты</a></i>
+# {'\n<blockquote>Перед оформлением подписки обязательно заполните данные о себе и своих питомцах, после этого перезайдите во вкладку "Подписка" и под сообщением появится кнопка для оформления подписки.</blockquote>' if not user_profile["full_name"] else ""}
+# """, parse_mode="html", reply_markup=buy_subscription_markup, disable_web_page_preview=True)
 
     elif c.data.startswith("check_invoice"):
-        _, invoice_id, summ, length = c.data.split(":")
-        status = check_invoice(invoice_id, summ)
-
-        if status != 0:
-            if status == -1:
-                await c.answer("❌ Оплата отменена")
-
-            if status == 1:
-                await c.answer("✅ Оплата прошла успешно!")
-                await db.add_subscription(c.from_user.id, int(summ), int(length))
-
-            start_markup = types.InlineKeyboardMarkup(inline_keyboard=[
-                [types.InlineKeyboardButton(text="👤 Профиль", callback_data="profile"),
-                 types.InlineKeyboardButton(text="🔋 Подписка", callback_data="subscription")],
-                [types.InlineKeyboardButton(text="🛍 Категории", callback_data="categories")],
-                [types.InlineKeyboardButton(text="❔ О сервисе", callback_data="about")]
-            ])
-
-            subscription = await db.get_subscriptions(user_id=c.from_user.id)
-            if subscription:
-                subscription = subscription[-1]
-                if subscription["end_date"] < time.time():
-                    subscription = None
-
-            await message.edit_text(f"""👋 Вас приветствует сервис <b>Doggy Logy</b>
-        
-Мы работаем только с <b>проверенными компаниями</b>, которым <b>доверяем сами</b>. Здесь вы можете приобрести нашу <b>программу лояльности</b>
-
-<i>Скидки действуют на всех наших партнеров, 1 раз в месяц на каждого партнера</i>
-
-<b>🔑 Ваш личный промокод:</b> <span class="tg-spoiler">{user["promocode"]}</span>
-<b>{"🔋" if subscription else "🪫"} Подписка:</b> {"<code>У вас нет подписки</code>" if not subscription else datetime.fromtimestamp(subscription["end_date"]).strftime('%d %B %H:%M')}
-            """, reply_markup=start_markup, parse_mode="html")
-
-        elif status == 0:
-            await c.answer("⏳ Счёт ожидает оплату")
+        pass
+#         _, invoice_id, summ, length = c.data.split(":")
+#         status = check_invoice(invoice_id, summ)
+#
+#         if status != 0:
+#             if status == -1:
+#                 await c.answer("❌ Оплата отменена")
+#
+#             if status == 1:
+#                 await c.answer("✅ Оплата прошла успешно!")
+#                 await db.add_subscription(c.from_user.id, int(summ), int(length))
+#
+#             start_markup = types.InlineKeyboardMarkup(inline_keyboard=[
+#                 [types.InlineKeyboardButton(text="👤 Профиль", callback_data="profile"),
+#                  types.InlineKeyboardButton(text="🔋 Подписка", callback_data="subscription")],
+#                 [types.InlineKeyboardButton(text="🛍 Категории", callback_data="categories")],
+#                 [types.InlineKeyboardButton(text="❔ О сервисе", callback_data="about")]
+#             ])
+#
+#             subscription = await db.get_subscriptions(user_id=c.from_user.id)
+#             if subscription:
+#                 subscription = subscription[-1]
+#                 if subscription["end_date"] < time.time():
+#                     subscription = None
+#
+#             await message.edit_text(f"""👋 Вас приветствует сервис <b>Doggy Logy</b>
+#
+# Мы работаем только с <b>проверенными компаниями</b>, которым <b>доверяем сами</b>. Здесь вы можете приобрести нашу <b>программу лояльности</b>
+#
+# <i>Скидки действуют на всех наших партнеров, 1 раз в месяц на каждого партнера</i>
+#
+# <b>🔑 Ваш личный промокод:</b> <span class="tg-spoiler">{user["promocode"]}</span>
+# <b>{"🔋" if subscription else "🪫"} Подписка:</b> {"<code>У вас нет подписки</code>" if not subscription else datetime.fromtimestamp(subscription["end_date"]).strftime('%d %B %H:%M')}
+#             """, reply_markup=start_markup, parse_mode="html")
+#
+#         elif status == 0:
+#             await c.answer("⏳ Счёт ожидает оплату")
 
     elif c.data.startswith("create_invoice"):
-        _, length, price = c.data.split(":")
-        invoice_url, invoice_id = create_invoice(price, length)
-
-        pay_subscription_markup = types.InlineKeyboardMarkup(inline_keyboard=[
-            [types.InlineKeyboardButton(text="💳 Оплатить", url=invoice_url),
-             types.InlineKeyboardButton(text="🔄 Проверить",
-                                        callback_data=f"check_invoice:{invoice_id}:{price}:{length}")]
-        ])
-        await message.edit_text(f"""💰 <b>Создан счёт на оплату подписки</b>
-
-🔋 Подписка - <code>{round(int(length) / 31, 1)} мес | {price}р</code>
-
-<blockquote>После оплаты нажмите на кнопку <b>🔄 Проверить</b> чтобы проверить оплату.
-
-<i>Если возникли какие-либо проблемы писать @{support_username}</i></blockquote>""", parse_mode="html",
-                                reply_markup=pay_subscription_markup)
+        pass
+#         _, length, price = c.data.split(":")
+#         invoice_url, invoice_id = create_invoice(price, length)
+#
+#         pay_subscription_markup = types.InlineKeyboardMarkup(inline_keyboard=[
+#             [types.InlineKeyboardButton(text="💳 Оплатить", url=invoice_url),
+#              types.InlineKeyboardButton(text="🔄 Проверить",
+#                                         callback_data=f"check_invoice:{invoice_id}:{price}:{length}")]
+#         ])
+#         await message.edit_text(f"""💰 <b>Создан счёт на оплату подписки</b>
+#
+# 🔋 Подписка - <code>{round(int(length) / 31, 1)} мес | {price}р</code>
+#
+# <blockquote>После оплаты нажмите на кнопку <b>🔄 Проверить</b> чтобы проверить оплату.
+#
+# <i>Если возникли какие-либо проблемы писать @{support_username}</i></blockquote>""", parse_mode="html",
+#                                 reply_markup=pay_subscription_markup)
 
     elif c.data.startswith("redeem_promocode"):
         _, partner_id, promocode = c.data.split(":")
