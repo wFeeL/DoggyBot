@@ -2,15 +2,55 @@ import pathlib
 import time
 from datetime import datetime
 
-from aiogram import types, Router
+from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
+from aiogram.exceptions import TelegramBadRequest
 
-from telegram_bot import db
-from telegram_bot.env import PartnerForm, bot, oferta_url, webapp_url, support_username
-from telegram_bot.handler.message import admin_panel
-
+from telegram_bot import db, text_message
+from telegram_bot.env import PartnerForm, bot
+from telegram_bot.keyboards import inline_markup, reply_markup
+from telegram_bot.handler import message
 router = Router()
+
+CALLBACK = {
+    'send_about': 'about',
+    'send_menu': 'menu',
+    'send_profile': 'profile',
+    'send_form': 'form',
+    'send_admin_panel': 'admin_panel',
+}
+
+# Call a function from callback data
+async def call_function_from_callback(callback: CallbackQuery) -> None:
+    """
+    Call function from callback.
+    Find name of function in const dict and call with all arguments.
+    :param callback: Callback
+    """
+    for key in list(CALLBACK.keys()):
+        if CALLBACK[key] == callback.data:
+            func = getattr(message, key)
+            await func(callback.message)
+
+
+# CALLBACKS
+# Handle most of callback's (/menu, /tomorrow, /calendar, /homework etc.)
+@router.callback_query(lambda call: call.data in list(CALLBACK.values()))
+async def handle_callback(callback: CallbackQuery, **kwargs) -> None:
+    """
+    Handle callback to call function.
+
+    :param callback: Callback
+    :param kwargs: Other message options (need for callback function)
+    """
+    try:
+        await callback.message.delete()
+
+    except TelegramBadRequest:
+        pass
+    await call_function_from_callback(callback)
+
 
 @router.callback_query()
 async def callback_handler(c: CallbackQuery, state: FSMContext):
@@ -24,46 +64,11 @@ async def callback_handler(c: CallbackQuery, state: FSMContext):
     else:
         return
 
-    menu_markup = types.InlineKeyboardMarkup(inline_keyboard=[[
-        types.InlineKeyboardButton(text="🔙 Назад", callback_data="menu")
-    ]])
     categories_markup = types.InlineKeyboardMarkup(inline_keyboard=[[
         types.InlineKeyboardButton(text="🔙 Назад", callback_data="categories")
     ]])
 
-    if c.data == "about":
-        await message.edit_text(text="""👋 Вас приветствует сервис <b>Doggy Logy</b>
-        
-Мы работаем только с <b>проверенными компаниями</b>, которым <b>доверяем сами</b>. Здесь вы можете приобрести нашу <b>программу лояльности</b>
-
-<i>Скидки действуют на всех наших партнеров, 1 раз в месяц на каждого партнера</i>
-
-<i>Создатель бренда Doggy Logy: Валерия Попова @doggy_logy</i>""", parse_mode="html", reply_markup=menu_markup)
-
-    elif c.data == "menu":
-        start_markup = types.InlineKeyboardMarkup(inline_keyboard=[
-            [types.InlineKeyboardButton(text="👤 Профиль", callback_data="profile"),
-             types.InlineKeyboardButton(text="🔋 Подписка", callback_data="subscription")],
-            [types.InlineKeyboardButton(text="🛍 Категории", callback_data="categories")],
-            [types.InlineKeyboardButton(text="❔ О сервисе", callback_data="about")]
-        ])
-
-        subscription = await db.get_subscriptions(user_id=c.from_user.id)
-        if subscription:
-            subscription = subscription[-1]
-            if subscription["end_date"] < time.time():
-                subscription = None
-
-        await message.edit_text(f"""👋 Вас приветствует сервис <b>Doggy Logy</b>
-        
-Мы работаем только с <b>проверенными компаниями</b>, которым <b>доверяем сами</b>. Здесь вы можете приобрести нашу <b>программу лояльности</b>
-
-<i>Скидки действуют на всех наших партнеров, 1 раз в месяц на каждого партнера</i>
-{f'\n<b>🔑 Ваш личный промокод:</b> <span class="tg-spoiler">{user["promocode"]}</span>' if subscription else ""}
-<b>{"🔋" if subscription else "🪫"} Подписка:</b> {"<code>У вас нет подписки</code>" if not subscription else datetime.fromtimestamp(subscription["end_date"]).strftime('%d %B %H:%M')}
-        """, reply_markup=start_markup, parse_mode="html")
-
-    elif c.data == "categories":
+    if c.data == "categories":
         categories = await db.get_categories(category_enabled=True)
         choose_category_keyboard = [[types.InlineKeyboardButton(text=f"{category["category_name"]}",
                                                                 callback_data=f"category:{category["category_id"]}")]
@@ -127,95 +132,6 @@ async def callback_handler(c: CallbackQuery, state: FSMContext):
 
             await message.answer(text=answer_text, parse_mode="html", reply_markup=catigories_markup_)
 
-    elif c.data == "subscription":
-        pass
-#         subscription = await db.get_subscriptions(user_id=c.from_user.id)
-#         if subscription:
-#             subscription = subscription[-1]
-#             if subscription["end_date"] < time.time():
-#                 subscription = None
-#
-#         if subscription is None:
-#             user_profile = await db.get_user_profile(c.from_user.id)
-#
-#
-#             keyboard = []
-#             if user_profile["full_name"]:
-#                 keyboard.append([types.InlineKeyboardButton(text="💳 Оформить подписку",
-#                                                             callback_data=f"create_invoice:{settings["length"]}:{settings["price"]}")])
-#             else:
-#                 keyboard.append([types.InlineKeyboardButton(text="🪪 Заполнить данные", callback_data="fill_profile")])
-#
-#             keyboard.append([types.InlineKeyboardButton(text="🔙 Назад", callback_data=f"menu")])
-#
-#             buy_subscription_markup = types.InlineKeyboardMarkup(inline_keyboard=keyboard)
-#             await message.edit_text(f"""🔋 <b>Подписка</b>
-#
-# ⏲ <b>Срок действия:</b> <code>{int(settings["length"] / 31)} мес.</code>
-# 💰 <b>Стоимость подписки:</b> <code>{settings["price"]}р</code>
-#
-# <i>Оформляя подписку, вы подтверждаете что вы ознакомились и согласны с <a href="{oferta_url}">условиями оферты</a></i>
-# {'\n<blockquote>Перед оформлением подписки обязательно заполните данные о себе и своих питомцах, после этого перезайдите во вкладку "Подписка" и под сообщением появится кнопка для оформления подписки.</blockquote>' if not user_profile["full_name"] else ""}
-# """, parse_mode="html", reply_markup=buy_subscription_markup, disable_web_page_preview=True)
-
-    elif c.data.startswith("check_invoice"):
-        pass
-#         _, invoice_id, summ, length = c.data.split(":")
-#         status = check_invoice(invoice_id, summ)
-#
-#         if status != 0:
-#             if status == -1:
-#                 await c.answer("❌ Оплата отменена")
-#
-#             if status == 1:
-#                 await c.answer("✅ Оплата прошла успешно!")
-#                 await db.add_subscription(c.from_user.id, int(summ), int(length))
-#
-#             start_markup = types.InlineKeyboardMarkup(inline_keyboard=[
-#                 [types.InlineKeyboardButton(text="👤 Профиль", callback_data="profile"),
-#                  types.InlineKeyboardButton(text="🔋 Подписка", callback_data="subscription")],
-#                 [types.InlineKeyboardButton(text="🛍 Категории", callback_data="categories")],
-#                 [types.InlineKeyboardButton(text="❔ О сервисе", callback_data="about")]
-#             ])
-#
-#             subscription = await db.get_subscriptions(user_id=c.from_user.id)
-#             if subscription:
-#                 subscription = subscription[-1]
-#                 if subscription["end_date"] < time.time():
-#                     subscription = None
-#
-#             await message.edit_text(f"""👋 Вас приветствует сервис <b>Doggy Logy</b>
-#
-# Мы работаем только с <b>проверенными компаниями</b>, которым <b>доверяем сами</b>. Здесь вы можете приобрести нашу <b>программу лояльности</b>
-#
-# <i>Скидки действуют на всех наших партнеров, 1 раз в месяц на каждого партнера</i>
-#
-# <b>🔑 Ваш личный промокод:</b> <span class="tg-spoiler">{user["promocode"]}</span>
-# <b>{"🔋" if subscription else "🪫"} Подписка:</b> {"<code>У вас нет подписки</code>" if not subscription else datetime.fromtimestamp(subscription["end_date"]).strftime('%d %B %H:%M')}
-#             """, reply_markup=start_markup, parse_mode="html")
-#
-#         elif status == 0:
-#             await c.answer("⏳ Счёт ожидает оплату")
-
-    elif c.data.startswith("create_invoice"):
-        pass
-#         _, length, price = c.data.split(":")
-#         invoice_url, invoice_id = create_invoice(price, length)
-#
-#         pay_subscription_markup = types.InlineKeyboardMarkup(inline_keyboard=[
-#             [types.InlineKeyboardButton(text="💳 Оплатить", url=invoice_url),
-#              types.InlineKeyboardButton(text="🔄 Проверить",
-#                                         callback_data=f"check_invoice:{invoice_id}:{price}:{length}")]
-#         ])
-#         await message.edit_text(f"""💰 <b>Создан счёт на оплату подписки</b>
-#
-# 🔋 Подписка - <code>{round(int(length) / 31, 1)} мес | {price}р</code>
-#
-# <blockquote>После оплаты нажмите на кнопку <b>🔄 Проверить</b> чтобы проверить оплату.
-#
-# <i>Если возникли какие-либо проблемы писать @{support_username}</i></blockquote>""", parse_mode="html",
-#                                 reply_markup=pay_subscription_markup)
-
     elif c.data.startswith("redeem_promocode"):
         _, partner_id, promocode = c.data.split(":")
 
@@ -233,39 +149,6 @@ async def callback_handler(c: CallbackQuery, state: FSMContext):
     elif c.data == "already_redeemed":
         await c.answer(f"⚠ Промокод уже списан у этого партнёра.")
 
-    elif c.data == "fill_profile":
-        await message.delete()
-        await message.answer("👇 <b>Для заполнения формы нажмите на кнопку ниже.</b>",
-                             reply_markup=types.ReplyKeyboardMarkup(keyboard=[
-                                 [types.KeyboardButton(text="🪪 Заполнить форму",
-                                                       web_app=types.WebAppInfo(url=webapp_url))]
-                             ], resize_keyboard=True, one_time_keyboard=True), parse_mode="html")
-
-    elif c.data == "profile":
-        user_profile = await db.get_user_profile(c.from_user.id)
-
-        menu_form_markup = types.InlineKeyboardMarkup(inline_keyboard=[
-            [types.InlineKeyboardButton(text="🪪 Заполнить данные", callback_data="fill_profile")],
-            [types.InlineKeyboardButton(text="🔙 Меню", callback_data="menu")]
-        ])
-
-        if user_profile["full_name"] is None:
-            await message.edit_text(f"""👤 <b>Ваш профиль</b>
-
-<i>Вы ещё не указали никаких данных!</i>""", reply_markup=menu_form_markup, parse_mode="html")
-
-        else:
-            await message.edit_text(f"""👤 <b>Ваш профиль</b>
-
-🎭 <b>О вас:</b>
-<b>Полное имя</b>: <code>{user_profile["full_name"]}</code>
-<b>Номер телефона</b>: <code>{user_profile["phone_number"]}</code>
-<b>Дата рождения</b>: <code>{datetime.fromtimestamp(user_profile["birth_date"]).strftime('%d %B %Y')}</code>
-<b>Возраст</b>: <code>{round((time.time() - user_profile["birth_date"]) // (86400 * 365))} лет</code>
-
-🐶 <b>Ваши питомцы:</b>
-{''.join([f'<b>{pet["name"]}</b>: <code>~{pet["approx_weight"]}кг, {round((time.time() - pet["birth_date"]) // (86400 * 365))} лет</code>\n' for pet in user_profile["pets"]])}""",
-                                    parse_mode="html", reply_markup=menu_markup)
     if user["level"] < 2:
         return
 

@@ -1,10 +1,11 @@
+from aiogram.client.bot import DefaultBotProperties
 from aiogram.fsm.state import State, StatesGroup
 from aiogram import Bot, Dispatcher
 
 # bot_token = "7281759810:AAHYND_nL0ZbqzVnIWhEIZlUDFQS0a5iUPQ"
-bot_token = "7671505604:AAE-WPWaorO3Bbfhk0Z_2ac62PVJXd__574"
+bot_token = "7716350005:AAEgZK9gqE26IwfbD5sKy8nqbzetZsKFVB8"
 
-bot = Bot(bot_token)
+bot = Bot(bot_token, default=DefaultBotProperties(parse_mode='HTML'))
 dp: Dispatcher = Dispatcher()
 
 webapp_url = "https://test-webapp-form-23vf7.netlify.app/"

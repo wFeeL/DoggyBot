@@ -235,7 +235,7 @@ async def get_pets(user_id: int = None, pet_id: int = None):
         else:
             return await cursor.fetchall()
     
-async def add_pet(user_id: int, approx_weight: int | float, name: str, birth_date: int, gender: str, pet_type: str, pet_breed: str):
+async def add_pet(user_id: int, approx_weight: int | float, name: str, birth_date: int | float, gender: str, pet_type: str, pet_breed: str):
     async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row
 

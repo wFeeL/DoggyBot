@@ -5,141 +5,140 @@ from aiogram import F, types, Router
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from telegram_bot import db, env
+from telegram_bot import db, text_message
+from telegram_bot.keyboards import inline_markup, reply_markup
+from telegram_bot.decorators import check_block_user, check_admin
 
 router = Router()
 
-@router.message(Command("start"))
-async def start(message: Message):
-    user = await db.get_users(message.from_user.id, multiple=False)
-    
+
+@router.message(Command("about"))
+@check_block_user
+async def send_about(message: Message):
+    await message.answer(text=text_message.ABOUT_TEXT, reply_markup=inline_markup.get_back_menu_keyboard())
+
+
+@router.message(Command("menu", "start"))
+@check_block_user
+async def send_menu(message: Message):
+    user = await db.get_users(message.chat.id, multiple=False)
     if user is None:
-        await db.add_user(message.from_user.id, message.from_user.username, message.from_user.first_name, message.from_user.last_name)
-        answer_text = """👋 Вас приветствует сервис <b>Doggy Logy</b>
-        
-Мы работаем только с <b>проверенными компаниями</b>, которым <b>доверяем сами</b>. Здесь вы можете приобрести нашу <b>программу лояльности</b>
+        await db.add_user(message.chat.id, message.chat.username, message.chat.first_name, message.chat.last_name)
 
-<i>Скидки действуют на всех наших партнеров, 1 раз в месяц на каждого партнера</i>
-        """
-    
+    if user["level"] < 0:
+        await message.answer(text=text_message.USER_BLOCKED_TEXT)
+        return
+    await message.answer(text=text_message.MENU_TEXT, reply_markup=inline_markup.get_menu_keyboard())
+
+
+@router.message(Command("profile"))
+@check_block_user
+async def send_profile(message: Message):
+    user_profile = await db.get_user_profile(message.chat.id)
+    if user_profile is None or user_profile['full_name'] is None:
+        await message.answer(
+            text=text_message.NONE_PROFILE_TEXT, reply_markup=inline_markup.get_profile_keyboard()
+        )
     else:
-        if user["level"] < 0:
-            await message.answer("❌ <b>Вы заблокированы, для разблокировки свяжитесь с администрацией</b>", parse_mode="html")
-            return
-                
-        subscription = await db.get_subscriptions(user_id=message.from_user.id)
-        if subscription:
-            subscription = subscription[-1]
-            if subscription["end_date"] < time.time():
-                subscription = None
-            
-        answer_text = f"""👋 Вас приветствует сервис <b>Doggy Logy</b>
-        
-Мы работаем только с <b>проверенными компаниями</b>, которым <b>доверяем сами</b>. Здесь вы можете приобрести нашу <b>программу лояльности</b>
+        data = {
+            'full_name': user_profile['full_name'],
+            'phone_number': user_profile['phone_number'],
+            'birth_date': datetime.fromtimestamp(user_profile["birth_date"]).strftime('%d %B %Y'),
+            'age': round((time.time() - user_profile["birth_date"]) // (86400 * 365)),
+            'pets': ''.join([
+                f'<b>{pet["name"]}</b>: <code>~{pet["approx_weight"]}кг, {round((time.time() - pet["birth_date"]) // (86400 * 365))} лет</code>\n'
+                for pet in user_profile["pets"]])
+        }
+        await message.answer(
+            text=text_message.PROFILE_TEXT.format(**data), reply_markup=inline_markup.get_back_menu_keyboard()
+        )
 
-<i>Скидки действуют на всех наших партнеров, 1 раз в месяц на каждого партнера</i>
-{f'\n<b>🔑 Ваш личный промокод:</b> <span class="tg-spoiler">{user["promocode"]}</span>' if subscription else ""}
-<b>{"🔋" if subscription else "🪫"} Подписка:</b> {"<code>У вас нет подписки</code>" if not subscription else datetime.fromtimestamp(subscription["end_date"]).strftime('%d %B %H:%M')}
-        """
-        
-    start_markup = types.InlineKeyboardMarkup(inline_keyboard=[
-        [types.InlineKeyboardButton(text="👤 Профиль", callback_data="profile"),
-        types.InlineKeyboardButton(text="🔋 Подписка", callback_data="subscription")],
-        [types.InlineKeyboardButton(text="🛍 Категории", callback_data="categories")],
-        [types.InlineKeyboardButton(text="❔ О сервисе", callback_data="about")]
-    ])
-    
-    await message.answer(answer_text, parse_mode="html", reply_markup=start_markup)
+
+@router.message(Command("form"))
+@check_block_user
+async def send_form(message: Message):
+    await message.answer(
+        text=text_message.FORM_TEXT, reply_markup=reply_markup.get_form_keyboard(), resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
 
 @router.message(Command("usepromo"))
+@check_block_user
 async def use_promo_handler(message: Message):
     promocode = message.text.split(" ")[1]
-    
-    user = await db.get_users(message.from_user.id)
-    if user["level"] < 0:
-        return
+
+    user = await db.get_users(message.chat.id)
 
     if user["level"] > 1:
         partners = await db.get_partners()
     else:
-        partners = await db.get_partners(owner_id=message.from_user.id)
-    
+        partners = await db.get_partners(owner_id=message.chat.id)
+
     if not partners:
-        await message.answer(f"❌ <b>Вам недоступна эта функция.</b>", parse_mode="html")
+        await message.answer(text_message.FUNCTION_ERROR_TEXT)
         return
 
     if promocode.startswith("DL") and len(promocode) == 8:
         partner_ids = [partner["partner_id"] for partner in partners]
-        
+
         promo_user = await db.get_users(promocode=promocode)
-        
+
         if promo_user:
             redeemed = await db.get_redeemed_promo(promocode)
             redeemed_partners = [promo["partner_id"] for promo in redeemed if promo["partner_id"] in partner_ids]
 
             redeem_promo_keyboard = [
-                [types.InlineKeyboardButton(text=f"{"❌" if partner["partner_id"] in redeemed_partners else "✅"} {partner["partner_name"]}", callback_data=f"redeem_promocode:{partner["partner_id"]}:{promocode}" if partner["partner_id"] not in redeemed_partners else "already_redeemed")] for partner in partners
+                [types.InlineKeyboardButton(
+                    text=f"{"❌" if partner["partner_id"] in redeemed_partners else "✅"} {partner["partner_name"]}",
+                    callback_data=f"redeem_promocode:{partner["partner_id"]}:{promocode}" if partner["partner_id"] not in redeemed_partners else "already_redeemed")]
+                for partner in partners
             ]
-            redeem_promo_keyboard.append([types.InlineKeyboardButton(text="🔙 Меню", callback_data="menu")])
+            redeem_promo_keyboard.append(inline_markup.get_menu_button())
             redeem_promo_markup = types.InlineKeyboardMarkup(inline_keyboard=redeem_promo_keyboard)
 
-            await message.answer(f"📇 <b>Списать промокод:</b>", parse_mode="html", reply_markup=redeem_promo_markup)
-        
+            await message.answer(text_message.REDEEM_CODE_TEXT, reply_markup=redeem_promo_markup)
+
         else:
-            await message.answer(f"⚠ <b>Этот промокод неверный.</b>", parse_mode="html")
+            await message.answer(text_message.CODE_ERROR_TEXT)
     else:
-        await message.answer(f"⚠ <b>Введён промокод неверного формата.</b>", parse_mode="html")
+        await message.answer(text_message.FORMAT_ERROR_TEXT)
+
 
 @router.message(Command(commands=["admin", "ap", "panel"]))
-async def admin_panel_handler(message: Message):
-    user = await db.get_users(message.from_user.id)
+@check_admin
+async def send_admin_panel(message: Message):
+    user = await db.get_users(message.chat.id)
     if user["level"] > 2:
         return
-    
-    await admin_panel(message, user, False)
-    
-async def admin_panel(message: Message, user: dict, edit: bool = True):
-    if user["level"] > 2:
-        return
+    await message.answer(text=text_message.ADMIN_PANEL_TEXT, reply_markup=inline_markup.get_admin_menu_keyboard())
 
-    admin_panel_keyboard = [
-        [types.InlineKeyboardButton(text="📊 Статистика", callback_data="admin:stats"),
-        types.InlineKeyboardButton(text="📈 Партнёры", callback_data="admin:partners:1")],
-        [types.InlineKeyboardButton(text="👥 Пользователи", callback_data="admin:users:1")],
-        [types.InlineKeyboardButton(text="➕ Добавить партнёра", callback_data="admin:add_partner")],
-        [types.InlineKeyboardButton(text="🔙 Меню", callback_data="menu")]
-    ]
-
-    admin_panel_markup = types.InlineKeyboardMarkup(inline_keyboard=admin_panel_keyboard)
-
-    if edit:
-        try:
-            await message.edit_text(text=f"""🛡 <b>Админ-панель:</b>""", parse_mode="html", reply_markup=admin_panel_markup)
-        except:
-            await message.delete()
-        else:
-            return
-        
-    await message.answer(text=f"""🛡 <b>Админ-панель:</b>""", parse_mode="html", reply_markup=admin_panel_markup)
 
 @router.message(F.content_type == types.ContentType.WEB_APP_DATA)
+@check_block_user
 async def webapp_catch(message: Message):
-    profile = await db.get_user_profile(message.from_user.id)
+    profile = await db.get_user_profile(message.chat.id)
     if profile["full_name"] is None:
-        valid_data = await db.validate_user_form_data(message.web_app_data.data, message.from_user.id)
+        valid_data = await db.validate_user_form_data(message.web_app_data.data, message.chat.id)
     else:
         return
-    
-    profile_markup = types.InlineKeyboardMarkup(inline_keyboard=[
-        [types.InlineKeyboardButton(text="🔋 Подписка", callback_data="subscription")],
-        [types.InlineKeyboardButton(text="👤 Профиль", callback_data="profile")],
-        [types.InlineKeyboardButton(text="🔙 Меню", callback_data="menu")],
-    ])
 
     if valid_data:
-        await db.update_user_profile(message.from_user.id, full_name=valid_data["human"]["full_name"], birth_date=datetime.strptime(valid_data["human"]["birth_date"], "%Y-%m-%d").timestamp(), phone_number=valid_data["human"]["phone_number"], about_me=valid_data["human"]["about_me"])
+        human = valid_data['human']
+        await db.update_user_profile(
+            user_id=message.chat.id, birth_date=str_to_timestamp(human["birth_date"]), full_name=human["full_name"],
+            phone_number=human["phone_number"], about_me=human["about_me"]
+        )
+
         for pet in valid_data["pets"]:
-            await db.add_pet(message.from_user.id, pet["weight"], pet["name"], datetime.strptime(pet["birth_date"], "%Y-%m-%d").timestamp(), pet["gender"], pet["type"], pet["breed"])
-        await env.bot.send_message(message.chat.id, f"✅ <b>Ваш профиль успешно заполнен.</b>", parse_mode="html", reply_markup=profile_markup)
+            await db.add_pet(
+                user_id=message.chat.id, birth_date=str_to_timestamp(pet["birth_date"]), approx_weight=pet["weight"],
+                name=pet["name"], gender=pet["gender"], pet_type=pet["type"], pet_breed=pet["breed"]
+            )
+        await message.answer(text=text_message.PROFILE_COMPLETE_TEXT, reply_markup=inline_markup.get_back_menu_keyboard())
     else:
-        await message.answer("❌ <b>Предоставлены недействительные данные.</b>", parse_mode="html")
+        await message.answer(text=text_message.PROFILE_ERROR_TEXT)
+
+
+def str_to_timestamp(date_string: str) -> float:
+    return datetime.strptime(date_string, "%Y-%m-%d").timestamp()
