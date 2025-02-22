@@ -63,10 +63,22 @@ async def send_form(message: Message):
     )
 
 
+@router.message(Command("category"))
+@check_block_user
+async def send_categories(message: Message):
+    await message.answer(text=text_message.CHOOSE_CATEGORY_TEXT,
+                         reply_markup=await inline_markup.get_categories_keyboard())
+
+
+
 @router.message(Command("usepromo"))
 @check_block_user
 async def use_promo_handler(message: Message):
-    promocode = message.text.split(" ")[1]
+    try:
+        promo_code = message.text.split(" ")[1]
+    except IndexError:
+        await message.answer(text_message.ERROR_TEXT)
+        return
 
     user = await db.get_users(message.chat.id)
 
@@ -79,19 +91,19 @@ async def use_promo_handler(message: Message):
         await message.answer(text_message.FUNCTION_ERROR_TEXT)
         return
 
-    if promocode.startswith("DL") and len(promocode) == 8:
+    if promo_code.startswith("DL") and len(promo_code) == 8:
         partner_ids = [partner["partner_id"] for partner in partners]
 
-        promo_user = await db.get_users(promocode=promocode)
+        promo_user = await db.get_users(promocode=promo_code)
 
         if promo_user:
-            redeemed = await db.get_redeemed_promo(promocode)
+            redeemed = await db.get_redeemed_promo(promo_code)
             redeemed_partners = [promo["partner_id"] for promo in redeemed if promo["partner_id"] in partner_ids]
 
             redeem_promo_keyboard = [
                 [types.InlineKeyboardButton(
                     text=f"{"❌" if partner["partner_id"] in redeemed_partners else "✅"} {partner["partner_name"]}",
-                    callback_data=f"redeem_promocode:{partner["partner_id"]}:{promocode}" if partner["partner_id"] not in redeemed_partners else "already_redeemed")]
+                    callback_data=f"redeem_promo_code:{partner["partner_id"]}:{promo_code}" if partner["partner_id"] not in redeemed_partners else "already_redeemed")]
                 for partner in partners
             ]
             redeem_promo_keyboard.append(inline_markup.get_menu_button())
@@ -117,19 +129,14 @@ async def send_admin_panel(message: Message):
 @router.message(F.content_type == types.ContentType.WEB_APP_DATA)
 @check_block_user
 async def webapp_catch(message: Message):
-    profile = await db.get_user_profile(message.chat.id)
-    if profile["full_name"] is None:
-        valid_data = await db.validate_user_form_data(message.web_app_data.data, message.chat.id)
-    else:
-        return
-
+    valid_data = await db.validate_user_form_data(message.web_app_data.data, message.chat.id)
     if valid_data:
         human = valid_data['human']
         await db.update_user_profile(
             user_id=message.chat.id, birth_date=str_to_timestamp(human["birth_date"]), full_name=human["full_name"],
             phone_number=human["phone_number"], about_me=human["about_me"]
         )
-
+        await db.delete_pets(message.chat.id)
         for pet in valid_data["pets"]:
             await db.add_pet(
                 user_id=message.chat.id, birth_date=str_to_timestamp(pet["birth_date"]), approx_weight=pet["weight"],

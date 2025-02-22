@@ -141,7 +141,7 @@ async def get_redeemed_promo(promocode: str = None, restart_old_ones: bool = Fal
             await cursor.execute("SELECT * FROM redeemed_promocodes" + (f" WHERE " + condition if condition else ""))
             return await cursor.fetchall()
 
-async def redeem_promo(user_id: int, promocode: str, partner_id: int):
+async def redeem_promo(user_id: int, promocode: str, partner_id: int | str):
     async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row
         cursor = await conn.cursor()
@@ -245,7 +245,17 @@ async def add_pet(user_id: int, approx_weight: int | float, name: str, birth_dat
 
         await cursor.execute("INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed) VALUES (?, ?, ?, ?, ?, ?, ?)", (user_id, approx_weight, name, birth_date, gender, pet_type, pet_breed,))
         await conn.commit()
-        
+
+
+async def delete_pets(user_id: int, **kwargs):
+    async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
+        conn.row_factory = aiosqlite.Row
+
+        cursor = await conn.cursor()
+
+        await cursor.execute(f"DELETE FROM pets WHERE user_id == {user_id}")
+        await conn.commit()
+
 async def update_user_profile(user_id: int, **kwargs):
     async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row

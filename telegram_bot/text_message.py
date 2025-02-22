@@ -35,3 +35,29 @@ FORMAT_ERROR_TEXT = """⚠ <b>Введён промокод неверного �
 PROFILE_COMPLETE_TEXT = """<b>Ваш профиль успешно заполнен.</b>"""
 
 PROFILE_ERROR_TEXT = """❌ <b>Предоставлены недействительные данные.</b>"""
+
+CHOOSE_CATEGORY_TEXT = """🛍 <b>Категории:</b>"""
+
+CATEGORY_NAME = """<b>{category}</b>\n\n"""
+
+PARTNER_CATEGORY_TEXT = """• <a href='{url}'>{name}</a>\n{legacy_text}\n\n"""
+
+PROMO_CODE_REDEEMED_TEXT = """✅ Промокод списан!"""
+
+PROMO_CODE_ALREADY_REDEEMED_TEXT = """⚠ Промокод уже списан у этого партнёра."""
+
+USER_PROMO_CODE_REDEEMED_TEXT = """✅ <b>Ваш промокод списан у партнёра <code>{partner_name}</code></b>"""
+
+STATS_TEXT = """📊 <b>Статистика</b>:\n
+Количество пользователей: <code>{users_len}</code>
+Количество партнёров: <code>{partners_len}</code>
+Подписок за день: <code>{orders_day} / {orders_day_sum}₽</code>
+Подписок за месяц: <code>{orders_month} / {orders_month_sum}₽</code>
+Подписок за год: <code>{orders_year} / {orders_year_sum}₽</code>"""
+
+PARTNERS_TEXT = """📈 <b>Партнёры:</b>"""
+
+USERS_TEXT = """👥 <b>Пользователи:</b>"""
+
+ERROR_TEXT = """Something went wrong."""
+

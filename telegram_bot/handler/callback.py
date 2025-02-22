@@ -4,7 +4,7 @@ from datetime import datetime
 
 from aiogram import types, Router, F
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InputMediaPhoto, FSInputFile
 from aiogram.exceptions import TelegramBadRequest
 
 from telegram_bot import db, text_message
@@ -19,6 +19,7 @@ CALLBACK = {
     'send_profile': 'profile',
     'send_form': 'form',
     'send_admin_panel': 'admin_panel',
+    'send_categories': 'categories',
 }
 
 # Call a function from callback data
@@ -52,186 +53,95 @@ async def handle_callback(callback: CallbackQuery, **kwargs) -> None:
     await call_function_from_callback(callback)
 
 
+@router.callback_query(lambda call: 'category' in call.data)
+async def category_handler(callback: CallbackQuery):
+    await callback.message.delete()
+    category_id = callback.data.split(":")[1]
+    category = await db.get_categories(category_id=int(category_id))
+    partners = await db.get_partners(category_id=int(category_id))
+
+    answer_text = text_message.CATEGORY_NAME.format(category=category["category_name"])
+
+    for partner in partners:
+        text = text_message.PARTNER_CATEGORY_TEXT.format(
+            name=partner["partner_name"],
+            url=partner["partner_url"],
+            legacy_text=partner["partner_legacy_text"],
+        )
+
+        answer_text += text
+
+
+    if pathlib.Path(f"img/{category_id}.png").is_file():
+        await bot.send_photo(
+            chat_id=callback.message.chat.id, photo=FSInputFile(path=f"img/{category_id}.png"), caption=answer_text,
+            reply_markup=inline_markup.get_back_categories_keyboard()
+        )
+
+@router.callback_query(lambda call: 'redeem' in call.data)
+async def redeem_promo_code_handler(callback: CallbackQuery):
+    if 'already_redeemed' in callback.data:
+        await callback.answer(text_message.PROMO_CODE_ALREADY_REDEEMED_TEXT)
+
+    elif 'redeem_promo_code' in callback.data:
+        _, partner_id, promo_code = callback.data.split(":")
+        partner = await db.get_partners(int(partner_id))
+        user = await db.get_users(user_id=callback.message.chat.id)
+        promo_user = await db.get_users(promocode=promo_code)
+
+        if user["level"] > 1 or partner["owner_user_id"] == callback.message.chat.id:
+            await db.redeem_promo(promo_user["user_id"], promo_code, partner_id)
+            await callback.answer(text_message.PROMO_CODE_REDEEMED_TEXT)
+            await callback.message.delete()
+            await bot.send_message(promo_user["user_id"], text_message.USER_PROMO_CODE_REDEEMED_TEXT.format(
+                partner_name=partner["partner_name"])
+                                   )
+
+@router.callback_query(F.data == 'admin:stats')
+async def handle_admin_stats(callback: CallbackQuery) -> None:
+    await callback.message.delete()
+    partners = await db.get_partners()
+    orders_day = await db.get_subscriptions(start_ts=time.time() - 86400) or []
+    orders_month = await db.get_subscriptions(start_ts=time.time() - 86400 * 31) or []
+    orders_year = await db.get_subscriptions(start_ts=time.time() - 86400 * 365) or []
+
+    users = await db.get_users()
+
+    await callback.message.answer(
+        text=text_message.STATS_TEXT.format(
+            users_len=len(users), partners_len=len(partners), orders_day=len(orders_day),
+            orders_day_sum=sum([order["price"] for order in orders_day]), orders_month=len(orders_month),
+            orders_month_sum=sum([order["price"] for order in orders_month]), orders_year=len(orders_year),
+            orders_year_sum=sum([order["price"] for order in orders_year])
+    ),
+        reply_markup=inline_markup.get_back_admin_menu_keyboard()
+    )
+
+@router.callback_query(lambda call: 'admin:partner' in call.data)
+async def handle_admin_partners(callback: CallbackQuery) -> None:
+    await callback.message.delete()
+    page = int(callback.data.split(":")[2]) if len(callback.data.split(":")) > 2 else 1
+    await callback.message.answer(
+        text=text_message.PARTNERS_TEXT, reply_markup=await inline_markup.get_partners_keyboard(page=page)
+    )
+
+@router.callback_query(lambda call: 'admin:user' in call.data)
+async def handle_admin_users(callback: CallbackQuery) -> None:
+    await callback.message.delete()
+    page = int(callback.data.split(":")[2]) if len(callback.data.split(":")) > 2 else 1
+    await callback.message.answer(text=text_message.USERS_TEXT, reply_markup=await inline_markup.get_users_keyboard(page=page))
+
+@router.callback_query(lambda call: 'add_partner' in call.data)
+async def handle_add_partner(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.message.edit_text("<b>Введите название нового партнёра:</b>", parse_mode="HTML")
+    await state.set_state(PartnerForm.awaiting_partner_name_new)
+
 @router.callback_query()
 async def callback_handler(c: CallbackQuery, state: FSMContext):
     message = c.message
-    user = await db.get_users(user_id=c.from_user.id, multiple=False)
     await state.clear()
 
-    if user:
-        if user["level"] < 0:
-            return
-    else:
-        return
-
-    categories_markup = types.InlineKeyboardMarkup(inline_keyboard=[[
-        types.InlineKeyboardButton(text="🔙 Назад", callback_data="categories")
-    ]])
-
-    if c.data == "categories":
-        categories = await db.get_categories(category_enabled=True)
-        choose_category_keyboard = [[types.InlineKeyboardButton(text=f"{category["category_name"]}",
-                                                                callback_data=f"category:{category["category_id"]}")]
-                                    for category in categories]
-        choose_category_keyboard.append([types.InlineKeyboardButton(text="🔙 Назад", callback_data="menu")])
-        choose_category_markup = types.InlineKeyboardMarkup(inline_keyboard=choose_category_keyboard)
-
-        if not message.photo:
-            await message.edit_text("""🛍 <b>Категории:</b>""", parse_mode="html", reply_markup=choose_category_markup)
-        else:
-            await message.delete()
-            await bot.send_message(c.from_user.id, """🛍 <b>Категории:</b>""", parse_mode="html",
-                                   reply_markup=choose_category_markup)
-
-    elif c.data.startswith("category"):
-        category_id = c.data.split(":")[1]
-        category = await db.get_categories(category_id=int(category_id))
-        partners = await db.get_partners(category_id=int(category_id))
-
-        answer_text = f"<b>{category["category_name"]}</b>"
-        multiple = []
-
-        for partner in partners:
-            text = f"""
-
-<b>{partner["partner_name"]}</b>
-{"Ознакомиться с ассортиментом\n" + partner["partner_url"] + "\n" if partner["partner_url"] else ""}<blockquote>{partner["partner_legacy_text"]}</blockquote>"""
-            if (len(answer_text + text) >= 842 and len(multiple) == 0) or (
-                    len(answer_text + text) >= 3914 and len(multiple) > 0):
-                multiple.append(answer_text)
-                answer_text = ""
-
-            answer_text += text
-
-        subscription = await db.get_subscriptions(user_id=c.from_user.id)
-        if subscription:
-            subscription = subscription[-1]
-            if subscription["end_date"] < time.time():
-                subscription = None
-
-        if subscription:
-            answer_text += """
-        
-<blockquote><b>ПРОМОКОД ДЛЯ ВСЕХ ПАРТНЕРОВ</b> <code>DoggyLogy</code> 
-Партнер может потребовать от Вас ваш индивидуальный промокод из вашего личного кабинета!</blockquote>"""
-
-        multiple.append(answer_text)
-
-        answer_text = multiple[0]
-        catigories_markup_ = categories_markup if len(multiple) == 1 else None
-
-        if pathlib.Path(f"img/{category_id}.png").is_file():
-            await message.edit_media(
-                types.InputMediaPhoto(media=types.FSInputFile(f"img/{category_id}.png", "category_image.png"),
-                                      caption=answer_text, parse_mode="html"), reply_markup=catigories_markup_)
-        else:
-            await message.edit_text(text=answer_text, parse_mode="html", reply_markup=catigories_markup_)
-
-        for answer_text in multiple:
-            catigories_markup_ = categories_markup if answer_text == multiple[-1] else None
-
-            await message.answer(text=answer_text, parse_mode="html", reply_markup=catigories_markup_)
-
-    elif c.data.startswith("redeem_promocode"):
-        _, partner_id, promocode = c.data.split(":")
-
-        partner = await db.get_partners(int(partner_id))
-        user_ = await db.get_users(promocode=promocode)
-
-        if user["level"] > 1 or partner["owner_user_id"] == c.from_user.id:
-            await db.redeem_promo(user_["user_id"], promocode, partner_id)
-            await c.answer("✅ Промокод списан.")
-            await message.delete()
-            await bot.send_message(user_["user_id"],
-                                   f"✅ <b>Ваш промокод списан у партнёра <code>{partner["partner_name"]}</code></b>",
-                                   parse_mode="html")
-
-    elif c.data == "already_redeemed":
-        await c.answer(f"⚠ Промокод уже списан у этого партнёра.")
-
-    if user["level"] < 2:
-        return
-
-    elif c.data.startswith("admin"):
-        action = c.data.split(":")[1]
-        admin_markup = types.InlineKeyboardMarkup(inline_keyboard=[
-            [types.InlineKeyboardButton(text="🔙 Назад", callback_data="admin:panel"), ]
-        ])
-
-        if action == "panel":
-            await admin_panel(message, user)
-            return
-
-        elif action == "stats":
-            partners = await db.get_partners()
-            orders_day = await db.get_subscriptions(start_ts=time.time() - 86400) or []
-            orders_month = await db.get_subscriptions(start_ts=time.time() - 86400 * 31) or []
-            orders_year = await db.get_subscriptions(start_ts=time.time() - 86400 * 365) or []
-
-            users = await db.get_users()
-
-            await message.edit_text(f"""📊 <b>Статистика</b>:
-                                    
-Количество пользователей: <code>{len(users)}</code>
-Количество партнёров: <code>{len(partners)}</code>
-Подписок за день: <code>{len(orders_day)} / {sum([order["price"] for order in orders_day])}₽</code>
-Подписок за месяц: <code>{len(orders_month)} / {sum([order["price"] for order in orders_month])}₽</code>
-Подписок за год: <code>{len(orders_year)} / {sum([order["price"] for order in orders_year])}₽</code>""",
-                                    parse_mode="html", reply_markup=admin_markup)
-
-        elif action == "partners":
-            page = int(c.data.split(":")[2]) if len(c.data.split(":")) > 2 else 1
-            partners = await db.get_partners()
-            total_pages = (len(partners) + 14) // 15
-            partners = partners[(page - 1) * 15: page * 15]
-
-            partner_buttons = [
-                [types.InlineKeyboardButton(text=f"{partner['partner_name']} (ID: {partner['partner_id']})",
-                                            callback_data=f"partner:{partner['partner_id']}")]
-                for partner in partners
-            ]
-            navigation_buttons = []
-            if page > 1:
-                navigation_buttons.append(
-                    types.InlineKeyboardButton(text="⬅️ Назад", callback_data=f"admin:partners:{page - 1}"))
-            if page < total_pages:
-                navigation_buttons.append(
-                    types.InlineKeyboardButton(text="Вперёд ➡️", callback_data=f"admin:partners:{page + 1}"))
-            partner_buttons.append(navigation_buttons)
-            partner_buttons.append([types.InlineKeyboardButton(text="🔙 Назад", callback_data="admin:panel")])
-            partner_markup = types.InlineKeyboardMarkup(inline_keyboard=partner_buttons)
-
-            await message.edit_text("📈 <b>Партнёры:</b>", parse_mode="html", reply_markup=partner_markup)
-
-        elif action == "users":
-            page = int(c.data.split(":")[2]) if len(c.data.split(":")) > 2 else 1
-            users = await db.get_users()
-            total_pages = (len(users) + 9) // 10
-            users = users[(page - 1) * 10: page * 10]
-
-            user_buttons = [
-                [types.InlineKeyboardButton(text=f"{user['full_name']} (ID: {user['user_id']})",
-                                            callback_data=f"user:{user['user_id']}")]
-                for user in users
-            ]
-            navigation_buttons = []
-            if page > 1:
-                navigation_buttons.append(
-                    types.InlineKeyboardButton(text="⬅️ Назад", callback_data=f"admin:users:{page - 1}"))
-            if page < total_pages:
-                navigation_buttons.append(
-                    types.InlineKeyboardButton(text="Вперёд ➡️", callback_data=f"admin:users:{page + 1}"))
-            user_buttons.append(navigation_buttons)
-            user_buttons.append([types.InlineKeyboardButton(text="🔙 Назад", callback_data="admin:panel")])
-            user_markup = types.InlineKeyboardMarkup(inline_keyboard=user_buttons)
-
-            await message.edit_text("👥 <b>Пользователи:</b>", parse_mode="html", reply_markup=user_markup)
-
-        elif action == "add_partner":
-            await c.message.edit_text("<b>Введите название нового партнёра:</b>", parse_mode="HTML")
-            await state.set_state(PartnerForm.awaiting_partner_name_new)
-
-    elif c.data.startswith("user:"):
+    if c.data.startswith("user:"):
         user_id = int(c.data.split(":")[1])
         user = await db.get_users(user_id=user_id, multiple=False)
         subscriptions = await db.get_subscriptions(user_id=user_id) or []
