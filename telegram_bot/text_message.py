@@ -59,5 +59,13 @@ PARTNERS_TEXT = """📈 <b>Партнёры:</b>"""
 
 USERS_TEXT = """👥 <b>Пользователи:</b>"""
 
-ERROR_TEXT = """Something went wrong."""
+USER_INFO_TEXT = """👤 <b>{full_name} (ID: {user_id})</b>
+<b>Статус:</b> <code>{user_status}</code>"""
 
+PARTNER_INFO_TEXT = """📈 <b>{partner_name} (ID: {partner_id})</b>\n
+<b>ТГ партнёра:</b> {full_name} (ID: {user_id})
+<b>Категория:</b> <code>{category_name}</code>
+<b>Скрыт:</b> <code>{partner_status}</code>\n
+{partner_url}"""
+
+ERROR_TEXT = """Something went wrong."""

@@ -11,6 +11,7 @@ from telegram_bot import db, text_message
 from telegram_bot.env import PartnerForm, bot
 from telegram_bot.keyboards import inline_markup, reply_markup
 from telegram_bot.handler import message
+
 router = Router()
 
 CALLBACK = {
@@ -21,6 +22,7 @@ CALLBACK = {
     'send_admin_panel': 'admin_panel',
     'send_categories': 'categories',
 }
+
 
 # Call a function from callback data
 async def call_function_from_callback(callback: CallbackQuery) -> None:
@@ -71,12 +73,12 @@ async def category_handler(callback: CallbackQuery):
 
         answer_text += text
 
-
     if pathlib.Path(f"img/{category_id}.png").is_file():
         await bot.send_photo(
             chat_id=callback.message.chat.id, photo=FSInputFile(path=f"img/{category_id}.png"), caption=answer_text,
             reply_markup=inline_markup.get_back_categories_keyboard()
         )
+
 
 @router.callback_query(lambda call: 'redeem' in call.data)
 async def redeem_promo_code_handler(callback: CallbackQuery):
@@ -97,6 +99,7 @@ async def redeem_promo_code_handler(callback: CallbackQuery):
                 partner_name=partner["partner_name"])
                                    )
 
+
 @router.callback_query(F.data == 'admin:stats')
 async def handle_admin_stats(callback: CallbackQuery) -> None:
     await callback.message.delete()
@@ -113,9 +116,10 @@ async def handle_admin_stats(callback: CallbackQuery) -> None:
             orders_day_sum=sum([order["price"] for order in orders_day]), orders_month=len(orders_month),
             orders_month_sum=sum([order["price"] for order in orders_month]), orders_year=len(orders_year),
             orders_year_sum=sum([order["price"] for order in orders_year])
-    ),
+        ),
         reply_markup=inline_markup.get_back_admin_menu_keyboard()
     )
+
 
 @router.callback_query(lambda call: 'admin:partner' in call.data)
 async def handle_admin_partners(callback: CallbackQuery) -> None:
@@ -125,95 +129,65 @@ async def handle_admin_partners(callback: CallbackQuery) -> None:
         text=text_message.PARTNERS_TEXT, reply_markup=await inline_markup.get_partners_keyboard(page=page)
     )
 
+
 @router.callback_query(lambda call: 'admin:user' in call.data)
 async def handle_admin_users(callback: CallbackQuery) -> None:
     await callback.message.delete()
     page = int(callback.data.split(":")[2]) if len(callback.data.split(":")) > 2 else 1
-    await callback.message.answer(text=text_message.USERS_TEXT, reply_markup=await inline_markup.get_users_keyboard(page=page))
+    await callback.message.answer(text=text_message.USERS_TEXT,
+                                  reply_markup=await inline_markup.get_users_keyboard(page=page))
+
 
 @router.callback_query(lambda call: 'add_partner' in call.data)
 async def handle_add_partner(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.edit_text("<b>Введите название нового партнёра:</b>", parse_mode="HTML")
     await state.set_state(PartnerForm.awaiting_partner_name_new)
 
+
+@router.callback_query(F.data.startswith('user:'))
+async def handle_user_info(callback: CallbackQuery) -> None:
+    user_id = int(callback.data.split(":")[1])
+    user = await db.get_users(user_id=user_id, multiple=False)
+    user_status = user["level"]
+    user_status_text = "Пользователь" if user_status == 0 else "Партнер" if user_status == 1 else "Администратор" if user_status == 2 else "Заблокирован" if user_status == -1 else "Неизвестно"
+    user_info = text_message.USER_INFO_TEXT.format(full_name=user['full_name'], user_id=user['user_id'],
+                                                   user_status=user_status_text)
+    await callback.message.edit_text(text=user_info, reply_markup=inline_markup.get_user_keyboard(user_id=user_id,
+                                                                                             user_level=user_status))
+
+
+@router.callback_query(F.data.startswith('partner:'))
+async def handle_partner_info(callback: CallbackQuery) -> None:
+    partner_id = int(callback.data.split(":")[1])
+    partner = await db.get_partners(partner_id=partner_id)
+    owner = await db.get_users(user_id=partner["owner_user_id"], multiple=False)
+
+    partner_status = partner['partner_enabled']
+    partner_status_text = "Да" if not partner_status else "Нет"
+
+    partner_url = ''
+    if partner["partner_url"]:
+        partner_url = f"Ознакомиться с ассортиментом\n{partner["partner_url"]}\n"
+    partner_url += f"""<blockquote>{partner["partner_legacy_text"]}</blockquote>"""
+
+    partner_info = text_message.PARTNER_INFO_TEXT.format(
+        partner_name=partner['partner_name'], partner_id=partner['partner_id'], full_name=owner['full_name'],
+        user_id=owner['user_id'], category_name=partner["category"]['category_name'], partner_url=partner_url,
+        partner_status=partner_status_text
+    )
+
+    await callback.message.edit_text(
+        text=partner_info, disable_web_page_preview=True,
+        reply_markup=inline_markup.get_partner_keyboard(partner_id=partner_id, partner_status=partner_status)
+    )
+
+
 @router.callback_query()
 async def callback_handler(c: CallbackQuery, state: FSMContext):
     message = c.message
     await state.clear()
 
-    if c.data.startswith("user:"):
-        user_id = int(c.data.split(":")[1])
-        user = await db.get_users(user_id=user_id, multiple=False)
-        subscriptions = await db.get_subscriptions(user_id=user_id) or []
-        total_spent = sum(sub["price"] for sub in subscriptions)
-        subscription_count = len(subscriptions)
-        subscription_status = "Активна" if subscriptions and subscriptions[-1][
-            "end_date"] > time.time() else "Не активна"
-        user_status = user["level"]
-
-        user_info = f"""
-👤 <b>{user['full_name']} (ID: {user['user_id']})</b>
-<b>Статус:</b> <code>{"Пользователь" if user_status == 0 else "Партнер" if user_status == 1 else "Администратор" if user_status == 2 else "Заблокирован" if user_status == -1 else "Неизвестно"}</code>
-<b>Подписка:</b> <code>{subscription_status}</code>
-<b>Кол-во покупок подписки:</b> <code>{subscription_count}</code>
-<b>На сумму:</b> <code>{total_spent}₽</code>
-        """
-
-        user_actions = [
-            [types.InlineKeyboardButton(text="🚫 Заблокировать", callback_data=f"user_action:block:{user_id}") if user[
-                                                                                                                     "level"] >= 0 else types.InlineKeyboardButton(
-                text="⭕ Разблокировать", callback_data=f"user_action:unblock:{user_id}")],
-            [types.InlineKeyboardButton(text="🔋 Выдать подписку",
-                                        callback_data=f"user_action:give_subscription:{user_id}") if subscription_status == "Не активна" else types.InlineKeyboardButton(
-                text="🪫 Забрать подписку", callback_data=f"user_action:remove_subscription:{user_id}")],
-            [types.InlineKeyboardButton(text="👤 Сделать пользователем",
-                                        callback_data=f"user_action:make_user:{user_id}")],
-            [types.InlineKeyboardButton(text="🛍 Сделать партнёром",
-                                        callback_data=f"user_action:make_partner:{user_id}")],
-            [types.InlineKeyboardButton(text="🛡 Сделать админом", callback_data=f"user_action:make_admin:{user_id}")],
-            [types.InlineKeyboardButton(text="🔙 Назад", callback_data="admin:users")]
-        ]
-        user_markup = types.InlineKeyboardMarkup(inline_keyboard=user_actions)
-
-        await message.edit_text(user_info, parse_mode="html", reply_markup=user_markup)
-
-    elif c.data.startswith("partner:"):
-        partner_id = int(c.data.split(":")[1])
-        partner = await db.get_partners(partner_id=partner_id)
-        owner = await db.get_users(user_id=partner["owner_user_id"], multiple=False)
-
-        partner_info = f"""
-📈 <b>{partner['partner_name']} (ID: {partner['partner_id']})</b>
-<b>ТГ партнёра:</b> {owner['full_name']} (ID: {owner['user_id']})
-<b>Категория:</b> <code>{partner["category"]['category_name']} {partner["category"]['category_name']}</code>
-<b>Скрыт:</b> <code>{"Да" if not partner['partner_enabled'] else "Нет"}</code>
-
-{"Ознакомиться с ассортиментом\n" + partner["partner_url"] + "\n" if partner["partner_url"] else ""}<blockquote>{partner["partner_legacy_text"]}</blockquote>
-        """
-
-        partner_actions = [
-            [types.InlineKeyboardButton(text="🗑 Удалить", callback_data=f"partner_action:delete:{partner_id}")],
-            [types.InlineKeyboardButton(text="🆔 Указать ID партнёра",
-                                        callback_data=f"partner_action:set_owner:{partner_id}")],
-            [types.InlineKeyboardButton(text="👁 Скрыть", callback_data=f"partner_action:hide:{partner_id}") if partner[
-                'partner_enabled'] else types.InlineKeyboardButton(text="👁 Показать",
-                                                                   callback_data=f"partner_action:show:{partner_id}")],
-            [types.InlineKeyboardButton(text="✏ Изменить текст",
-                                        callback_data=f"partner_action:edit_text:{partner_id}")],
-            [types.InlineKeyboardButton(text="✏ Изменить название",
-                                        callback_data=f"partner_action:edit_name:{partner_id}")],
-            [types.InlineKeyboardButton(text="✏ Изменить категорию",
-                                        callback_data=f"partner_action:edit_category:{partner_id}")],
-            [types.InlineKeyboardButton(text="✏ Изменить URL партнёра",
-                                        callback_data=f"partner_action:edit_url:{partner_id}")],
-            [types.InlineKeyboardButton(text="🔙 Назад", callback_data="admin:partners")]
-        ]
-        partner_markup = types.InlineKeyboardMarkup(inline_keyboard=partner_actions)
-
-        await message.edit_text(partner_info, parse_mode="html", reply_markup=partner_markup,
-                                disable_web_page_preview=True)
-
-    elif c.data.startswith("user_action:"):
+    if c.data.startswith("user_action:"):
         action, user_id = c.data.split(":")[1:]
         user_id = int(user_id)
 
@@ -225,10 +199,6 @@ async def callback_handler(c: CallbackQuery, state: FSMContext):
             await c.answer("✅ Пользователь разблокирован.")
         elif action == "give_subscription":
             await db.add_subscription(user_id, price=0, length=30)
-            await c.answer("✅ Подписка выдана.")
-        elif action == "remove_subscription":
-            await db.remove_subscription(user_id)
-            await c.answer("✅ Подписка удалена.")
         elif action == "make_user":
             await db.update_user(user_id, level=0)
             await c.answer("✅ Пользователь стал клиентом.")
@@ -305,6 +275,7 @@ async def callback_handler(c: CallbackQuery, state: FSMContext):
             c_u = c.model_copy(update={"data": f"partner:{partner_id}"})
             await callback_handler(c_u, state)
 
+
 @router.message(PartnerForm.awaiting_partner_owner)
 async def set_partner_owner(message: types.Message, state: FSMContext):
     data = await state.get_data()
@@ -317,6 +288,7 @@ async def set_partner_owner(message: types.Message, state: FSMContext):
     await data["message_to_delete"].delete()
     await message.answer("✅ <b>ID партнёра указан.</b>", parse_mode="HTML", reply_markup=control_partner_markup)
     await state.clear()
+
 
 @router.message(PartnerForm.awaiting_partner_text)
 async def edit_partner_text(message: types.Message, state: FSMContext):
@@ -331,6 +303,7 @@ async def edit_partner_text(message: types.Message, state: FSMContext):
     await message.answer("✅ <b>Текст изменён.</b>", parse_mode="HTML", reply_markup=control_partner_markup)
     await state.clear()
 
+
 @router.message(PartnerForm.awaiting_partner_name)
 async def edit_partner_name(message: types.Message, state: FSMContext):
     data = await state.get_data()
@@ -343,6 +316,7 @@ async def edit_partner_name(message: types.Message, state: FSMContext):
     await data["message_to_delete"].delete()
     await message.answer("✅ <b>Название изменено.</b>", parse_mode="HTML", reply_markup=control_partner_markup)
     await state.clear()
+
 
 @router.message(PartnerForm.awaiting_partner_category)
 async def edit_partner_category(message: types.Message, state: FSMContext):
@@ -357,6 +331,7 @@ async def edit_partner_category(message: types.Message, state: FSMContext):
     await message.answer("✅ <b>Категория изменена.</b>", parse_mode="HTML", reply_markup=control_partner_markup)
     await state.clear()
 
+
 @router.message(PartnerForm.awaiting_partner_url)
 async def edit_partner_url(message: types.Message, state: FSMContext):
     data = await state.get_data()
@@ -370,6 +345,7 @@ async def edit_partner_url(message: types.Message, state: FSMContext):
     await message.answer("✅ <b>URL изменён.</b>", parse_mode="HTML", reply_markup=control_partner_markup)
     await state.clear()
 
+
 @router.message(PartnerForm.awaiting_partner_name_new)
 async def add_partner_handler(message: types.Message, state: FSMContext):
     partner_name = message.text
@@ -379,6 +355,7 @@ async def add_partner_handler(message: types.Message, state: FSMContext):
          await db.get_categories()])
     await message.answer(categories_text + "\n\n<b>Введите категорию партнёра:</b>", parse_mode="HTML")
     await state.set_state(PartnerForm.awaiting_partner_category_new)
+
 
 @router.message(PartnerForm.awaiting_partner_category_new)
 async def add_partner_category_handler(message: types.Message, state: FSMContext):

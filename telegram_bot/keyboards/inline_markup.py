@@ -111,3 +111,36 @@ def get_page_buttons(page: int, total_pages: int, callback_data_start: str):
     if page < total_pages:
         buttons.append(InlineKeyboardButton(text="Вперёд ➡️", callback_data=f"{callback_data_start}:{page + 1}"))
     return buttons
+
+
+def get_user_keyboard(user_id: int, user_level: int) -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🚫 Заблокировать", callback_data=f"user_action:block:{user_id}") if user_level >= 0 else InlineKeyboardButton(
+            text="⭕ Разблокировать", callback_data=f"user_action:unblock:{user_id}")],
+        [InlineKeyboardButton(text="👤 Сделать пользователем",
+                                    callback_data=f"user_action:make_user:{user_id}")],
+        [InlineKeyboardButton(text="🛍 Сделать партнёром",
+                                    callback_data=f"user_action:make_partner:{user_id}")],
+        [InlineKeyboardButton(text="🛡 Сделать админом", callback_data=f"user_action:make_admin:{user_id}")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="admin:users")]
+    ])
+    return markup
+
+def get_partner_keyboard(partner_id: int, partner_status: int) -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🗑 Удалить", callback_data=f"partner_action:delete:{partner_id}")],
+        [InlineKeyboardButton(text="🆔 Указать ID партнёра",
+                                    callback_data=f"partner_action:set_owner:{partner_id}")],
+        [InlineKeyboardButton(text="👁 Скрыть", callback_data=f"partner_action:hide:{partner_id}") if partner_status else InlineKeyboardButton(text="👁 Показать",
+                                                               callback_data=f"partner_action:show:{partner_id}")],
+        [InlineKeyboardButton(text="✏ Изменить текст",
+                                    callback_data=f"partner_action:edit_text:{partner_id}")],
+        [InlineKeyboardButton(text="✏ Изменить название",
+                                    callback_data=f"partner_action:edit_name:{partner_id}")],
+        [InlineKeyboardButton(text="✏ Изменить категорию",
+                                    callback_data=f"partner_action:edit_category:{partner_id}")],
+        [InlineKeyboardButton(text="✏ Изменить URL партнёра",
+                                    callback_data=f"partner_action:edit_url:{partner_id}")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="admin:partners")]
+    ])
+    return markup
