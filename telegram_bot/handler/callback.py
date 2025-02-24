@@ -11,6 +11,7 @@ from telegram_bot import db, text_message
 from telegram_bot.env import PartnerForm, bot
 from telegram_bot.keyboards import inline_markup, reply_markup
 from telegram_bot.handler import message
+from telegram_bot.states import treatment_calendar
 
 router = Router()
 
@@ -21,11 +22,13 @@ CALLBACK = {
     'send_form': 'form',
     'send_admin_panel': 'admin_panel',
     'send_categories': 'categories',
+    'send_consultation': 'consultation',
+    'send_treatments_calendar': 'treatments_calendar'
 }
 
 
 # Call a function from callback data
-async def call_function_from_callback(callback: CallbackQuery) -> None:
+async def call_function_from_callback(callback: CallbackQuery, **kwargs) -> None:
     """
     Call function from callback.
     Find name of function in const dict and call with all arguments.
@@ -34,7 +37,7 @@ async def call_function_from_callback(callback: CallbackQuery) -> None:
     for key in list(CALLBACK.keys()):
         if CALLBACK[key] == callback.data:
             func = getattr(message, key)
-            await func(callback.message)
+            await func(callback.message, **kwargs)
 
 
 # CALLBACKS
@@ -52,7 +55,7 @@ async def handle_callback(callback: CallbackQuery, **kwargs) -> None:
 
     except TelegramBadRequest:
         pass
-    await call_function_from_callback(callback)
+    await call_function_from_callback(callback, **kwargs)
 
 
 @router.callback_query(lambda call: 'category' in call.data)
@@ -60,7 +63,7 @@ async def category_handler(callback: CallbackQuery):
     await callback.message.delete()
     category_id = callback.data.split(":")[1]
     category = await db.get_categories(category_id=int(category_id))
-    partners = await db.get_partners(category_id=int(category_id))
+    partners = await db.get_partners(partner_category=int(category_id), is_multiple=True)
 
     answer_text = text_message.CATEGORY_NAME.format(category=category["category_name"])
 
@@ -87,7 +90,7 @@ async def redeem_promo_code_handler(callback: CallbackQuery):
 
     elif 'redeem_promo_code' in callback.data:
         _, partner_id, promo_code = callback.data.split(":")
-        partner = await db.get_partners(int(partner_id))
+        partner = await db.get_partners(partner_id=int(partner_id))
         user = await db.get_users(user_id=callback.message.chat.id)
         promo_user = await db.get_users(promocode=promo_code)
 
@@ -104,11 +107,12 @@ async def redeem_promo_code_handler(callback: CallbackQuery):
 async def handle_admin_stats(callback: CallbackQuery) -> None:
     await callback.message.delete()
     partners = await db.get_partners()
-    orders_day = await db.get_subscriptions(start_ts=time.time() - 86400) or []
-    orders_month = await db.get_subscriptions(start_ts=time.time() - 86400 * 31) or []
-    orders_year = await db.get_subscriptions(start_ts=time.time() - 86400 * 365) or []
+    # orders_day = await db.get_subscriptions(start_ts=time.time() - 86400) or []
+    # orders_month = await db.get_subscriptions(start_ts=time.time() - 86400 * 31) or []
+    # orders_year = await db.get_subscriptions(start_ts=time.time() - 86400 * 365) or []
+    orders_day, orders_month, orders_year = [], [], []
 
-    users = await db.get_users()
+    users = await db.get_users(is_multiple=True)
 
     await callback.message.answer(
         text=text_message.STATS_TEXT.format(
@@ -147,7 +151,7 @@ async def handle_add_partner(callback: CallbackQuery, state: FSMContext) -> None
 @router.callback_query(F.data.startswith('user:'))
 async def handle_user_info(callback: CallbackQuery) -> None:
     user_id = int(callback.data.split(":")[1])
-    user = await db.get_users(user_id=user_id, multiple=False)
+    user = await db.get_users(user_id=user_id)
     user_status = user["level"]
     user_status_text = "Пользователь" if user_status == 0 else "Партнер" if user_status == 1 else "Администратор" if user_status == 2 else "Заблокирован" if user_status == -1 else "Неизвестно"
     user_info = text_message.USER_INFO_TEXT.format(full_name=user['full_name'], user_id=user['user_id'],
@@ -160,8 +164,8 @@ async def handle_user_info(callback: CallbackQuery) -> None:
 async def handle_partner_info(callback: CallbackQuery) -> None:
     partner_id = int(callback.data.split(":")[1])
     partner = await db.get_partners(partner_id=partner_id)
-    owner = await db.get_users(user_id=partner["owner_user_id"], multiple=False)
-
+    owner = await db.get_users(user_id=partner["owner_user_id"])
+    category = await db.get_categories(category_id=partner["partner_category"])
     partner_status = partner['partner_enabled']
     partner_status_text = "Да" if not partner_status else "Нет"
 
@@ -172,7 +176,7 @@ async def handle_partner_info(callback: CallbackQuery) -> None:
 
     partner_info = text_message.PARTNER_INFO_TEXT.format(
         partner_name=partner['partner_name'], partner_id=partner['partner_id'], full_name=owner['full_name'],
-        user_id=owner['user_id'], category_name=partner["category"]['category_name'], partner_url=partner_url,
+        user_id=owner['user_id'], category_name=category['category_name'], partner_url=partner_url,
         partner_status=partner_status_text
     )
 
@@ -181,6 +185,24 @@ async def handle_partner_info(callback: CallbackQuery) -> None:
         reply_markup=inline_markup.get_partner_keyboard(partner_id=partner_id, partner_status=partner_status)
     )
 
+@router.callback_query(F.data.startswith('task:page'))
+async def handle_page_tasks(callback: CallbackQuery) -> None:
+    await callback.message.delete()
+    page = int(callback.data.split(":")[2])
+    await message.send_tasks(callback.message, page)
+
+@router.callback_query(F.data.startswith('task:create'))
+async def handle_create_page_tasks(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.message.delete()
+    await treatment_calendar.register_treatment_calendar(callback.message, state)
+
+
+@router.callback_query(F.data.startswith('task:delete'))
+async def handle_create_page_tasks(callback: CallbackQuery) -> None:
+    await callback.message.delete()
+    page = int(callback.data.split(":")[2])
+    tasks = await db.get_reminders(user_id=callback.message.chat.id, value=int(True), is_multiple=True)
+    await db.delete_reminder(tasks[page]['id'])
 
 @router.callback_query()
 async def callback_handler(c: CallbackQuery, state: FSMContext):
@@ -197,8 +219,6 @@ async def callback_handler(c: CallbackQuery, state: FSMContext):
         elif action == "unblock":
             await db.update_user(user_id, level=0)
             await c.answer("✅ Пользователь разблокирован.")
-        elif action == "give_subscription":
-            await db.add_subscription(user_id, price=0, length=30)
         elif action == "make_user":
             await db.update_user(user_id, level=0)
             await c.answer("✅ Пользователь стал клиентом.")
@@ -249,7 +269,7 @@ async def callback_handler(c: CallbackQuery, state: FSMContext):
         elif action == "edit_category":
             categories_text = "\n".join(
                 [f"<code>{category['category_id']}</code>: <b>{category['category_name']}</b>" for category in
-                 await db.get_categories()])
+                 await db.get_categories(is_multiple=True)])
             await message.edit_text(categories_text + "\n\n<b>Введите новую категорию партнёра:</b>", parse_mode="HTML",
                                     reply_markup=control_partner_markup)
             await state.update_data(message_to_delete=message)
@@ -352,7 +372,7 @@ async def add_partner_handler(message: types.Message, state: FSMContext):
     await state.update_data(partner_name=partner_name)
     categories_text = "\n".join(
         [f"<code>{category['category_id']}</code>: <b>{category['category_name']}</b>" for category in
-         await db.get_categories()])
+         await db.get_categories(is_multiple=True)])
     await message.answer(categories_text + "\n\n<b>Введите категорию партнёра:</b>", parse_mode="HTML")
     await state.set_state(PartnerForm.awaiting_partner_category_new)
 
@@ -361,7 +381,7 @@ async def add_partner_handler(message: types.Message, state: FSMContext):
 async def add_partner_category_handler(message: types.Message, state: FSMContext):
     data = await state.get_data()
     partner_name = data["partner_name"]
-    partner_category = message.text
+    partner_category = int(message.text)
 
     await db.add_partner(user_id=message.from_user.id, partner_name=partner_name, partner_category=partner_category)
 
