@@ -49,7 +49,7 @@ class CustomCalendar(Calendar):
                 header_text='🗓 ' + Month() + Format(' {date:%Y}'),
                 next_month_text=Month() + " ▶",
                 prev_month_text="◀ " + Month(),
-                today_text=Format("> {date:%d} <")
+                today_text=Format(">{date:%d}<")
             ),
             CalendarScope.MONTHS: CalendarMonthView(
                 self._item_callback_data, self.config,

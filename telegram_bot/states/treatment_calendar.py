@@ -1,5 +1,5 @@
 import pathlib
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from select import select
 
 from aiogram import Router, F, Bot
@@ -87,10 +87,18 @@ async def process_period_choose(callback: CallbackQuery, state: FSMContext) -> N
 @router.message(TreatmentCalendarForm.period)
 async def process_period(message: Message, state: FSMContext, dialog_manager: DialogManager) -> None:
     try:
-        await state.update_data(period=message.text)
-        await dialog_manager.start(state=calendar.ReminderCalendar.calendar, mode=StartMode.RESET_STACK)
+        if message.text.isdigit():
+            await state.update_data(period=message.text)
+            await dialog_manager.start(state=calendar.ReminderCalendar.calendar, mode=StartMode.RESET_STACK)
+        else:
+            raise TypeError
 
     except ValueError:
+        await message.answer(text=text_message.ERROR_TEXT)
+        await state.clear()
+
+    except TypeError:
+        await message.answer(text=text_message.NON_FORMAT_TEXT)
         await state.clear()
 
 
@@ -109,6 +117,7 @@ async def process_period(callback: CallbackQuery, state: FSMContext, dialog_mana
 
 async def process_start_date(callback: CallbackQuery, selected_date: date, state: FSMContext) -> None:
     data = await state.get_data()
+    end_date = selected_date + timedelta(days=int(data['period']))
     start_date = selected_date.strftime("%d.%m.%Y")
 
     await state.update_data(start_date=start_date)
@@ -120,6 +129,7 @@ async def process_start_date(callback: CallbackQuery, selected_date: date, state
         medicament=medicament['name'],
         period=period,
         start_date=start_date,
+        end_date=end_date.strftime("%d.%m.%Y")
     ), reply_markup=inline_markup.get_reminder_keyboard())
 
 @router.callback_query(F.data.startswith('reminder:create'))
@@ -136,8 +146,13 @@ async def process_reminder(callback: CallbackQuery, state: FSMContext) -> None:
             start_date=start_date,
             period=period
         )
+
+    except KeyError:
+        await callback.message.answer(text=text_message.ERROR_TEXT)
     except Exception as e:
         print(f'Error text: {e}')
+    finally:
+        await state.clear()
 
 
     await callback.message.answer(text=text_message.ADD_REMINDER_SUCCESSFUL_TEXT,

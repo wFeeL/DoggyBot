@@ -57,6 +57,14 @@ async def handle_callback(callback: CallbackQuery, **kwargs) -> None:
         pass
     await call_function_from_callback(callback, **kwargs)
 
+# Delete message
+@router.callback_query(F.data == 'delete_message')
+async def delete_message(callback: CallbackQuery) -> None:
+    try:
+        await callback.message.delete()
+
+    except TelegramBadRequest as error:
+        print(error.message)
 
 @router.callback_query(lambda call: 'category' in call.data)
 async def category_handler(callback: CallbackQuery):
@@ -202,7 +210,9 @@ async def handle_create_page_tasks(callback: CallbackQuery) -> None:
     await callback.message.delete()
     page = int(callback.data.split(":")[2])
     tasks = await db.get_reminders(user_id=callback.message.chat.id, value=int(True), is_multiple=True)
-    await db.delete_reminder(tasks[page]['id'])
+    await db.delete_reminder(tasks[page - 1]['id'])
+    await callback.message.answer(text=text_message.DELETE_TASK_COMPLETE,
+                                  reply_markup=inline_markup.get_back_menu_keyboard())
 
 @router.callback_query()
 async def callback_handler(c: CallbackQuery, state: FSMContext):

@@ -197,4 +197,4 @@ def str_to_timestamp(date_string: str) -> float:
 
 
 def timestamp_to_str(timestamp: float) -> str:
-    return datetime.fromtimestamp(timestamp, env.local_timezone).strftime("%d-%m-%Y %H:%M:%S")
+    return datetime.fromtimestamp(timestamp, env.local_timezone).strftime("%d-%m-%Y")

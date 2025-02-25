@@ -10,6 +10,7 @@ from uuid import uuid4
 import aiosqlite
 
 from telegram_bot.handler import message
+from telegram_bot.keyboards import inline_markup
 from telegram_bot.env import bot, local_timezone
 from telegram_bot import text_message
 
@@ -370,7 +371,7 @@ async def add_reminder(
         connection.row_factory = aiosqlite.Row
         cursor = await connection.cursor()
         start_date = datetime.strptime(start_date, "%d.%m.%Y")
-        end_date = start_date + timedelta(seconds=int(period))
+        end_date = start_date + timedelta(days=int(period))
         await cursor.execute(
             f"INSERT INTO reminders (user_id, treatment_id, medicament_id, start_date, end_date, period, value) VALUES ({user_id}, {treatment_id}, {medicament_id}, {start_date.timestamp()}, {end_date.timestamp()}, {period}, {value})"
         )
@@ -386,7 +387,8 @@ async def check_reminders():
         now_timestamp = datetime.now().timestamp()
         for task in tasks:
             if now_timestamp > float(task['end_date']):
-                end_date = datetime.fromtimestamp(now_timestamp, local_timezone) + timedelta(seconds=int(task['period']))
+                end_date = datetime.fromtimestamp(now_timestamp, local_timezone) + timedelta(days=int(task['period']))
                 await cursor.execute(f"UPDATE reminders SET end_date = {end_date.timestamp()}")
-                await bot.send_message(chat_id=task['user_id'], text=await message.get_task_text(task))
+                await bot.send_message(chat_id=task['user_id'], text=await message.get_task_text(task),
+                                       reply_markup=inline_markup.get_delete_message_keyboard())
         await connection.commit()
