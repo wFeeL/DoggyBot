@@ -1,16 +1,14 @@
 import pathlib
-import time
-from datetime import datetime
 
 from aiogram import types, Router, F
-from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, InputMediaPhoto, FSInputFile
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery, FSInputFile
 
 from telegram_bot import db, text_message
-from telegram_bot.env import PartnerForm, bot
-from telegram_bot.keyboards import inline_markup, reply_markup
+from telegram_bot.env import PartnerForm, bot, img_path
 from telegram_bot.handler import message
+from telegram_bot.keyboards import inline_markup
 from telegram_bot.states import treatment_calendar
 
 router = Router()
@@ -23,7 +21,8 @@ CALLBACK = {
     'send_admin_panel': 'admin_panel',
     'send_categories': 'categories',
     'send_consultation': 'consultation',
-    'send_treatments_calendar': 'treatments_calendar'
+    'send_treatments_calendar': 'treatments_calendar',
+    'send_selection': 'selection'
 }
 
 
@@ -66,6 +65,7 @@ async def delete_message(callback: CallbackQuery) -> None:
     except TelegramBadRequest as error:
         print(error.message)
 
+
 @router.callback_query(lambda call: 'category' in call.data)
 async def category_handler(callback: CallbackQuery):
     await callback.message.delete()
@@ -83,10 +83,10 @@ async def category_handler(callback: CallbackQuery):
         )
 
         answer_text += text
-
-    if pathlib.Path(f"img/{category_id}.png").is_file():
+    path = f'{img_path}/{category_id}.png'
+    if pathlib.Path(path).is_file():
         await bot.send_photo(
-            chat_id=callback.message.chat.id, photo=FSInputFile(path=f"img/{category_id}.png"), caption=answer_text,
+            chat_id=callback.message.chat.id, photo=FSInputFile(path=path), caption=answer_text,
             reply_markup=inline_markup.get_back_categories_keyboard()
         )
 

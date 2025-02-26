@@ -1,8 +1,7 @@
 from datetime import date
 from typing import Dict
-import pprint
+
 from aiogram.filters.state import State, StatesGroup
-from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 from aiogram_dialog import Dialog, Window
 from aiogram_dialog import DialogManager

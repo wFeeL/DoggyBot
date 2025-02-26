@@ -1,5 +1,6 @@
 from aiogram.types import Message
-from telegram_bot import db, env, text_message
+
+from telegram_bot import db, text_message
 
 
 def check_block_user(func):

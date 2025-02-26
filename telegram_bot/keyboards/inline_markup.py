@@ -12,6 +12,7 @@ def get_menu_button(text="🔙 Главное меню") -> list[InlineKeyboardB
 def get_profile_button(text="👤 Профиль") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="profile")]
 
+
 def get_delete_message_button(text='👀 Скрыть') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data='delete_message')]
 
@@ -36,14 +37,21 @@ def get_consultation_button(text="👨‍⚕️Консультация") -> lis
     return [InlineKeyboardButton(text=text, callback_data="consultation")]
 
 
+def get_selection_button(text="🐶 Подборка для щенков ") -> list[InlineKeyboardButton]:
+    return [InlineKeyboardButton(text=text, callback_data="selection")]
+
+
 def get_treatments_calendar_button(text="🗓️ Календарь обработок") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="treatments_calendar")]
+
 
 def get_create_task_button(text='➕ Создать напоминание') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data='task:create')]
 
+
 def get_delete_task_button(page: int, text='🗑️ Удалить напоминание') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data=f'task:delete:{page}')]
+
 
 def get_add_reminder_button(text='➕ Добавить напоминание') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data='reminder:create')]
@@ -61,6 +69,7 @@ def get_back_categories_keyboard() -> InlineKeyboardMarkup:
 def get_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.add(*get_profile_button(), *get_categories_button(), *get_treatments_calendar_button(),
+                *get_selection_button(),
                 *get_consultation_button(), *get_about_button())
     builder.adjust(2, 1)
     return builder.as_markup()
@@ -95,6 +104,7 @@ async def get_medicament_keyboard(treatments_id: int) -> InlineKeyboardMarkup:
     medicament = await db.get_medicament(treatments_id=treatments_id, value=int(True), is_multiple=True)
     for elem in medicament:
         builder.add(InlineKeyboardButton(text=elem['name'], callback_data=f'medicament:{elem['id']}'))
+    builder.add(InlineKeyboardButton(text='✏️ Ввести свой вариант', callback_data='medicament:choose'))
     builder.add(*get_treatments_calendar_button(text='⬅️ Назад'))
     builder.adjust(1, 1)
     return builder.as_markup()
@@ -139,6 +149,7 @@ def get_reminder_keyboard() -> InlineKeyboardMarkup:
         get_add_reminder_button(), get_menu_button()
     ])
     return markup
+
 
 def get_reminder_add_complete_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -228,6 +239,7 @@ def get_user_keyboard(user_id: int, user_level: int) -> InlineKeyboardMarkup:
 def get_delete_message_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(inline_keyboard=[get_delete_message_button()])
     return markup
+
 
 def get_partner_keyboard(partner_id: int, partner_status: int) -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(inline_keyboard=[

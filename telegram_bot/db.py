@@ -1,18 +1,16 @@
-import asyncio
-from datetime import datetime, timedelta
-import re
-import string
 import json
 import random
+import re
+import string
 import time
-from uuid import uuid4
+from datetime import datetime, timedelta
 
 import aiosqlite
 
+from telegram_bot import text_message
+from telegram_bot.env import bot, local_timezone, database_path
 from telegram_bot.handler import message
 from telegram_bot.keyboards import inline_markup
-from telegram_bot.env import bot, local_timezone
-from telegram_bot import text_message
 
 
 def generate_promocode():
@@ -42,7 +40,7 @@ def create_condition(args: dict, exception=None) -> str | None:
 
 # Return database data from sql request
 async def create_request(sql_query: str, is_return: bool = True, is_multiple: bool = True) -> dict | None:
-    async with aiosqlite.connect("database.db", check_same_thread=False) as connection:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as connection:
         try:
             connection.row_factory = aiosqlite.Row
             cursor = await connection.cursor()
@@ -119,7 +117,7 @@ async def get_redeemed_promo(
 
 
 async def check_old_redeemed_promo():
-    async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row
         cursor = await conn.cursor()
         olds = await get_redeemed_promo(is_multiple=True)
@@ -138,7 +136,7 @@ async def check_old_redeemed_promo():
 
 
 async def redeem_promo(user_id: int, promocode: str, partner_id: int | str):
-    async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row
         cursor = await conn.cursor()
 
@@ -149,7 +147,7 @@ async def redeem_promo(user_id: int, promocode: str, partner_id: int | str):
 
 
 async def add_user(user_id: int, username: str, name: str, last_name: str | None):
-    async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row
 
         cursor = await conn.cursor()
@@ -166,7 +164,7 @@ async def add_user(user_id: int, username: str, name: str, last_name: str | None
 
 
 async def add_partner(user_id: int, partner_name: int, partner_category: int):
-    async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row
 
         cursor = await conn.cursor()
@@ -179,7 +177,7 @@ async def add_partner(user_id: int, partner_name: int, partner_category: int):
 
 
 async def add_category(name: str):
-    async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row
 
         cursor = await conn.cursor()
@@ -223,7 +221,7 @@ async def get_reminders(
 
 async def add_pet(user_id: int, approx_weight: int | float, name: str, birth_date: int | float, gender: str,
                   pet_type: str, pet_breed: str):
-    async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row
 
         cursor = await conn.cursor()
@@ -237,7 +235,7 @@ async def add_pet(user_id: int, approx_weight: int | float, name: str, birth_dat
 
 
 async def delete_pets(user_id: int, **kwargs):
-    async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row
 
         cursor = await conn.cursor()
@@ -247,7 +245,7 @@ async def delete_pets(user_id: int, **kwargs):
 
 
 async def update_user_profile(user_id: int, **kwargs):
-    async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row
 
         cursor = await conn.cursor()
@@ -260,7 +258,7 @@ async def update_user_profile(user_id: int, **kwargs):
 
 
 async def update_user(user_id: int, **kwargs):
-    async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row
         cursor = await conn.cursor()
 
@@ -272,7 +270,7 @@ async def update_user(user_id: int, **kwargs):
 
 
 async def update_partner(partner_id: int, **kwargs):
-    async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
         conn.row_factory = aiosqlite.Row
 
         cursor = await conn.cursor()
@@ -346,14 +344,14 @@ async def validate_user_form_data(web_app_data: str, user_id: int):
 
 
 async def delete_partner(partner_id: int):
-    async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
         cursor = await conn.cursor()
         await cursor.execute(f"DELETE FROM partners WHERE partner_id == {partner_id}")
         await conn.commit()
 
 
 async def delete_reminder(id: int):
-    async with aiosqlite.connect("database.db", check_same_thread=False) as conn:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
         cursor = await conn.cursor()
         await cursor.execute(f"DELETE FROM reminders WHERE id == {id}")
         await conn.commit()
@@ -364,22 +362,22 @@ async def is_user_have_form(user_id: int) -> bool:
 
 
 async def add_reminder(
-        user_id: int = None, treatment_id: int = None, medicament_id: int = None,
+        user_id: int = None, treatment_id: int = None, medicament_id: int = None, medicament_name: str = '',
         start_date: str = None, period: str = None, value: int = 1
 ) -> None:
-    async with aiosqlite.connect("database.db", check_same_thread=False) as connection:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as connection:
         connection.row_factory = aiosqlite.Row
         cursor = await connection.cursor()
         start_date = datetime.strptime(start_date, "%d.%m.%Y")
         end_date = start_date + timedelta(days=int(period))
         await cursor.execute(
-            f"INSERT INTO reminders (user_id, treatment_id, medicament_id, start_date, end_date, period, value) VALUES ({user_id}, {treatment_id}, {medicament_id}, {start_date.timestamp()}, {end_date.timestamp()}, {period}, {value})"
+            f"INSERT INTO reminders (user_id, treatment_id, medicament_id, medicament_name, start_date, end_date, period, value) VALUES ({user_id}, {treatment_id}, {medicament_id}, '{medicament_name}', {start_date.timestamp()}, {end_date.timestamp()}, {period}, {value})"
         )
         await connection.commit()
 
 
 async def check_reminders():
-    async with aiosqlite.connect("database.db", check_same_thread=False) as connection:
+    async with aiosqlite.connect(database_path, check_same_thread=False) as connection:
         connection.row_factory = aiosqlite.Row
         cursor = await connection.cursor()
 

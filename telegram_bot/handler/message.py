@@ -150,6 +150,15 @@ async def use_promo_handler(message: Message, **kwargs):
         await message.answer(text_message.FORMAT_ERROR_TEXT)
 
 
+@router.message(Command("selection"))
+@check_block_user
+async def send_selection(message: Message, **kwargs):
+    await message.answer(
+        text=text_message.SELECTION_TEXT,
+        reply_markup=inline_markup.get_back_menu_keyboard()
+    )
+
+
 @router.message(Command(commands=["admin", "ap", "panel"]))
 @check_admin
 async def send_admin_panel(message: Message, **kwargs):
@@ -181,10 +190,15 @@ async def webapp_catch(message: Message, **kwargs):
 async def get_task_text(task: dict) -> str:
     treatment_id, medicament_id, start_date, end_date, period = task['treatment_id'], task['medicament_id'], task[
         'start_date'], task['end_date'], task['period']
-    treatment, medicament = await db.get_treatments(id=treatment_id), await db.get_medicament(id=medicament_id)
+    if int(medicament_id) != 0:
+        medicament = await db.get_medicament(id=medicament_id)
+        medicament_name = medicament["name"]
+    else:
+        medicament_name = task["medicament_name"]
+    treatment = await db.get_treatments(id=treatment_id)
     text = text_message.REMINDER_TEXT.format(
         treatment=treatment['name'],
-        medicament=medicament['name'],
+        medicament=medicament_name,
         start_date=timestamp_to_str(float(start_date)),
         end_date=timestamp_to_str(float(end_date)),
         period=period

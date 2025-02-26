@@ -1,7 +1,6 @@
-from telegram_bot.env import webapp_url
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
-from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
+from telegram_bot.env import webapp_url
 
 
 def get_form_keyboard() -> ReplyKeyboardMarkup:
