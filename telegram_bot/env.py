@@ -4,12 +4,28 @@ import tzlocal
 from aiogram import Bot, Dispatcher
 from aiogram.client.bot import DefaultBotProperties
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.redis import DefaultKeyBuilder, RedisStorage
+from redis.asyncio.client import Redis
+
+
+class PartnerForm(StatesGroup):
+    awaiting_partner_owner = State()
+    awaiting_partner_text = State()
+    awaiting_partner_name = State()
+    awaiting_partner_name_new = State()
+    awaiting_partner_category = State()
+    awaiting_partner_category_new = State()
+    awaiting_partner_url = State()
+
 
 bot_token = "7671505604:AAE-WPWaorO3Bbfhk0Z_2ac62PVJXd__574"
+storage = RedisStorage(
+    Redis(),
+    key_builder=DefaultKeyBuilder(with_destiny=True),
+)
+bot = Bot(bot_token, default=DefaultBotProperties(parse_mode='HTML'), storage=storage)
+dp = Dispatcher()
 
-
-bot = Bot(bot_token, default=DefaultBotProperties(parse_mode='HTML'))
-dp: Dispatcher = Dispatcher()
 
 webapp_url = "https://test-webapp-form-23vf7.netlify.app/"
 oferta_url = "https://telegra.ph/Dogovor-oferty-12-03-2"
@@ -25,12 +41,3 @@ PERIODS_TO_DAYS = {
     '3 месяца': '90',
     '1 год': '365',
 }
-
-class PartnerForm(StatesGroup):
-    awaiting_partner_owner = State()
-    awaiting_partner_text = State()
-    awaiting_partner_name = State()
-    awaiting_partner_name_new = State()
-    awaiting_partner_category = State()
-    awaiting_partner_category_new = State()
-    awaiting_partner_url = State()

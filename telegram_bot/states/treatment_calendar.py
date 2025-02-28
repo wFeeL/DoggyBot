@@ -5,7 +5,7 @@ from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, CallbackQuery, FSInputFile
-from aiogram_dialog import DialogManager, setup_dialogs, StartMode
+from aiogram_dialog import DialogManager, StartMode
 
 from telegram_bot import text_message, db
 from telegram_bot.env import bot, img_path
@@ -23,12 +23,11 @@ class TreatmentCalendarForm(StatesGroup):
 
 
 router = Router()
-router.include_router(calendar.dialog)  # Include calendar router (dialog window from aiogram_dialog)
-setup_dialogs(router)  # Setup router's dialog
 
 
 async def register_treatment_calendar(message: Message, state: FSMContext) -> None:
     markup = await inline_markup.get_treatments_keyboard()
+    await state.clear()
     path = f'{img_path}/treatments/treatments.jpg'
     if pathlib.Path(path).is_file():
         await bot.send_photo(
@@ -129,6 +128,12 @@ async def process_period(message: Message, state: FSMContext, dialog_manager: Di
         await message.answer(text=text_message.NON_FORMAT_TEXT)
         await state.clear()
 
+    except Exception as error:
+        print(f'Error text: {error}')
+        await message.delete()
+        await message.answer(text=text_message.TRY_AGAIN_ERROR,
+                             reply_markup=inline_markup.get_delete_message_keyboard())
+
 
 @router.callback_query(F.data.startswith('period:'))
 async def process_period(callback: CallbackQuery, state: FSMContext, dialog_manager: DialogManager) -> None:
@@ -142,41 +147,56 @@ async def process_period(callback: CallbackQuery, state: FSMContext, dialog_mana
     except ValueError:
         await state.clear()
 
+    except Exception as error:
+        print(f'Error text: {error}')
+        await callback.message.delete()
+        await callback.message.answer(text=text_message.TRY_AGAIN_ERROR,
+                                      reply_markup=inline_markup.get_delete_message_keyboard())
+
 
 async def process_start_date(callback: CallbackQuery, selected_date: date, state: FSMContext) -> None:
-    data = await state.get_data()
-    end_date = selected_date + timedelta(days=int(data['period']))
-    start_date = selected_date.strftime("%d.%m.%Y")
+    try:
+        data = await state.get_data()
+        end_date = selected_date + timedelta(days=int(data['period']))
+        start_date = selected_date.strftime("%d.%m.%Y")
 
-    await state.update_data(start_date=start_date)
-    treatment_id, medicament_id, period = data['treatment_id'], data['medicament_id'], data['period']
-    if int(medicament_id) != 0:
-        medicament = await db.get_medicament(id=medicament_id)
-        medicament_name = medicament['name']
-    else:
-        medicament_name = data['medicament_name']
+        await state.update_data(start_date=start_date)
+        treatment_id, medicament_id, period = data['treatment_id'], data['medicament_id'], data['period']
+        if int(medicament_id) != 0:
+            medicament = await db.get_medicament(id=medicament_id)
+            medicament_name = medicament['name']
+        else:
+            medicament_name = data['medicament_name']
 
-    treatment = await db.get_treatments(id=treatment_id)
-    await callback.message.delete()
-    await callback.message.answer(text=text_message.REMINDER_TEXT.format(
-        treatment=treatment['name'],
-        medicament=medicament_name,
-        period=period,
-        start_date=start_date,
-        end_date=end_date.strftime("%d.%m.%Y")
-    ), reply_markup=inline_markup.get_reminder_keyboard())
+        treatment = await db.get_treatments(id=treatment_id)
+        await callback.message.delete()
+        await callback.message.answer(text=text_message.REMINDER_TEXT.format(
+            treatment=treatment['name'],
+            medicament=medicament_name,
+            period=period,
+            start_date=start_date,
+            end_date=end_date.strftime("%d.%m.%Y")
+        ), reply_markup=inline_markup.get_reminder_keyboard())
+
+    except Exception as error:
+        print(f'Error text: {error}')
+        await callback.message.delete()
+        await callback.message.answer(text=text_message.TRY_AGAIN_ERROR,
+                                      reply_markup=inline_markup.get_delete_message_keyboard())
 
 
 @router.callback_query(F.data.startswith('reminder:create'))
 async def process_reminder(callback: CallbackQuery, state: FSMContext) -> None:
-    await callback.message.delete()
-    data = await state.get_data()
-    treatment_id, medicament_id, start_date, period = data['treatment_id'], data['medicament_id'], data['start_date'], \
-    data['period']
-    medicament_name = None
-    if int(medicament_id) == 0:
-        medicament_name = data['medicament_name']
     try:
+        await callback.message.delete()
+        data = await state.get_data()
+        treatment_id, medicament_id, start_date, period = data['treatment_id'], data['medicament_id'], data[
+            'start_date'], \
+            data['period']
+        medicament_name = None
+        if int(medicament_id) == 0:
+            medicament_name = data['medicament_name']
+
         await db.add_reminder(
             user_id=callback.message.chat.id,
             treatment_id=treatment_id,
@@ -185,13 +205,11 @@ async def process_reminder(callback: CallbackQuery, state: FSMContext) -> None:
             start_date=start_date,
             period=period
         )
-
+        await callback.message.answer(text=text_message.ADD_REMINDER_SUCCESSFUL_TEXT,
+                                      reply_markup=inline_markup.get_reminder_add_complete_keyboard())
     except KeyError:
         await callback.message.answer(text=text_message.ERROR_TEXT)
     except Exception as e:
         print(f'Error text: {e}')
     finally:
         await state.clear()
-
-    await callback.message.answer(text=text_message.ADD_REMINDER_SUCCESSFUL_TEXT,
-                                  reply_markup=inline_markup.get_reminder_add_complete_keyboard())

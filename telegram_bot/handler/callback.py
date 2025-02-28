@@ -56,6 +56,7 @@ async def handle_callback(callback: CallbackQuery, **kwargs) -> None:
         pass
     await call_function_from_callback(callback, **kwargs)
 
+
 # Delete message
 @router.callback_query(F.data == 'delete_message')
 async def delete_message(callback: CallbackQuery) -> None:
@@ -73,7 +74,7 @@ async def category_handler(callback: CallbackQuery):
     category = await db.get_categories(category_id=int(category_id))
     partners = await db.get_partners(partner_category=int(category_id), is_multiple=True)
 
-    answer_text = text_message.CATEGORY_NAME.format(category=category["category_name"])
+    answer_text = f'{text_message.CATEGORY_NAME.format(category=category["category_name"])}{category['category_text']}\n\n'
 
     for partner in partners:
         text = text_message.PARTNER_CATEGORY_TEXT.format(
@@ -165,7 +166,7 @@ async def handle_user_info(callback: CallbackQuery) -> None:
     user_info = text_message.USER_INFO_TEXT.format(full_name=user['full_name'], user_id=user['user_id'],
                                                    user_status=user_status_text)
     await callback.message.edit_text(text=user_info, reply_markup=inline_markup.get_user_keyboard(user_id=user_id,
-                                                                                             user_level=user_status))
+                                                                                                  user_level=user_status))
 
 
 @router.callback_query(F.data.startswith('partner:'))
@@ -193,11 +194,13 @@ async def handle_partner_info(callback: CallbackQuery) -> None:
         reply_markup=inline_markup.get_partner_keyboard(partner_id=partner_id, partner_status=partner_status)
     )
 
+
 @router.callback_query(F.data.startswith('task:page'))
 async def handle_page_tasks(callback: CallbackQuery) -> None:
     await callback.message.delete()
     page = int(callback.data.split(":")[2])
     await message.send_tasks(callback.message, page)
+
 
 @router.callback_query(F.data.startswith('task:create'))
 async def handle_create_page_tasks(callback: CallbackQuery, state: FSMContext) -> None:
@@ -214,7 +217,8 @@ async def handle_create_page_tasks(callback: CallbackQuery) -> None:
     await callback.message.answer(text=text_message.DELETE_TASK_COMPLETE,
                                   reply_markup=inline_markup.get_back_menu_keyboard())
 
-@router.callback_query()
+
+@router.callback_query(F.data.startswith('user_action:') or F.data.startswith('partner_action:'))
 async def callback_handler(c: CallbackQuery, state: FSMContext):
     message = c.message
     await state.clear()

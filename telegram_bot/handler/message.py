@@ -5,6 +5,7 @@ from aiogram import F, types, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
+from aiogram_dialog import DialogManager
 
 from telegram_bot import db, text_message, env
 from telegram_bot.keyboards import inline_markup, reply_markup

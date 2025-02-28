@@ -237,7 +237,7 @@ def get_user_keyboard(user_id: int, user_level: int) -> InlineKeyboardMarkup:
 
 
 def get_delete_message_keyboard() -> InlineKeyboardMarkup:
-    markup = InlineKeyboardMarkup(inline_keyboard=[get_delete_message_button()])
+    markup = InlineKeyboardMarkup(inline_keyboard=[get_delete_message_button(), get_menu_button()])
     return markup
 
 

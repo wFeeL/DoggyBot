@@ -68,7 +68,6 @@ class CustomCalendar(Calendar):
 min_date = date.today()
 # Create calendar config with date ranges
 calendar_config = CalendarConfig(
-    min_date=date(min_date.year, min_date.month, min_date.day),
     years_columns=1, years_per_page=1, month_columns=1
 )
 
