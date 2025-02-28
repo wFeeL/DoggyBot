@@ -386,7 +386,7 @@ async def check_reminders():
         for task in tasks:
             if now_timestamp > float(task['end_date']):
                 end_date = datetime.fromtimestamp(now_timestamp, local_timezone) + timedelta(days=int(task['period']))
-                await cursor.execute(f"UPDATE reminders SET end_date = {end_date.timestamp()}")
+                await cursor.execute(f"UPDATE reminders SET end_date = {end_date.timestamp()} WHERE id = {task['id']}")
                 await bot.send_message(chat_id=task['user_id'], text=await message.get_task_text(task),
                                        reply_markup=inline_markup.get_delete_message_keyboard())
         await connection.commit()
