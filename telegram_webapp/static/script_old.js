@@ -1,7 +1,6 @@
 window.onload = function() {
     Telegram.WebApp.MainButton.text = "Отправить";
     Telegram.WebApp.MainButton.show()
-
     Telegram.WebApp.MainButton.onClick(submitForm);
 }
 

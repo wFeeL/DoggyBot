@@ -1,5 +1,5 @@
 import os
-
+from pathlib import Path
 import tzlocal
 from aiogram import Bot, Dispatcher
 from aiogram.client.bot import DefaultBotProperties
@@ -18,7 +18,7 @@ class PartnerForm(StatesGroup):
     awaiting_partner_url = State()
 
 
-bot_token = "7671505604:AAE-WPWaorO3Bbfhk0Z_2ac62PVJXd__574"
+bot_token = "bot_token" # CHANGE BEFORE GIT
 storage = RedisStorage(
     Redis(),
     key_builder=DefaultKeyBuilder(with_destiny=True),
@@ -28,10 +28,9 @@ dp = Dispatcher()
 
 
 webapp_url = "https://test-webapp-form-23vf7.netlify.app/"
-oferta_url = "https://telegra.ph/Dogovor-oferty-12-03-2"
-support_username = "OnlyGetC"
 super_user = 1305714512
-database_path = f'{os.path.dirname(__file__)}/database.db'
+BASE_DIR = Path(__file__).resolve().parent.parent  # Путь до корня проекта (DoggyBot)
+database_path = str(BASE_DIR / "data" / "database.db")
 img_path = f'{os.path.dirname(__file__)}/img'
 local_timezone = tzlocal.get_localzone()
 PERIODS_TO_DAYS = {

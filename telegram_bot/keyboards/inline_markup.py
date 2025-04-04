@@ -1,5 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
 from telegram_bot import db, env
 from telegram_bot.env import PERIODS_TO_DAYS
 
@@ -17,8 +18,8 @@ def get_delete_message_button(text='👀 Скрыть') -> list[InlineKeyboardBu
     return [InlineKeyboardButton(text=text, callback_data='delete_message')]
 
 
-def get_categories_button(text="🛍 Категории") -> list[InlineKeyboardButton]:
-    return [InlineKeyboardButton(text=text, callback_data="categories")]
+# def get_categories_button(text="🛍 Категории") -> list[InlineKeyboardButton]:
+#     return [InlineKeyboardButton(text=text, callback_data="categories")]
 
 
 def get_about_button(text="❔ О сервисе") -> list[InlineKeyboardButton]:
@@ -37,7 +38,10 @@ def get_consultation_button(text="👨‍⚕️Консультация") -> lis
     return [InlineKeyboardButton(text=text, callback_data="consultation")]
 
 
-def get_selection_button(text="🐶 Подборка для щенков ") -> list[InlineKeyboardButton]:
+def get_free_consultation(text="👨‍⚕️Бесплатные консультации") -> list[InlineKeyboardButton]:
+    return [InlineKeyboardButton(text=text, callback_data="cons:free")]
+
+def get_selection_button(text="🐶 Зоотовары ") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="selection")]
 
 
@@ -62,24 +66,28 @@ def get_back_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[get_menu_button()])
 
 
-def get_back_categories_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[get_categories_button(text='⬅️ Назад')])
+# def get_back_categories_keyboard() -> InlineKeyboardMarkup:
+#     return InlineKeyboardMarkup(inline_keyboard=[get_categories_button(text='⬅️ Назад')])
 
 
 def get_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.add(*get_profile_button(), *get_categories_button(), *get_treatments_calendar_button(),
-                *get_selection_button(),
-                *get_consultation_button(), *get_about_button())
+    builder.add(
+        *get_profile_button(), *get_treatments_calendar_button(), *get_selection_button(), *get_consultation_button(),
+        *get_about_button()
+    )
     builder.adjust(2, 1)
     return builder.as_markup()
 
 
-def get_profile_keyboard() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.add(*get_fill_profile_button(), *get_menu_button())
-    builder.adjust(1, 1)
-    return builder.as_markup()
+def get_profile_keyboard(is_profile_fill: bool = False) -> InlineKeyboardMarkup:
+    if is_profile_fill:
+        return InlineKeyboardMarkup(inline_keyboard=[get_menu_button(), get_fill_profile_button('✏️ Редактировать')])
+    else:
+        builder = InlineKeyboardBuilder()
+        builder.add(*get_fill_profile_button(), *get_menu_button())
+        builder.adjust(1, 1)
+        return builder.as_markup()
 
 
 def get_none_task_keyboard() -> InlineKeyboardMarkup:
@@ -261,3 +269,37 @@ def get_partner_keyboard(partner_id: int, partner_status: int) -> InlineKeyboard
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:partners")]
     ])
     return markup
+
+def get_consultation_keyboard() -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text='⭐ VIP подписка', callback_data='cons:vip')],
+            get_free_consultation(), get_menu_button()
+        ]
+    )
+    return markup
+
+
+def get_free_consultation_keyboard() -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text='📝 Памятка от зооюриста', callback_data='cons:free:zoo')],
+            [InlineKeyboardButton(text='🔴 Памятка аптечка первой помощи', callback_data='cons:free:help')],
+            [InlineKeyboardButton(text='⭐ Особенности моей породы', callback_data='cons:free:features')],
+            [InlineKeyboardButton(text='👨‍⚕️ Консультация ветеринара', callback_data='cons:free:vet')],
+            get_consultation_button('⬅️ Назад')
+        ]
+    )
+    return markup
+
+
+def get_back_consultation_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        get_consultation_button('⬅️ Назад')
+    ])
+
+def get_back_free_consultation_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        get_free_consultation('⬅️ Назад')
+    ])
+

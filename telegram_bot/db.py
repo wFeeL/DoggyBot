@@ -225,9 +225,6 @@ async def add_pet(user_id: int, approx_weight: int | float, name: str, birth_dat
         conn.row_factory = aiosqlite.Row
 
         cursor = await conn.cursor()
-
-        gender = 1 if gender == "male" else 0
-
         await cursor.execute(
             "INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (user_id, approx_weight, name, birth_date, gender, pet_type, pet_breed,))

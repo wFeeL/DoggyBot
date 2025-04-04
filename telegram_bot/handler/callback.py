@@ -1,3 +1,4 @@
+# import pathlib
 import pathlib
 
 from aiogram import types, Router, F
@@ -67,29 +68,29 @@ async def delete_message(callback: CallbackQuery) -> None:
         print(error.message)
 
 
-@router.callback_query(lambda call: 'category' in call.data)
-async def category_handler(callback: CallbackQuery):
-    await callback.message.delete()
-    category_id = callback.data.split(":")[1]
-    category = await db.get_categories(category_id=int(category_id))
-    partners = await db.get_partners(partner_category=int(category_id), is_multiple=True)
-
-    answer_text = f'{text_message.CATEGORY_NAME.format(category=category["category_name"])}{category['category_text']}\n\n'
-
-    for partner in partners:
-        text = text_message.PARTNER_CATEGORY_TEXT.format(
-            name=partner["partner_name"],
-            url=partner["partner_url"],
-            legacy_text=partner["partner_legacy_text"],
-        )
-
-        answer_text += text
-    path = f'{img_path}/{category_id}.png'
-    if pathlib.Path(path).is_file():
-        await bot.send_photo(
-            chat_id=callback.message.chat.id, photo=FSInputFile(path=path), caption=answer_text,
-            reply_markup=inline_markup.get_back_categories_keyboard()
-        )
+# @router.callback_query(lambda call: 'category' in call.data)
+# async def category_handler(callback: CallbackQuery):
+#     await callback.message.delete()
+#     category_id = callback.data.split(":")[1]
+#     category = await db.get_categories(category_id=int(category_id))
+#     partners = await db.get_partners(partner_category=int(category_id), is_multiple=True)
+#
+#     answer_text = f'{text_message.CATEGORY_NAME.format(category=category["category_name"])}{category['category_text']}\n\n'
+#
+#     for partner in partners:
+#         text = text_message.PARTNER_CATEGORY_TEXT.format(
+#             name=partner["partner_name"],
+#             url=partner["partner_url"],
+#             legacy_text=partner["partner_legacy_text"],
+#         )
+#
+#         answer_text += text
+#     path = f'{img_path}/{category_id}.png'
+#     if pathlib.Path(path).is_file():
+#         await bot.send_photo(
+#             chat_id=callback.message.chat.id, photo=FSInputFile(path=path), caption=answer_text,
+#             reply_markup=inline_markup.get_back_categories_keyboard()
+#         )
 
 
 @router.callback_query(lambda call: 'redeem' in call.data)
@@ -216,6 +217,61 @@ async def handle_create_page_tasks(callback: CallbackQuery) -> None:
     await db.delete_reminder(tasks[page - 1]['id'])
     await callback.message.answer(text=text_message.DELETE_TASK_COMPLETE,
                                   reply_markup=inline_markup.get_back_menu_keyboard())
+
+@router.callback_query(F.data.startswith('cons'))
+async def handle_consultation(callback: CallbackQuery) -> None:
+    await callback.message.delete()
+    callback_data = callback.data.split(':')
+    user = await db.get_users(callback.message.chat.id)
+
+    if len(callback_data) == 2:
+        if callback_data[1] == 'vip':
+            await callback.message.answer(
+                text=text_message.CONSULTATION_VIP,
+                reply_markup=inline_markup.get_back_consultation_keyboard(),
+                disable_web_page_preview=True
+            )
+
+        elif callback_data[1] == 'free':
+            await callback.message.answer(
+                text=text_message.CHOOSE_CONSULTATION_FREE_TEXT,
+                reply_markup=inline_markup.get_free_consultation_keyboard()
+            )
+    else:
+        markup = inline_markup.get_back_free_consultation_keyboard()
+
+        if callback_data[2] == 'zoo':
+            path = f'{img_path}/consultations/zoo.jpg'
+            if pathlib.Path(path).is_file():
+                await bot.send_photo(
+                    chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
+                    caption=text_message.CONSULTATION_ZOO, reply_markup=markup
+                )
+
+        elif callback_data[2] == 'help':
+            path = f'{img_path}/consultations/help.jpg'
+            if pathlib.Path(path).is_file():
+                await bot.send_photo(
+                    chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
+                    caption=text_message.CONSULTATION_HELP, reply_markup=markup
+                )
+
+        elif callback_data[2] == 'features':
+            pets = await db.get_pets(user_id=callback.message.chat.id, is_multiple=True)
+            user = await db.get_users(callback.message.chat.id)
+            await callback.message.answer(
+                text=text_message.CONSULTATION_FEATURES_TEXT.format(
+                    promo_code=user['promocode'],
+                    pets=message.get_pets_stroke(pets)
+                ),
+                reply_markup=markup)
+        else:
+            await callback.message.answer(
+                text=text_message.CONSULTATION_FREE_TEXT.format(promo_code=user['promocode']),
+                reply_markup=markup
+            )
+
+
 
 
 @router.callback_query(F.data.startswith('user_action:') or F.data.startswith('partner_action:'))

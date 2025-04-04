@@ -5,11 +5,11 @@ from aiogram import F, types, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
-from aiogram_dialog import DialogManager
 
 from telegram_bot import db, text_message, env
 from telegram_bot.keyboards import inline_markup, reply_markup
 from telegram_bot.decorators import check_block_user, check_admin
+from telegram_bot.text_message import PET_PROFILE_TEXT
 
 router = Router()
 
@@ -17,7 +17,8 @@ router = Router()
 @router.message(Command("about"))
 @check_block_user
 async def send_about(message: Message, **kwargs):
-    await message.answer(text=text_message.ABOUT_TEXT, reply_markup=inline_markup.get_back_menu_keyboard())
+    await message.answer(text=text_message.ABOUT_TEXT, reply_markup=inline_markup.get_back_menu_keyboard(),
+                         disable_web_page_preview=True)
 
 
 @router.message(Command("menu", "start"))
@@ -53,13 +54,12 @@ async def send_profile(message: Message, **kwargs):
             'phone_number': user_profile['phone_number'],
             'birth_date': datetime.fromtimestamp(user_profile["birth_date"]).strftime('%d %B %Y'),
             'age': round((time.time() - user_profile["birth_date"]) // (86400 * 365)),
-            'pets': ''.join([
-                f'<b>{pet["name"]}</b>: <code>~{pet["approx_weight"]}кг, {round((time.time() - pet["birth_date"]) // (86400 * 365))} лет</code>\n'
-                for pet in pets]),
+            'pets': get_pets_stroke(pets),
             'promo_code': user['promocode']
         }
         await message.answer(
-            text=text_message.PROFILE_TEXT.format(**data), reply_markup=inline_markup.get_back_menu_keyboard()
+            text=text_message.PROFILE_TEXT.format(**data),
+            reply_markup=inline_markup.get_profile_keyboard(is_profile_fill=True)
         )
 
 
@@ -72,11 +72,11 @@ async def send_form(message: Message, **kwargs):
     )
 
 
-@router.message(Command("category"))
-@check_block_user
-async def send_categories(message: Message, **kwargs):
-    await message.answer(text=text_message.CHOOSE_CATEGORY_TEXT,
-                         reply_markup=await inline_markup.get_categories_keyboard())
+# @router.message(Command("category"))
+# @check_block_user
+# async def send_categories(message: Message, **kwargs):
+#     await message.answer(text=text_message.CHOOSE_CATEGORY_TEXT,
+#                          reply_markup=await inline_markup.get_categories_keyboard())
 
 
 @router.message(Command("consultation"))
@@ -84,7 +84,7 @@ async def send_categories(message: Message, **kwargs):
 async def send_consultation(message: Message, **kwargs):
     await message.answer(
         text=text_message.CONSULTATION_TEXT,
-        reply_markup=inline_markup.get_back_menu_keyboard()
+        reply_markup=inline_markup.get_consultation_keyboard()
     )
 
 
@@ -156,7 +156,8 @@ async def use_promo_handler(message: Message, **kwargs):
 async def send_selection(message: Message, **kwargs):
     await message.answer(
         text=text_message.SELECTION_TEXT,
-        reply_markup=inline_markup.get_back_menu_keyboard()
+        reply_markup=inline_markup.get_back_menu_keyboard(),
+        disable_web_page_preview=True
     )
 
 
@@ -213,3 +214,16 @@ def str_to_timestamp(date_string: str) -> float:
 
 def timestamp_to_str(timestamp: float) -> str:
     return datetime.fromtimestamp(timestamp, env.local_timezone).strftime("%d-%m-%Y")
+
+
+def get_pets_stroke(pets_list) -> str:
+    return '\n'.join([
+        PET_PROFILE_TEXT.format(
+            count=pets_list.index(pet) + 1, name=pet['name'], approx_weight=pet["approx_weight"],
+            emoji='🐶' if pet['type'] == 'dog' else '🐱',
+            age=round((time.time() - pet["birth_date"]) // (86400 * 365)),
+            birth_date=datetime.fromtimestamp(pet["birth_date"]).strftime('%d %B %Y'),
+            type='собака' if pet['type'] == 'dog' else 'кот',
+            gender='мальчик' if pet['gender'] == 'male' else 'девочка',
+            breed=pet['breed'])
+        for pet in pets_list])
