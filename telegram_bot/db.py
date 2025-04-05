@@ -219,7 +219,7 @@ async def delete_pets(user_id: int, **kwargs):
 
 async def update_user_profile(user_id: int, **kwargs):
     updations = ", ".join(
-        [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
+        [f"{key} = {f"'{value}'" if isinstance(value, str) else value}" for key, value in kwargs.items()])
     await create_request(f"UPDATE user_profile SET {updations} WHERE user_id = '{user_id}'", is_return=False)
 
 

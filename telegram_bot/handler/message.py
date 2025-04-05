@@ -52,8 +52,8 @@ async def send_profile(message: Message, **kwargs):
         data = {
             'full_name': user_profile['full_name'],
             'phone_number': user_profile['phone_number'],
-            'birth_date': datetime.fromtimestamp(int(user_profile["birth_date"])).strftime('%d %B %Y'),
-            'age': round((time.time() - int(user_profile["birth_date"])) // (86400 * 365)),
+            'birth_date': datetime.fromtimestamp(float(user_profile["birth_date"])).strftime('%d %B %Y'),
+            'age': round((time.time() - float(user_profile["birth_date"])) // (86400 * 365)),
             'pets': get_pets_stroke(pets),
             'promo_code': user['promocode']
         }
@@ -221,8 +221,8 @@ def get_pets_stroke(pets_list) -> str:
         PET_PROFILE_TEXT.format(
             count=pets_list.index(pet) + 1, name=pet['name'], approx_weight=pet["approx_weight"],
             emoji='🐶' if pet['type'] == 'dog' else '🐱',
-            age=round((time.time() - int(pet["birth_date"])) // (86400 * 365)),
-            birth_date=datetime.fromtimestamp(int(pet["birth_date"])).strftime('%d %B %Y'),
+            age=round((time.time() - float(pet["birth_date"])) // (86400 * 365)),
+            birth_date=datetime.fromtimestamp(float(pet["birth_date"])).strftime('%d %B %Y'),
             type='собака' if pet['type'] == 'dog' else 'кот',
             gender='мальчик' if pet['gender'] == 'male' else 'девочка',
             breed=pet['breed'])
