@@ -155,20 +155,20 @@ async def check_old_redeemed_promo():
 
 async def redeem_promo(user_id: int, promocode: str, partner_id: int | str):
     await create_request(
-        f"INSERT INTO redeemed_promocodes (user_id, promocode, partner_id, redeem_date) VALUES ({user_id}, '{promocode}', {partner_id}, {time.time()})",
+        f"INSERT INTO redeemed_promocodes (user_id, promocode, partner_id, redeem_date) VALUES ('{user_id}', '{promocode}', '{partner_id}', '{time.time()}')",
         is_return=False)
 
 
 async def add_user(user_id: int, username: str, name: str, last_name: str | None):
     await create_request(
-        f"INSERT INTO users (user_id, username, full_name, promocode) VALUES ({user_id}, '{username}', '{(name + " " + (last_name or "")).rstrip(" ")}', '{generate_promocode()}')",
+        f"INSERT INTO users (user_id, username, full_name, promocode) VALUES ('{user_id}', '{username}', '{(name + " " + (last_name or "")).rstrip(" ")}', '{generate_promocode()}')",
         is_return=False)
 
-    await create_request(f"INSERT INTO user_profile (user_id) VALUES ({user_id})", is_return=False)
+    await create_request(f"INSERT INTO user_profile (user_id) VALUES ('{user_id}')", is_return=False)
 
 
 async def add_partner(user_id: int, partner_name: int, partner_category: int):
-    await create_request(f"INSERT INTO partners (owner_user_id, partner_name, partner_category) VALUES ({user_id}, '{partner_name}', {partner_category})", is_return=False)
+    await create_request(f"INSERT INTO partners (owner_user_id, partner_name, partner_category) VALUES ('{user_id}', '{partner_name}', {partner_category})", is_return=False)
 
 
 async def add_category(name: str):
@@ -210,24 +210,24 @@ async def get_reminders(
 
 async def add_pet(user_id: int, approx_weight: int | float, name: str, birth_date: int | float, gender: str,
                   pet_type: str, pet_breed: str):
-    await create_request(f"INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed) VALUES ({user_id}, {approx_weight}, '{name}', {birth_date}, '{gender}', '{pet_type}', '{pet_breed}')", is_return=False)
+    await create_request(f"INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed) VALUES ('{user_id}', {approx_weight}, '{name}', '{birth_date}', '{gender}', '{pet_type}', '{pet_breed}')", is_return=False)
 
 
 async def delete_pets(user_id: int, **kwargs):
-    await create_request(f"DELETE FROM pets WHERE user_id = {user_id}", is_return=False)
+    await create_request(f"DELETE FROM pets WHERE user_id = '{user_id}'", is_return=False)
 
 
 async def update_user_profile(user_id: int, **kwargs):
     updations = ", ".join(
         [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
-    await create_request(f"UPDATE user_profile SET {updations} WHERE user_id = {user_id}", is_return=False)
+    await create_request(f"UPDATE user_profile SET {updations} WHERE user_id = '{user_id}'", is_return=False)
 
 
 async def update_user(user_id: int, **kwargs):
     updations = ", ".join(
         [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
 
-    await create_request(f"UPDATE users SET {updations} WHERE user_id = {user_id}", is_return=False)
+    await create_request(f"UPDATE users SET {updations} WHERE user_id = '{user_id}'", is_return=False)
 
 
 async def update_partner(partner_id: int, **kwargs):
@@ -316,7 +316,7 @@ async def add_reminder(
 ) -> None:
     start_date = datetime.strptime(start_date, "%d.%m.%Y")
     end_date = start_date + timedelta(days=int(period))
-    await create_request(f"INSERT INTO reminders (user_id, treatment_id, medicament_id, medicament_name, start_date, end_date, period, value) VALUES ({user_id}, {treatment_id}, {medicament_id}, '{medicament_name}', '{start_date.timestamp()}', '{end_date.timestamp()}', '{period}', {value})", is_return=False)
+    await create_request(f"INSERT INTO reminders (user_id, treatment_id, medicament_id, medicament_name, start_date, end_date, period, value) VALUES ('{user_id}', {treatment_id}, {medicament_id}, '{medicament_name}', '{start_date.timestamp()}', '{end_date.timestamp()}', '{period}', {value})", is_return=False)
 
 
 async def check_reminders():
