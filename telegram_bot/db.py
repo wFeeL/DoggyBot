@@ -42,7 +42,13 @@ def create_condition(args: dict, exception=None) -> str | None:
 # Create connection to database by pg_dsn
 def create_connection():
     try:
-        connection = psycopg2.connect(str(pg_dsn))
+        keepalive_kwargs = {
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 5,
+            "keepalives_count": 5,
+        }
+        connection = psycopg2.connect(str(pg_dsn), **keepalive_kwargs)
         return connection
 
     except psycopg2.Error as error:
@@ -143,30 +149,30 @@ async def check_old_redeemed_promo():
                 text=text_message.OLD_REDEEMED_PROMO.format(partner_name=partner["partner_name"])
             )
             await create_request(
-                f"DELETE FROM redeemed_promocodes WHERE partner_id == {partner_id} AND promocode == '{old["promocode"]}'",
+                f"DELETE FROM redeemed_promocodes WHERE partner_id = {partner_id} AND promocode = '{old["promocode"]}'",
                 is_return=False)
 
 
 async def redeem_promo(user_id: int, promocode: str, partner_id: int | str):
     await create_request(
-        f"INSERT INTO redeemed_promocodes (user_id, promocode, partner_id, redeem_date) VALUES ({user_id}, {promocode}, {partner_id}, {time.time()})",
+        f"INSERT INTO redeemed_promocodes (user_id, promocode, partner_id, redeem_date) VALUES ({user_id}, '{promocode}', {partner_id}, {time.time()})",
         is_return=False)
 
 
 async def add_user(user_id: int, username: str, name: str, last_name: str | None):
     await create_request(
-        f"INSERT INTO users (user_id, username, full_name, promocode) VALUES ({user_id}, {username}, {(name + " " + (last_name or "")).rstrip(" ")}, {generate_promocode()})",
+        f"INSERT INTO users (user_id, username, full_name, promocode) VALUES ({user_id}, '{username}', '{(name + " " + (last_name or "")).rstrip(" ")}', '{generate_promocode()}')",
         is_return=False)
 
     await create_request(f"INSERT INTO user_profile (user_id) VALUES ({user_id})", is_return=False)
 
 
 async def add_partner(user_id: int, partner_name: int, partner_category: int):
-    await create_request(f"INSERT INTO partners (owner_user_id, partner_name, partner_category) VALUES ({user_id}, {partner_name}, {partner_category})", is_return=False)
+    await create_request(f"INSERT INTO partners (owner_user_id, partner_name, partner_category) VALUES ({user_id}, '{partner_name}', {partner_category})", is_return=False)
 
 
 async def add_category(name: str):
-    await create_request(f"INSERT INTO categories (category_name) VALUES ({name})", is_return=False)
+    await create_request(f"INSERT INTO categories (category_name) VALUES ('{name}')", is_return=False)
 
 
 async def get_user_profile(
@@ -204,31 +210,31 @@ async def get_reminders(
 
 async def add_pet(user_id: int, approx_weight: int | float, name: str, birth_date: int | float, gender: str,
                   pet_type: str, pet_breed: str):
-    await create_request(f"INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed) VALUES ({user_id}, {approx_weight}, {name}, {birth_date}, {gender}, {pet_type}, {pet_breed})", is_return=False)
+    await create_request(f"INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed) VALUES ({user_id}, {approx_weight}, '{name}', {birth_date}, '{gender}', '{pet_type}', '{pet_breed}')", is_return=False)
 
 
 async def delete_pets(user_id: int, **kwargs):
-    await create_request(f"DELETE FROM pets WHERE user_id == {user_id}", is_return=False)
+    await create_request(f"DELETE FROM pets WHERE user_id = {user_id}", is_return=False)
 
 
 async def update_user_profile(user_id: int, **kwargs):
     updations = ", ".join(
         [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
-    await create_request(f"UPDATE user_profile SET {updations} WHERE user_id == {user_id}", is_return=False)
+    await create_request(f"UPDATE user_profile SET {updations} WHERE user_id = {user_id}", is_return=False)
 
 
 async def update_user(user_id: int, **kwargs):
     updations = ", ".join(
         [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
 
-    await create_request(f"UPDATE users SET {updations} WHERE user_id == {user_id}", is_return=False)
+    await create_request(f"UPDATE users SET {updations} WHERE user_id = {user_id}", is_return=False)
 
 
 async def update_partner(partner_id: int, **kwargs):
     updations = ", ".join(
         [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
 
-    await create_request(f"UPDATE partners SET {updations} WHERE partner_id == {partner_id}", is_return=False)
+    await create_request(f"UPDATE partners SET {updations} WHERE partner_id = {partner_id}", is_return=False)
 
 
 async def validate_user_form_data(web_app_data: str, user_id: int):
@@ -293,11 +299,11 @@ async def validate_user_form_data(web_app_data: str, user_id: int):
 
 
 async def delete_partner(partner_id: int):
-    await create_request(f"DELETE FROM partners WHERE partner_id == {partner_id}", is_return=False)
+    await create_request(f"DELETE FROM partners WHERE partner_id = {partner_id}", is_return=False)
 
 
 async def delete_reminder(id: int):
-    await create_request(f"DELETE FROM reminders WHERE id == {id}", is_return=False)
+    await create_request(f"DELETE FROM reminders WHERE id = {id}", is_return=False)
 
 async def is_user_have_form(user_id: int) -> bool:
     user = await get_user_profile(user_id=user_id)
@@ -310,7 +316,7 @@ async def add_reminder(
 ) -> None:
     start_date = datetime.strptime(start_date, "%d.%m.%Y")
     end_date = start_date + timedelta(days=int(period))
-    await create_request(f"INSERT INTO reminders (user_id, treatment_id, medicament_id, medicament_name, start_date, end_date, period, value) VALUES ({user_id}, {treatment_id}, {medicament_id}, '{medicament_name}', {start_date.timestamp()}, {end_date.timestamp()}, {period}, {value})", is_return=False)
+    await create_request(f"INSERT INTO reminders (user_id, treatment_id, medicament_id, medicament_name, start_date, end_date, period, value) VALUES ({user_id}, {treatment_id}, {medicament_id}, '{medicament_name}', '{start_date.timestamp()}', '{end_date.timestamp()}', '{period}', {value})", is_return=False)
 
 
 async def check_reminders():
@@ -319,7 +325,7 @@ async def check_reminders():
     for task in tasks:
         if now_timestamp > float(task['end_date']):
             end_date = datetime.fromtimestamp(now_timestamp, local_timezone) + timedelta(days=int(task['period']))
-            await create_request(f"UPDATE reminders SET end_date = {end_date.timestamp()} WHERE id = {task['id']}", is_return=False)
+            await create_request(f"UPDATE reminders SET end_date = '{end_date.timestamp()}' WHERE id = {task['id']}", is_return=False)
             await bot.send_message(chat_id=task['user_id'], text=await message.get_task_text(task),
                                    reply_markup=inline_markup.get_delete_message_keyboard())
 
