@@ -32,7 +32,7 @@ def get_user_data(telegram_id):
         data = {
             'full_name': user_profile['full_name'],
             'phone_number': user_profile['phone_number'],
-            'birth_date': datetime.fromtimestamp(int(user_profile["birth_date"])).strftime('%Y-%m-%d'),
+            'birth_date': datetime.fromtimestamp(float(user_profile["birth_date"])).strftime('%Y-%m-%d'),
             'about_me': user_profile['about_me'],
             'pets': pets,
         }
