@@ -12,7 +12,7 @@ def index():
 # Получение данных пользователя
 @app.route("/get_user_data/<telegram_id>", methods=["GET"])
 def get_user_data(telegram_id):
-    pg_dsn="postgres://flask_user:password123@91.239.206.123:29572/flask_db"
+    pg_dsn = "postgres://flask_user:password123@91.239.206.123:29572/flask_db"
     connection = psycopg2.connect(str(pg_dsn))
 
     with connection as conn:

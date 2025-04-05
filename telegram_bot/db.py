@@ -4,11 +4,12 @@ import re
 import string
 import time
 from datetime import datetime, timedelta
+from typing import Any
 
-import aiosqlite
+import psycopg2
 
 from telegram_bot import text_message
-from telegram_bot.env import bot, local_timezone, database_path
+from telegram_bot.env import bot, local_timezone, pg_dsn
 from telegram_bot.handler import message
 from telegram_bot.keyboards import inline_markup
 
@@ -38,20 +39,35 @@ def create_condition(args: dict, exception=None) -> str | None:
     return ''
 
 
-# Return database data from sql request
-async def create_request(sql_query: str, is_return: bool = True, is_multiple: bool = True) -> dict | None:
-    async with aiosqlite.connect(database_path, check_same_thread=False) as connection:
-        try:
-            connection.row_factory = aiosqlite.Row
-            cursor = await connection.cursor()
-            await cursor.execute(sql_query)
-            if is_return:
-                if is_multiple:
-                    return await cursor.fetchall()
-                return await cursor.fetchone()
-        except Exception as e:
-            print(f"Error fetching sql request data from database: {e}")
+# Create connection to database by pg_dsn
+def create_connection():
+    try:
+        connection = psycopg2.connect(str(pg_dsn))
+        return connection
+
+    except psycopg2.Error as error:
+        print(f'Error with connection to database {error}')
         return None
+
+
+# Return database data from sql request
+async def create_request(sql_query: str, is_return: bool = True, is_multiple: bool = True) -> list[dict[Any, Any]] | \
+                                                                                              dict[Any, Any] | None:
+    conn = create_connection()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(sql_query)
+                if is_return:
+                    if is_multiple:
+                        return get_dict_fetch(cur, cur.fetchall())
+                    else:
+                        return get_dict_fetch(cur, [cur.fetchone()])[0]
+                else:
+                    conn.commit()
+    except Exception as e:
+        print(f"Error fetching sql request data from database: {e}")
+    return None
 
 
 async def get_users(
@@ -117,73 +133,40 @@ async def get_redeemed_promo(
 
 
 async def check_old_redeemed_promo():
-    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
-        conn.row_factory = aiosqlite.Row
-        cursor = await conn.cursor()
-        olds = await get_redeemed_promo(is_multiple=True)
-        for old in olds:
-            if old['redeem_date'] + (31 * 86400) < time.time():
-                partner_id = old['partner_id']
-                partner = await get_partners(partner_id=partner_id)
-                await cursor.execute(
-                    f"DELETE FROM redeemed_promocodes WHERE partner_id == {partner_id} AND promocode == '{old["promocode"]}'"
-                )
-                await conn.commit()
-                await bot.send_message(
-                    chat_id=old["user_id"],
-                    text=text_message.OLD_REDEEMED_PROMO.format(partner_name=partner["partner_name"])
-                )
+    olds = await get_redeemed_promo(is_multiple=True)
+    for old in olds:
+        if old['redeem_date'] + (31 * 86400) < time.time():
+            partner_id = old['partner_id']
+            partner = await get_partners(partner_id=partner_id)
+            await bot.send_message(
+                chat_id=old["user_id"],
+                text=text_message.OLD_REDEEMED_PROMO.format(partner_name=partner["partner_name"])
+            )
+            await create_request(
+                f"DELETE FROM redeemed_promocodes WHERE partner_id == {partner_id} AND promocode == '{old["promocode"]}'",
+                is_return=False)
 
 
 async def redeem_promo(user_id: int, promocode: str, partner_id: int | str):
-    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
-        conn.row_factory = aiosqlite.Row
-        cursor = await conn.cursor()
-
-        await cursor.execute(
-            f"INSERT INTO redeemed_promocodes (user_id, promocode, partner_id, redeem_date) VALUES (?, ?, ?, ?)",
-            (user_id, promocode, partner_id, time.time()))
-        await conn.commit()
+    await create_request(
+        f"INSERT INTO redeemed_promocodes (user_id, promocode, partner_id, redeem_date) VALUES ({user_id}, {promocode}, {partner_id}, {time.time()})",
+        is_return=False)
 
 
 async def add_user(user_id: int, username: str, name: str, last_name: str | None):
-    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
-        conn.row_factory = aiosqlite.Row
+    await create_request(
+        f"INSERT INTO users (user_id, username, full_name, promocode) VALUES ({user_id}, {username}, {(name + " " + (last_name or "")).rstrip(" ")}, {generate_promocode()})",
+        is_return=False)
 
-        cursor = await conn.cursor()
-
-        await cursor.execute(
-            f"INSERT INTO users (user_id, username, full_name, promocode) VALUES (?, ?, ?, ?)",
-            (user_id, username, (name + " " + (last_name or "")).rstrip(" "), generate_promocode(),)
-        )
-        await cursor.execute(
-            f"INSERT INTO user_profile (user_id) VALUES (?)",
-            (user_id,)
-        )
-        await conn.commit()
+    await create_request(f"INSERT INTO user_profile (user_id) VALUES ({user_id})", is_return=False)
 
 
 async def add_partner(user_id: int, partner_name: int, partner_category: int):
-    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
-        conn.row_factory = aiosqlite.Row
-
-        cursor = await conn.cursor()
-
-        await cursor.execute(
-            f"INSERT INTO partners (owner_user_id, partner_name, partner_category) VALUES (?, ?, ?)",
-            (user_id, partner_name, partner_category,)
-        )
-        await conn.commit()
+    await create_request(f"INSERT INTO partners (owner_user_id, partner_name, partner_category) VALUES ({user_id}, {partner_name}, {partner_category})", is_return=False)
 
 
 async def add_category(name: str):
-    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
-        conn.row_factory = aiosqlite.Row
-
-        cursor = await conn.cursor()
-
-        await cursor.execute(f"INSERT INTO categories (category_name) VALUES (?)", (name))
-        await conn.commit()
+    await create_request(f"INSERT INTO categories (category_name) VALUES ({name})", is_return=False)
 
 
 async def get_user_profile(
@@ -221,62 +204,31 @@ async def get_reminders(
 
 async def add_pet(user_id: int, approx_weight: int | float, name: str, birth_date: int | float, gender: str,
                   pet_type: str, pet_breed: str):
-    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
-        conn.row_factory = aiosqlite.Row
-
-        cursor = await conn.cursor()
-        await cursor.execute(
-            "INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (user_id, approx_weight, name, birth_date, gender, pet_type, pet_breed,))
-        await conn.commit()
+    await create_request(f"INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed) VALUES ({user_id}, {approx_weight}, {name}, {birth_date}, {gender}, {pet_type}, {pet_breed})", is_return=False)
 
 
 async def delete_pets(user_id: int, **kwargs):
-    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
-        conn.row_factory = aiosqlite.Row
-
-        cursor = await conn.cursor()
-
-        await cursor.execute(f"DELETE FROM pets WHERE user_id == {user_id}")
-        await conn.commit()
+    await create_request(f"DELETE FROM pets WHERE user_id == {user_id}", is_return=False)
 
 
 async def update_user_profile(user_id: int, **kwargs):
-    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
-        conn.row_factory = aiosqlite.Row
-
-        cursor = await conn.cursor()
-
-        updations = ", ".join(
-            [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
-
-        await cursor.execute(f"UPDATE user_profile SET {updations} WHERE user_id == {user_id}")
-        await conn.commit()
+    updations = ", ".join(
+        [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
+    await create_request(f"UPDATE user_profile SET {updations} WHERE user_id == {user_id}", is_return=False)
 
 
 async def update_user(user_id: int, **kwargs):
-    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
-        conn.row_factory = aiosqlite.Row
-        cursor = await conn.cursor()
+    updations = ", ".join(
+        [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
 
-        updations = ", ".join(
-            [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
-
-        await cursor.execute(f"UPDATE users SET {updations} WHERE user_id == {user_id}")
-        await conn.commit()
+    await create_request(f"UPDATE users SET {updations} WHERE user_id == {user_id}", is_return=False)
 
 
 async def update_partner(partner_id: int, **kwargs):
-    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
-        conn.row_factory = aiosqlite.Row
+    updations = ", ".join(
+        [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
 
-        cursor = await conn.cursor()
-
-        updations = ", ".join(
-            [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
-
-        await cursor.execute(f"UPDATE partners SET {updations} WHERE partner_id == {partner_id}")
-        await conn.commit()
+    await create_request(f"UPDATE partners SET {updations} WHERE partner_id == {partner_id}", is_return=False)
 
 
 async def validate_user_form_data(web_app_data: str, user_id: int):
@@ -341,17 +293,11 @@ async def validate_user_form_data(web_app_data: str, user_id: int):
 
 
 async def delete_partner(partner_id: int):
-    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
-        cursor = await conn.cursor()
-        await cursor.execute(f"DELETE FROM partners WHERE partner_id == {partner_id}")
-        await conn.commit()
+    await create_request(f"DELETE FROM partners WHERE partner_id == {partner_id}", is_return=False)
 
 
 async def delete_reminder(id: int):
-    async with aiosqlite.connect(database_path, check_same_thread=False) as conn:
-        cursor = await conn.cursor()
-        await cursor.execute(f"DELETE FROM reminders WHERE id == {id}")
-        await conn.commit()
+    await create_request(f"DELETE FROM reminders WHERE id == {id}", is_return=False)
 
 async def is_user_have_form(user_id: int) -> bool:
     user = await get_user_profile(user_id=user_id)
@@ -362,28 +308,28 @@ async def add_reminder(
         user_id: int = None, treatment_id: int = None, medicament_id: int = None, medicament_name: str = '',
         start_date: str = None, period: str = None, value: int = 1
 ) -> None:
-    async with aiosqlite.connect(database_path, check_same_thread=False) as connection:
-        connection.row_factory = aiosqlite.Row
-        cursor = await connection.cursor()
-        start_date = datetime.strptime(start_date, "%d.%m.%Y")
-        end_date = start_date + timedelta(days=int(period))
-        await cursor.execute(
-            f"INSERT INTO reminders (user_id, treatment_id, medicament_id, medicament_name, start_date, end_date, period, value) VALUES ({user_id}, {treatment_id}, {medicament_id}, '{medicament_name}', {start_date.timestamp()}, {end_date.timestamp()}, {period}, {value})"
-        )
-        await connection.commit()
+    start_date = datetime.strptime(start_date, "%d.%m.%Y")
+    end_date = start_date + timedelta(days=int(period))
+    await create_request(f"INSERT INTO reminders (user_id, treatment_id, medicament_id, medicament_name, start_date, end_date, period, value) VALUES ({user_id}, {treatment_id}, {medicament_id}, '{medicament_name}', {start_date.timestamp()}, {end_date.timestamp()}, {period}, {value})", is_return=False)
 
 
 async def check_reminders():
-    async with aiosqlite.connect(database_path, check_same_thread=False) as connection:
-        connection.row_factory = aiosqlite.Row
-        cursor = await connection.cursor()
+    tasks = await get_reminders(value=int(True), is_multiple=True)
+    now_timestamp = datetime.now().timestamp()
+    for task in tasks:
+        if now_timestamp > float(task['end_date']):
+            end_date = datetime.fromtimestamp(now_timestamp, local_timezone) + timedelta(days=int(task['period']))
+            await create_request(f"UPDATE reminders SET end_date = {end_date.timestamp()} WHERE id = {task['id']}", is_return=False)
+            await bot.send_message(chat_id=task['user_id'], text=await message.get_task_text(task),
+                                   reply_markup=inline_markup.get_delete_message_keyboard())
 
-        tasks = await get_reminders(value=int(True), is_multiple=True)
-        now_timestamp = datetime.now().timestamp()
-        for task in tasks:
-            if now_timestamp > float(task['end_date']):
-                end_date = datetime.fromtimestamp(now_timestamp, local_timezone) + timedelta(days=int(task['period']))
-                await cursor.execute(f"UPDATE reminders SET end_date = {end_date.timestamp()} WHERE id = {task['id']}")
-                await bot.send_message(chat_id=task['user_id'], text=await message.get_task_text(task),
-                                       reply_markup=inline_markup.get_delete_message_keyboard())
-        await connection.commit()
+
+def get_dict_fetch(cursor, fetch):
+    results = []
+    columns = list(cursor.description)
+    for row in fetch:
+        row_dict = {}
+        for i, col in enumerate(columns):
+            row_dict[col.name] = row[i]
+        results.append(row_dict)
+    return results

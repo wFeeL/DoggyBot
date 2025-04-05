@@ -18,7 +18,7 @@ class PartnerForm(StatesGroup):
     awaiting_partner_url = State()
 
 
-bot_token = "bot_token" # CHANGE BEFORE GIT
+bot_token = "7671505604:AAE-WPWaorO3Bbfhk0Z_2ac62PVJXd__574" # CHANGE BEFORE GIT
 storage = RedisStorage(
     Redis(),
     key_builder=DefaultKeyBuilder(with_destiny=True),
@@ -27,10 +27,11 @@ bot = Bot(bot_token, default=DefaultBotProperties(parse_mode='HTML'), storage=st
 dp = Dispatcher()
 
 
-webapp_url = "https://test-webapp-form-23vf7.netlify.app/"
+webapp_url = "https://doggybot.onrender.com/"
 super_user = 1305714512
-BASE_DIR = Path(__file__).resolve().parent.parent  # Путь до корня проекта (DoggyBot)
-database_path = str(BASE_DIR / "data" / "database.db")
+BASE_DIR = Path(__file__).resolve().parent.parent
+pg_dsn = "postgres://flask_user:password123@91.239.206.123:29572/flask_db"
+# database_path = str(BASE_DIR / "data" / "database.db")
 img_path = f'{os.path.dirname(__file__)}/img'
 local_timezone = tzlocal.get_localzone()
 PERIODS_TO_DAYS = {
