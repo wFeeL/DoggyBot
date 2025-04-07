@@ -21,6 +21,7 @@ window.removePet = removePet;
 
 async function loadUserData() {
     const userId = window.Telegram.WebApp.initDataUnsafe.user.id;
+    console.log(userId)
     if (!userId) return null;
 
     try {
