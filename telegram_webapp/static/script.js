@@ -20,8 +20,7 @@ window.addPet = addPet;
 window.removePet = removePet;
 
 async function loadUserData() {
-    // const userId = window.Telegram.WebApp.initDataUnsafe.user.id;
-    const userId = '416966184';
+    const userId = window.Telegram.WebApp.initDataUnsafe.user.id;
     if (!userId) return null;
 
     try {
