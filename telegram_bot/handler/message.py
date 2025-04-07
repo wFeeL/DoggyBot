@@ -67,7 +67,7 @@ async def send_profile(message: Message, **kwargs):
 @check_block_user
 async def send_form(message: Message, **kwargs):
     await message.answer(
-        text=text_message.FORM_TEXT, reply_markup=reply_markup.get_form_keyboard(), resize_keyboard=True,
+        text=text_message.FORM_TEXT, reply_markup=inline_markup.get_web_app_keyboard(), resize_keyboard=True,
         one_time_keyboard=True
     )
 

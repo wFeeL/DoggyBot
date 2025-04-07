@@ -1,5 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
+
 
 from telegram_bot import db, env
 from telegram_bot.env import PERIODS_TO_DAYS
@@ -303,3 +305,8 @@ def get_back_free_consultation_keyboard() -> InlineKeyboardMarkup:
         get_free_consultation('⬅️ Назад')
     ])
 
+def get_web_app_keyboard() -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🪪 Заполнить форму", web_app=WebAppInfo(url=env.webapp_url))]
+    ])
+    return markup
