@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import tzlocal
+from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 from aiogram.client.bot import DefaultBotProperties
 from aiogram.fsm.state import State, StatesGroup
@@ -18,7 +19,9 @@ class PartnerForm(StatesGroup):
     awaiting_partner_url = State()
 
 
-bot_token = "7671505604:AAE-WPWaorO3Bbfhk0Z_2ac62PVJXd__574" # CHANGE BEFORE GIT
+load_dotenv()
+
+bot_token = os.environ['BOT_TOKEN'] # CHANGE BEFORE GIT
 storage = RedisStorage(
     Redis(),
     key_builder=DefaultKeyBuilder(with_destiny=True),
@@ -30,7 +33,7 @@ dp = Dispatcher()
 webapp_url = "https://doggybot.onrender.com/"
 super_user = 1305714512
 BASE_DIR = Path(__file__).resolve().parent.parent
-pg_dsn = "postgres://flask_user:password123@localhost:5432/flask_db"
+pg_dsn = f"postgres://{os.environ['POSTGRES_USER']}:{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:{os.environ['POSTGRES_PORT']}/{os.environ['POSTGRES_DATABASE']}"
 # database_path = str(BASE_DIR / "data" / "database.db")
 img_path = f'{os.path.dirname(__file__)}/img'
 local_timezone = tzlocal.get_localzone()

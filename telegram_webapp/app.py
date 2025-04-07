@@ -1,9 +1,12 @@
+import os
 from datetime import datetime
+from dotenv import load_dotenv
 
 import psycopg2
 from flask import Flask, render_template, jsonify
 
 app = Flask(__name__, static_folder='static')
+load_dotenv()
 @app.route("/")
 def index():
     return render_template('index.html')
@@ -12,7 +15,7 @@ def index():
 # Получение данных пользователя
 @app.route("/get_user_data/<telegram_id>", methods=["GET"])
 def get_user_data(telegram_id):
-    pg_dsn = "postgres://flask_user:password123@91.239.206.123:29572/flask_db"
+    pg_dsn = f"postgres://{os.environ['POSTGRES_USER']}:{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:{os.environ['POSTGRES_PORT']}/{os.environ['POSTGRES_DATABASE']}"
     connection = psycopg2.connect(str(pg_dsn))
 
     with connection as conn:
