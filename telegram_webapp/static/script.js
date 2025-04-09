@@ -114,18 +114,13 @@ function parseFormToJson() {
     };
 }
 
-function submitForm() {
+async function submitForm() {
     const form = document.getElementById("form_body");
     if (form.checkValidity()) {
         const jsonData = parseFormToJson();
-        const jsonString = JSON.stringify(jsonData);
-
-        if (Telegram.WebApp.initData && Telegram.WebApp.initData.length > 0) {
-            // Работает через InlineKeyboard + answerWebAppQuery
-            Telegram.WebApp.sendData(jsonString);
-        } else {
-            console.error("Ошибка: initData не найден. Вероятно, Mini App не была запущена через InlineKeyboardButton.");
-        }
+        const response = await fetch(`/get_user_data/${JSON.stringify(jsonData)}`)
+        Telegram.WebApp.sendData(JSON.stringify(jsonData));
+        return await response.json()
     } else {
         form.reportValidity();
     }
