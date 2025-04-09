@@ -127,22 +127,31 @@ function submitForm() {
 function formatPhoneNumber(input) {
     let value = input.value.replace(/\D/g, '');
 
-    if (!value.startsWith('7')) {
-        value = '7' + value; // если пользователь не ввел код
+    if (value.startsWith('8')) {
+        value = '7' + value.slice(1);  // Заменяем первую 8 на 7
+    } else if (!value.startsWith('7')) {
+        value = '7' + value;  // Добавляем 7 если нет
     }
 
     if (value.length > 11) {
-        value = value.substring(0, 11);
+        value = value.slice(0, 11);
     }
 
-    input.value = '+7' + value.substring(1);
+    let formatted = '+7';
+    if (value.length > 1) formatted += ' ' + value.slice(1, 4);
+    if (value.length > 4) formatted += ' ' + value.slice(4, 7);
+    if (value.length > 7) formatted += ' ' + value.slice(7, 9);
+    if (value.length > 9) formatted += ' ' + value.slice(9, 11);
+
+    input.value = formatted;
 
     if (value.length !== 11) {
-        input.setCustomValidity("Номер должен начинаться с +7 и содержать 11 цифр.");
+        input.setCustomValidity("Введите правильный номер (+7 ХХХ ХХХ ХХ ХХ)");
     } else {
         input.setCustomValidity("");
     }
 }
+
 
 function validateAndCapitalize(input) {
     let value = input.value.trim();
