@@ -105,7 +105,7 @@ async def get_medicament(
 
 async def add_user(user_id: int, username: str, name: str, last_name: str | None):
     await create_request(
-        f"INSERT INTO users (user_id, username, full_name, promocode) VALUES ('{user_id}', '{username}', '{(name + " " + (last_name or "")).rstrip(" ")}', '{generate_promocode()}')",
+        f"INSERT INTO users (user_id, username, full_name, promocode) VALUES ('{user_id}', '{username}', '{(name + ' ' + (last_name or '')).rstrip(' ')}', '{generate_promocode()}')",
         is_return=False)
 
     await create_request(f"INSERT INTO user_profile (user_id) VALUES ('{user_id}')", is_return=False)
