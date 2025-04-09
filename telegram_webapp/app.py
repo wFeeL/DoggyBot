@@ -10,7 +10,6 @@ from flask import Flask, request, jsonify, render_template
 app = Flask(__name__, static_folder='static')
 load_dotenv()
 
-
 @app.route("/")
 def index():
     return render_template('index.html')
@@ -60,11 +59,21 @@ def handle_webapp_data():
         parsed = parse_qs(init_data)
         query_id = parsed.get("query_id", [None])[0]
 
+
         if not query_id:
             return jsonify({"ok": False, "error": "query_id не найден"})
 
+        bot_api_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/sendMessage"
+
+        payload = {
+            "chat_id": parsed.get("user", [None])[0],  # user id из initData
+            "text": f"Получены новые данные!\nИмя: {form_data['human']['full_name']}\nТелефон: {form_data['human']['phone_number']}"
+        }
+
+        requests.post(bot_api_url, json=payload)
+
         # Теперь отправляем ответ через Telegram API
-        answer_url = f"https://api.telegram.org/bot{os.environ['BOT_TOKEN']}/answerWebAppQuery"
+        answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/answerWebAppQuery"
 
         answer_payload = {
             "web_app_query_id": query_id,
@@ -73,7 +82,7 @@ def handle_webapp_data():
                 "id": "id1",
                 "title": "Данные получены!",
                 "input_message_content": {
-                    "message_text": f"Спасибо! Мы получили ваши данные:\n{form_data['human']['full_name']}"
+                    "message_text": f"Спасибо, {form_data['human']['full_name']}! Мы получили ваши данные."
                 }
             }
         }
