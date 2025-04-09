@@ -65,21 +65,21 @@ def handle_webapp_data():
         # Теперь отправляем ответ через Telegram API
         answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/answerWebAppQuery"
 
-        valid_data = asyncio.run(db.validate_user_form_data(form_data))
-        user_id = form_data['user']['id']
-        if valid_data:
-            human = valid_data['human']
-            asyncio.run(db.update_user_profile(
-                user_id=user_id, birth_date=str_to_timestamp(human["birth_date"]), full_name=human["full_name"],
-                phone_number=human["phone_number"], about_me=human["about_me"]
-            ))
-            asyncio.run(db.delete_pets(user_id))
-            for pet in valid_data["pets"]:
-                asyncio.run(db.add_pet(
-                    user_id=user_id, birth_date=str_to_timestamp(pet["birth_date"]),
-                    approx_weight=pet["weight"],
-                    name=pet["name"], gender=pet["gender"], pet_type=pet["type"], pet_breed=pet["breed"]
-                ))
+        # valid_data = asyncio.run(db.validate_user_form_data(form_data))
+        # user_id = form_data['user']['id']
+        # if valid_data:
+        #     human = valid_data['human']
+        #     asyncio.run(db.update_user_profile(
+        #         user_id=user_id, birth_date=str_to_timestamp(human["birth_date"]), full_name=human["full_name"],
+        #         phone_number=human["phone_number"], about_me=human["about_me"]
+        #     ))
+        #     asyncio.run(db.delete_pets(user_id))
+        #     for pet in valid_data["pets"]:
+        #         asyncio.run(db.add_pet(
+        #             user_id=user_id, birth_date=str_to_timestamp(pet["birth_date"]),
+        #             approx_weight=pet["weight"],
+        #             name=pet["name"], gender=pet["gender"], pet_type=pet["type"], pet_breed=pet["breed"]
+        #         ))
 
         answer_payload = {
             "web_app_query_id": query_id,
