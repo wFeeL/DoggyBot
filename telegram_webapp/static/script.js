@@ -116,8 +116,8 @@ function parseFormToJson() {
 function submitForm() {
     const form = document.getElementById("form_body");
     if (form.checkValidity()) {
-        const jsonData = parseFormToJson();
-        const jsonString = JSON.stringify(jsonData, null, 2);
+        const jsonDataList = parseFormToJson();
+        const jsonString = jsonDataList[1];
         Telegram.WebApp.sendData(jsonString);
     } else {
         form.reportValidity();
