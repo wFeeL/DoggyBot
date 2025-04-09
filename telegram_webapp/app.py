@@ -1,12 +1,16 @@
 import os
 from datetime import datetime
-from dotenv import load_dotenv
+from urllib.parse import parse_qs
 
 import psycopg2
-from flask import Flask, render_template, jsonify
+import requests
+from dotenv import load_dotenv
+from flask import Flask, request, jsonify, render_template
 
 app = Flask(__name__, static_folder='static')
 load_dotenv()
+
+
 @app.route("/")
 def index():
     return render_template('index.html')
@@ -43,6 +47,49 @@ def get_user_data(telegram_id):
     return jsonify({"data": None})
 
 
+@app.route("/webapp_data", methods=["POST"])
+def handle_webapp_data():
+    try:
+        content = request.json
+        init_data = content.get("initData")
+        form_data = content.get("formData")
+
+        if not init_data:
+            return jsonify({"ok": False, "error": "initData отсутствует"})
+
+        parsed = parse_qs(init_data)
+        query_id = parsed.get("query_id", [None])[0]
+
+        if not query_id:
+            return jsonify({"ok": False, "error": "query_id не найден"})
+
+        # Теперь отправляем ответ через Telegram API
+        answer_url = f"https://api.telegram.org/bot{os.environ['BOT_TOKEN']}/answerWebAppQuery"
+
+        answer_payload = {
+            "web_app_query_id": query_id,
+            "result": {
+                "type": "article",
+                "id": "id1",
+                "title": "Данные получены!",
+                "input_message_content": {
+                    "message_text": f"Спасибо! Мы получили ваши данные:\n{form_data['human']['full_name']}"
+                }
+            }
+        }
+
+        response = requests.post(answer_url, json=answer_payload)
+
+        if response.status_code == 200:
+            return jsonify({"ok": True})
+        else:
+            return jsonify({"ok": False, "error": response.text})
+
+    except Exception as e:
+        print("Ошибка обработки:", e)
+        return jsonify({"ok": False, "error": str(e)})
+
+
 def get_dict_fetch(cursor, fetch):
     results = []
     columns = list(cursor.description)
@@ -52,6 +99,7 @@ def get_dict_fetch(cursor, fetch):
             row_dict[col.name] = row[i]
         results.append(row_dict)
     return results
+
 
 if __name__ == "__main__":
     app.run(debug=True)

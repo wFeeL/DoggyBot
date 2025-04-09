@@ -26,8 +26,10 @@ CALLBACK = {
     'send_selection': 'selection'
 }
 
+
 @router.callback_query(F.web_app_data)
 async def process_web_app_callback(callback_query: CallbackQuery):
+    print('catch')
     try:
         # Получаем данные из WebApp
         data = json.loads(callback_query.web_app_data.data)
@@ -37,6 +39,8 @@ async def process_web_app_callback(callback_query: CallbackQuery):
         await callback_query.answer_web_app_query(
             url="https://t.me/DoggyLogy_bot"
         )
+
+        await callback_query.answ
 
         # Можешь отправить сообщение пользователю
         await callback_query.message.answer(f"Спасибо! Получили данные.")
@@ -87,7 +91,6 @@ async def delete_message(callback: CallbackQuery) -> None:
         print(error.message)
 
 
-
 @router.callback_query(F.data.startswith('form:'))
 async def handle_form_request(callback: CallbackQuery) -> None:
     await callback.message.delete()
@@ -97,6 +100,7 @@ async def handle_form_request(callback: CallbackQuery) -> None:
         callback.message, user_id=user_id, promo_code=user['promocode'],
         reply_markup=inline_markup.get_back_user_id_keyboard(user_id)
     )
+
 
 @router.callback_query(lambda call: 'admin:user' in call.data)
 async def handle_admin_users(callback: CallbackQuery) -> None:
@@ -142,6 +146,7 @@ async def handle_create_page_tasks(callback: CallbackQuery) -> None:
     await db.delete_reminder(tasks[page - 1]['id'])
     await callback.message.answer(text=text_message.DELETE_TASK_COMPLETE,
                                   reply_markup=inline_markup.get_back_menu_keyboard())
+
 
 @router.callback_query(F.data.startswith('cons'))
 async def handle_consultation(callback: CallbackQuery) -> None:

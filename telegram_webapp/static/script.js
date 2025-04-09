@@ -114,17 +114,39 @@ function parseFormToJson() {
     };
 }
 
-async function submitForm() {
+function submitForm() {
     const form = document.getElementById("form_body");
     if (form.checkValidity()) {
         const jsonData = parseFormToJson();
-        const response = await fetch(`/get_user_data/${JSON.stringify(jsonData)}`)
-        Telegram.WebApp.sendData(JSON.stringify(jsonData));
-        return await response.json()
+        const initData = Telegram.WebApp.initData;
+
+        fetch('https://doggybot.onrender.com/webapp_data', {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                initData: initData,
+                formData: jsonData
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.ok) {
+                Telegram.WebApp.close(); // Успешно, можно закрыть приложение
+            } else {
+                alert("Ошибка при отправке данных: " + data.error);
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка запроса:", error);
+            alert("Ошибка при отправке данных.");
+        });
     } else {
         form.reportValidity();
     }
 }
+
 
 
 function formatPhoneNumber(input) {
