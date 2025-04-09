@@ -2,13 +2,11 @@ import json
 import random
 import re
 import string
-import time
 from datetime import datetime, timedelta
 from typing import Any
 
 import psycopg2
 
-from telegram_bot import text_message
 from telegram_bot.env import bot, local_timezone, pg_dsn
 from telegram_bot.handler import message
 from telegram_bot.keyboards import inline_markup
@@ -77,36 +75,13 @@ async def create_request(sql_query: str, is_return: bool = True, is_multiple: bo
 
 
 async def get_users(
-        user_id: int = None, username: str = None, full_name: str = None, promocode: str = None, level: int = None,
+        user_id: int | str = None, username: str = None, full_name: str = None, promocode: str = None, level: int = None,
         consultation: int = None, is_multiple: bool = False
 ) -> list | dict:
     condition_dict = locals()
     is_multiple = condition_dict.pop('is_multiple')
     condition = create_condition(condition_dict)
     sql_query = f"SELECT * FROM users {condition} ORDER by user_id"
-    return await create_request(sql_query, is_multiple=is_multiple)
-
-
-async def get_partners(
-        owner_user_id: int = None, partner_id: int = None, partner_name: str = None, partner_category: int = None,
-        partner_goods_url: str = None, partner_url: str = None, partner_unipromo: str = None,
-        partner_discount: int = None, partner_legacy_text: str = None, partner_enabled: int = None,
-        is_multiple: bool = False
-) -> list | dict:
-    condition_dict = locals()
-    is_multiple = condition_dict.pop('is_multiple')
-    condition = create_condition(condition_dict)
-    sql_query = f"SELECT * FROM partners {condition} ORDER by partner_name ASC"
-    return await create_request(sql_query, is_multiple=is_multiple)
-
-
-async def get_categories(
-        category_id: int = None, category_name: str = None, category_enabled: int = None, is_multiple: bool = False
-) -> list | dict:
-    condition_dict = locals()
-    is_multiple = condition_dict.pop('is_multiple')
-    condition = create_condition(condition_dict)
-    sql_query = f"SELECT * FROM categories {condition} ORDER by category_name ASC"
     return await create_request(sql_query, is_multiple=is_multiple)
 
 
@@ -128,37 +103,6 @@ async def get_medicament(
     return await create_request(sql_query, is_multiple=is_multiple)
 
 
-async def get_redeemed_promo(
-        user_id: int = None, promocode: str = None, redeem_date: int = None, is_multiple: bool = False
-) -> list | dict:
-    condition_dict = locals()
-    is_multiple = condition_dict.pop('is_multiple')
-    condition = create_condition(condition_dict)
-    sql_query = f"SELECT * FROM redeemed_promocodes {condition} ORDER by redeem_date ASC"
-    return await create_request(sql_query, is_multiple=is_multiple)
-
-
-async def check_old_redeemed_promo():
-    olds = await get_redeemed_promo(is_multiple=True)
-    for old in olds:
-        if old['redeem_date'] + (31 * 86400) < time.time():
-            partner_id = old['partner_id']
-            partner = await get_partners(partner_id=partner_id)
-            await bot.send_message(
-                chat_id=old["user_id"],
-                text=text_message.OLD_REDEEMED_PROMO.format(partner_name=partner["partner_name"])
-            )
-            await create_request(
-                f"DELETE FROM redeemed_promocodes WHERE partner_id = {partner_id} AND promocode = '{old["promocode"]}'",
-                is_return=False)
-
-
-async def redeem_promo(user_id: int, promocode: str, partner_id: int | str):
-    await create_request(
-        f"INSERT INTO redeemed_promocodes (user_id, promocode, partner_id, redeem_date) VALUES ('{user_id}', '{promocode}', '{partner_id}', '{time.time()}')",
-        is_return=False)
-
-
 async def add_user(user_id: int, username: str, name: str, last_name: str | None):
     await create_request(
         f"INSERT INTO users (user_id, username, full_name, promocode) VALUES ('{user_id}', '{username}', '{(name + " " + (last_name or "")).rstrip(" ")}', '{generate_promocode()}')",
@@ -167,16 +111,8 @@ async def add_user(user_id: int, username: str, name: str, last_name: str | None
     await create_request(f"INSERT INTO user_profile (user_id) VALUES ('{user_id}')", is_return=False)
 
 
-async def add_partner(user_id: int, partner_name: int, partner_category: int):
-    await create_request(f"INSERT INTO partners (owner_user_id, partner_name, partner_category) VALUES ('{user_id}', '{partner_name}', {partner_category})", is_return=False)
-
-
-async def add_category(name: str):
-    await create_request(f"INSERT INTO categories (category_name) VALUES ('{name}')", is_return=False)
-
-
 async def get_user_profile(
-        user_id: int = None, full_name: str = None, birth_date: int = None,
+        user_id: int | str = None, full_name: str = None, birth_date: int = None,
         phone_number: str = None, about_me: str = None, is_multiple: bool = False
 ) -> list | dict:
     condition_dict = locals()
@@ -210,7 +146,9 @@ async def get_reminders(
 
 async def add_pet(user_id: int, approx_weight: int | float, name: str, birth_date: int | float, gender: str,
                   pet_type: str, pet_breed: str):
-    await create_request(f"INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed) VALUES ('{user_id}', {approx_weight}, '{name}', '{birth_date}', '{gender}', '{pet_type}', '{pet_breed}')", is_return=False)
+    await create_request(
+        f"INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed) VALUES ('{user_id}', {approx_weight}, '{name}', '{birth_date}', '{gender}', '{pet_type}', '{pet_breed}')",
+        is_return=False)
 
 
 async def delete_pets(user_id: int, **kwargs):
@@ -228,13 +166,6 @@ async def update_user(user_id: int, **kwargs):
         [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
 
     await create_request(f"UPDATE users SET {updations} WHERE user_id = '{user_id}'", is_return=False)
-
-
-async def update_partner(partner_id: int, **kwargs):
-    updations = ", ".join(
-        [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
-
-    await create_request(f"UPDATE partners SET {updations} WHERE partner_id = {partner_id}", is_return=False)
 
 
 async def validate_user_form_data(web_app_data: str, user_id: int):
@@ -298,12 +229,9 @@ async def validate_user_form_data(web_app_data: str, user_id: int):
     return data
 
 
-async def delete_partner(partner_id: int):
-    await create_request(f"DELETE FROM partners WHERE partner_id = {partner_id}", is_return=False)
-
-
 async def delete_reminder(id: int):
     await create_request(f"DELETE FROM reminders WHERE id = {id}", is_return=False)
+
 
 async def is_user_have_form(user_id: int) -> bool:
     user = await get_user_profile(user_id=user_id)
@@ -316,7 +244,9 @@ async def add_reminder(
 ) -> None:
     start_date = datetime.strptime(start_date, "%d.%m.%Y")
     end_date = start_date + timedelta(days=int(period))
-    await create_request(f"INSERT INTO reminders (user_id, treatment_id, medicament_id, medicament_name, start_date, end_date, period, value) VALUES ('{user_id}', {treatment_id}, {medicament_id}, '{medicament_name}', '{start_date.timestamp()}', '{end_date.timestamp()}', '{period}', {value})", is_return=False)
+    await create_request(
+        f"INSERT INTO reminders (user_id, treatment_id, medicament_id, medicament_name, start_date, end_date, period, value) VALUES ('{user_id}', {treatment_id}, {medicament_id}, '{medicament_name}', '{start_date.timestamp()}', '{end_date.timestamp()}', '{period}', {value})",
+        is_return=False)
 
 
 async def check_reminders():
@@ -325,7 +255,8 @@ async def check_reminders():
     for task in tasks:
         if now_timestamp > float(task['end_date']):
             end_date = datetime.fromtimestamp(now_timestamp, local_timezone) + timedelta(days=int(task['period']))
-            await create_request(f"UPDATE reminders SET end_date = '{end_date.timestamp()}' WHERE id = {task['id']}", is_return=False)
+            await create_request(f"UPDATE reminders SET end_date = '{end_date.timestamp()}' WHERE id = {task['id']}",
+                                 is_return=False)
             await bot.send_message(chat_id=task['user_id'], text=await message.get_task_text(task),
                                    reply_markup=inline_markup.get_delete_message_keyboard())
 

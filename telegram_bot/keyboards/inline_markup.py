@@ -1,7 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
-
 
 from telegram_bot import db, env
 from telegram_bot.env import PERIODS_TO_DAYS
@@ -18,10 +17,6 @@ def get_profile_button(text="👤 Профиль") -> list[InlineKeyboardButton]
 
 def get_delete_message_button(text='👀 Скрыть') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data='delete_message')]
-
-
-# def get_categories_button(text="🛍 Категории") -> list[InlineKeyboardButton]:
-#     return [InlineKeyboardButton(text=text, callback_data="categories")]
 
 
 def get_about_button(text="❔ О сервисе") -> list[InlineKeyboardButton]:
@@ -66,10 +61,6 @@ def get_add_reminder_button(text='➕ Добавить напоминание') 
 # INLINE_MARKUPS
 def get_back_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[get_menu_button()])
-
-
-# def get_back_categories_keyboard() -> InlineKeyboardMarkup:
-#     return InlineKeyboardMarkup(inline_keyboard=[get_categories_button(text='⬅️ Назад')])
 
 
 def get_menu_keyboard() -> InlineKeyboardMarkup:
@@ -170,10 +161,7 @@ def get_reminder_add_complete_keyboard() -> InlineKeyboardMarkup:
 
 def get_admin_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📊 Статистика", callback_data="admin:stats"),
-         InlineKeyboardButton(text="📈 Партнёры", callback_data="admin:partners:1")],
         [InlineKeyboardButton(text="👥 Пользователи", callback_data="admin:users:1")],
-        [InlineKeyboardButton(text="➕ Добавить партнёра", callback_data="admin:add_partner")],
         [InlineKeyboardButton(text="🔎 Поиск анкеты", callback_data="admin:search")],
         get_menu_button()])
 
@@ -181,32 +169,6 @@ def get_admin_menu_keyboard() -> InlineKeyboardMarkup:
 def get_back_admin_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[get_admin_menu_button(text='⬅️ Назад')])
 
-
-async def get_categories_keyboard() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    categories = await db.get_categories(category_enabled=int(True), is_multiple=True)
-    for category in categories:
-        builder.row(InlineKeyboardButton(
-            text=f"{category["category_name"]}", callback_data=f"category:{category["category_id"]}")
-        )
-    builder.row(*get_menu_button())
-    return builder.as_markup()
-
-
-async def get_partners_keyboard(page) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-
-    partners = await db.get_partners(is_multiple=True)
-    total_pages = (len(partners) + 14) // 15
-    partners = partners[(page - 1) * 15: page * 15]
-    for partner in partners:
-        builder.row(InlineKeyboardButton(text=f"{partner['partner_name']} (ID: {partner['partner_id']})",
-                                         callback_data=f"partner:{partner['partner_id']}"))
-
-    navigation_buttons = get_page_buttons(page, total_pages, 'admin:partner')
-    builder.row(*navigation_buttons)
-    builder.row(*get_admin_menu_button('🔙 Главное меню'))
-    return builder.as_markup()
 
 
 async def get_users_keyboard(page) -> InlineKeyboardMarkup:
@@ -233,45 +195,29 @@ def get_page_buttons(page: int, total_pages: int, callback_data_start: str):
 
 
 def get_user_keyboard(user_id: int, user_level: int) -> InlineKeyboardMarkup:
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚫 Заблокировать",
-                              callback_data=f"user_action:block:{user_id}") if user_level >= 0 else InlineKeyboardButton(
-            text="⭕ Разблокировать", callback_data=f"user_action:unblock:{user_id}")],
-        [InlineKeyboardButton(text="👤 Сделать пользователем",
-                              callback_data=f"user_action:make_user:{user_id}")],
-        [InlineKeyboardButton(text="🛍 Сделать партнёром",
-                              callback_data=f"user_action:make_partner:{user_id}")],
-        [InlineKeyboardButton(text="🛡 Сделать админом", callback_data=f"user_action:make_admin:{user_id}")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:users")]
-    ])
-    return markup
+    builder = InlineKeyboardBuilder()
+    builder.add(InlineKeyboardButton(text='📝 Анкета', callback_data=f"form:{user_id}"))
+    if user_level == 2:
+        builder.add(InlineKeyboardButton(text="👤 Сделать пользователем",
+                              callback_data=f"user_action:make_user:{user_id}"))
+    else:
+        if user_level == 0:
+            builder.add(InlineKeyboardButton(text="🚫 Заблокировать",
+                                             callback_data=f"user_action:block:{user_id}"))
+        elif user_level == -1:
+            builder.add(InlineKeyboardButton(
+                text="⭕ Разблокировать", callback_data=f"user_action:unblock:{user_id}"))
+        builder.add(InlineKeyboardButton(text="🛡 Сделать админом", callback_data=f"user_action:make_admin:{user_id}"))
+
+    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:users"))
+    builder.adjust(1, 1)
+    return builder.as_markup()
 
 
 def get_delete_message_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(inline_keyboard=[get_delete_message_button(), get_menu_button()])
     return markup
 
-
-def get_partner_keyboard(partner_id: int, partner_status: int) -> InlineKeyboardMarkup:
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🗑 Удалить", callback_data=f"partner_action:delete:{partner_id}")],
-        [InlineKeyboardButton(text="🆔 Указать ID партнёра",
-                              callback_data=f"partner_action:set_owner:{partner_id}")],
-        [InlineKeyboardButton(text="👁 Скрыть",
-                              callback_data=f"partner_action:hide:{partner_id}") if partner_status else InlineKeyboardButton(
-            text="👁 Показать",
-            callback_data=f"partner_action:show:{partner_id}")],
-        [InlineKeyboardButton(text="✏ Изменить текст",
-                              callback_data=f"partner_action:edit_text:{partner_id}")],
-        [InlineKeyboardButton(text="✏ Изменить название",
-                              callback_data=f"partner_action:edit_name:{partner_id}")],
-        [InlineKeyboardButton(text="✏ Изменить категорию",
-                              callback_data=f"partner_action:edit_category:{partner_id}")],
-        [InlineKeyboardButton(text="✏ Изменить URL партнёра",
-                              callback_data=f"partner_action:edit_url:{partner_id}")],
-        [InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:partners")]
-    ])
-    return markup
 
 def get_consultation_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(
@@ -320,3 +266,8 @@ def get_wrong_promo_code_keyboard() -> InlineKeyboardMarkup:
         ]
     )
     return markup
+
+def get_back_user_id_keyboard(user_id: int | str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='⬅️ Назад', callback_data=f'user:{user_id}')],
+    ])

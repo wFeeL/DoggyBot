@@ -4,11 +4,11 @@ from datetime import datetime
 from aiogram import F, types, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardMarkup
 
 from telegram_bot import db, text_message, env
-from telegram_bot.keyboards import inline_markup, reply_markup
 from telegram_bot.decorators import check_block_user, check_admin
+from telegram_bot.keyboards import inline_markup
 from telegram_bot.text_message import PET_PROFILE_TEXT
 
 router = Router()
@@ -69,13 +69,6 @@ async def send_form(message: Message, **kwargs):
     )
 
 
-# @router.message(Command("category"))
-# @check_block_user
-# async def send_categories(message: Message, **kwargs):
-#     await message.answer(text=text_message.CHOOSE_CATEGORY_TEXT,
-#                          reply_markup=await inline_markup.get_categories_keyboard())
-
-
 @router.message(Command("consultation"))
 @check_block_user
 async def send_consultation(message: Message, **kwargs):
@@ -101,53 +94,6 @@ async def send_tasks(message: Message, page: int = 1) -> None:
     await message.answer(text=await get_task_text(task), reply_markup=inline_markup.get_task_keyboard(page, len(tasks)))
 
 
-@router.message(Command("usepromo"))
-@check_block_user
-async def use_promo_handler(message: Message, **kwargs):
-    try:
-        promo_code = message.text.split(" ")[1]
-    except IndexError:
-        await message.answer(text_message.ERROR_TEXT)
-        return
-
-    user = await db.get_users(user_id=message.chat.id)
-
-    if user["level"] > 1:
-        partners = await db.get_partners(is_multiple=True)
-    else:
-        partners = await db.get_partners(owner_user_id=message.chat.id, is_multiple=True)
-
-    if not partners:
-        await message.answer(text_message.FUNCTION_ERROR_TEXT)
-        return
-
-    if promo_code.startswith("DL") and len(promo_code) == 8:
-        partner_ids = [partner["partner_id"] for partner in partners]
-
-        promo_user = await db.get_users(promocode=promo_code)
-
-        if promo_user:
-            redeemed = await db.get_redeemed_promo(promocode=promo_code)
-            redeemed_partners = [promo["partner_id"] for promo in redeemed if promo["partner_id"] in partner_ids]
-
-            redeem_promo_keyboard = [
-                [types.InlineKeyboardButton(
-                    text=f"{"❌" if partner["partner_id"] in redeemed_partners else "✅"} {partner["partner_name"]}",
-                    callback_data=f"redeem_promo_code:{partner["partner_id"]}:{promo_code}" if partner[
-                                                                                                   "partner_id"] not in redeemed_partners else "already_redeemed")]
-                for partner in partners
-            ]
-            redeem_promo_keyboard.append(inline_markup.get_menu_button())
-            redeem_promo_markup = types.InlineKeyboardMarkup(inline_keyboard=redeem_promo_keyboard)
-
-            await message.answer(text_message.REDEEM_CODE_TEXT, reply_markup=redeem_promo_markup)
-
-        else:
-            await message.answer(text_message.CODE_ERROR_TEXT)
-    else:
-        await message.answer(text_message.FORMAT_ERROR_TEXT)
-
-
 @router.message(Command("selection"))
 @check_block_user
 async def send_selection(message: Message, **kwargs):
@@ -161,7 +107,12 @@ async def send_selection(message: Message, **kwargs):
 @router.message(Command(commands=["admin", "ap", "panel"]))
 @check_admin
 async def send_admin_panel(message: Message, **kwargs):
-    await message.answer(text=text_message.ADMIN_PANEL_TEXT, reply_markup=inline_markup.get_admin_menu_keyboard())
+    users = await db.get_users(is_multiple=True)
+    admins = await db.get_users(level=2, is_multiple=True)
+    await message.answer(
+        text=text_message.ADMIN_PANEL_TEXT.format(users_len=len(users), admins_len=len(admins)),
+        reply_markup=inline_markup.get_admin_menu_keyboard()
+    )
 
 
 @router.message(F.content_type == types.ContentType.WEB_APP_DATA)
@@ -225,9 +176,25 @@ def get_pets_stroke(pets_list) -> str:
             breed=pet['breed'])
         for pet in pets_list])
 
+
 def get_user_stroke(user_data) -> str:
     return text_message.USER_PROFILE_TEXT.format(
         full_name=user_data['full_name'], phone_number=user_data['phone_number'],
         birth_date=datetime.fromtimestamp(float(user_data["birth_date"])).strftime('%d %B %Y'),
         age=round((time.time() - float(user_data["birth_date"])) // (86400 * 365))
+    )
+
+
+async def send_form_text(message: Message, user_id: int | str, promo_code: str, reply_markup: InlineKeyboardMarkup = None) -> None:
+    user_profile = await db.get_user_profile(user_id=user_id)
+    pets = await db.get_pets(user_id=user_id, is_multiple=True)
+    data = {
+        'user': get_user_stroke(user_profile),
+        'pets': get_pets_stroke(pets),
+        'promo_code': promo_code,
+    }
+    if reply_markup is None:
+        reply_markup = inline_markup.get_back_admin_menu_keyboard()
+    await message.answer(
+        text=text_message.USER_FORM_TEXT.format(**data), reply_markup=reply_markup
     )
