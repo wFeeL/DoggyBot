@@ -16,6 +16,7 @@ window.onload = async function() {
 
 
 let allPetIndex = 1;
+window.submitForm = submitForm;
 window.addPet = addPet;
 window.removePet = removePet;
 
