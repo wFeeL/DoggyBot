@@ -177,7 +177,7 @@ async def validate_user_form_data(web_app_data: str, user_id: int):
         return re.match(pattern, full_name) is not None
 
     def validate_phone_number(phone_number):
-        pattern = r'^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$'
+        pattern = r'^\+7 \d{3} \d{3} \d{2} \d{2}$'
         return re.match(pattern, phone_number) is not None
 
     def validate_birth_date(birth_date):

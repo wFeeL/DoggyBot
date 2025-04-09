@@ -2,6 +2,7 @@ window.onload = async function() {
     Telegram.WebApp.expand();
     Telegram.WebApp.MainButton.text = "Сохранить";
     Telegram.WebApp.MainButton.show();
+    Telegram.WebApp.ready();
     Telegram.WebApp.MainButton.onClick(submitForm);
 
     try {
@@ -118,11 +119,18 @@ function submitForm() {
     if (form.checkValidity()) {
         const jsonData = parseFormToJson();
         const jsonString = JSON.stringify(jsonData);
-        Telegram.WebApp.sendData(jsonString);
+
+        if (Telegram.WebApp.initData && Telegram.WebApp.initData.length > 0) {
+            // Работает через InlineKeyboard + answerWebAppQuery
+            Telegram.WebApp.sendData(jsonString);
+        } else {
+            console.error("Ошибка: initData не найден. Вероятно, Mini App не была запущена через InlineKeyboardButton.");
+        }
     } else {
         form.reportValidity();
     }
 }
+
 
 function formatPhoneNumber(input) {
     let value = input.value.replace(/\D/g, '');

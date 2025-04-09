@@ -115,26 +115,26 @@ async def send_admin_panel(message: Message, **kwargs):
     )
 
 
-@router.message(F.content_type == types.ContentType.WEB_APP_DATA)
-@check_block_user
-async def webapp_catch(message: Message, **kwargs):
-    valid_data = await db.validate_user_form_data(message.web_app_data.data, message.chat.id)
-    if valid_data:
-        human = valid_data['human']
-        await db.update_user_profile(
-            user_id=message.chat.id, birth_date=str_to_timestamp(human["birth_date"]), full_name=human["full_name"],
-            phone_number=human["phone_number"], about_me=human["about_me"]
-        )
-        await db.delete_pets(message.chat.id)
-        for pet in valid_data["pets"]:
-            await db.add_pet(
-                user_id=message.chat.id, birth_date=str_to_timestamp(pet["birth_date"]), approx_weight=pet["weight"],
-                name=pet["name"], gender=pet["gender"], pet_type=pet["type"], pet_breed=pet["breed"]
-            )
-        await message.answer(text=text_message.PROFILE_COMPLETE_TEXT,
-                             reply_markup=inline_markup.get_back_menu_keyboard())
-    else:
-        await message.answer(text=text_message.PROFILE_ERROR_TEXT)
+# @router.message(F.content_type == types.ContentType.WEB_APP_DATA)
+# @check_block_user
+# async def webapp_catch(message: Message, **kwargs):
+#     valid_data = await db.validate_user_form_data(message.web_app_data.data, message.chat.id)
+#     if valid_data:
+#         human = valid_data['human']
+#         await db.update_user_profile(
+#             user_id=message.chat.id, birth_date=str_to_timestamp(human["birth_date"]), full_name=human["full_name"],
+#             phone_number=human["phone_number"], about_me=human["about_me"]
+#         )
+#         await db.delete_pets(message.chat.id)
+#         for pet in valid_data["pets"]:
+#             await db.add_pet(
+#                 user_id=message.chat.id, birth_date=str_to_timestamp(pet["birth_date"]), approx_weight=pet["weight"],
+#                 name=pet["name"], gender=pet["gender"], pet_type=pet["type"], pet_breed=pet["breed"]
+#             )
+#         await message.answer(text=text_message.PROFILE_COMPLETE_TEXT,
+#                              reply_markup=inline_markup.get_back_menu_keyboard())
+#     else:
+#         await message.answer(text=text_message.PROFILE_ERROR_TEXT)
 
 
 async def get_task_text(task: dict) -> str:

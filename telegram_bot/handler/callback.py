@@ -1,4 +1,5 @@
 import pathlib
+import json
 
 from aiogram import Router, F
 from aiogram.exceptions import TelegramBadRequest
@@ -24,6 +25,25 @@ CALLBACK = {
     'send_treatments_calendar': 'treatments_calendar',
     'send_selection': 'selection'
 }
+
+@router.callback_query(F.web_app_data)
+async def process_web_app_callback(callback_query: CallbackQuery):
+    try:
+        # Получаем данные из WebApp
+        data = json.loads(callback_query.web_app_data.data)
+        print(data)
+
+        # Теперь ответить на WebAppQuery
+        await callback_query.answer_web_app_query(
+            url="https://t.me/DoggyLogy_bot"
+        )
+
+        # Можешь отправить сообщение пользователю
+        await callback_query.message.answer(f"Спасибо! Получили данные.")
+
+    except Exception as e:
+        print(f"Ошибка обработки WebApp данных: {e}")
+        await callback_query.message.answer("Ошибка при обработке данных")
 
 
 # Call a function from callback data
