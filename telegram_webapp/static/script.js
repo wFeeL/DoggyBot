@@ -116,8 +116,8 @@ function parseFormToJson() {
 function submitForm() {
     const form = document.getElementById("form_body");
     if (form.checkValidity()) {
-        const jsonDataList = parseFormToJson();
-        const jsonString = jsonDataList[1];
+        const jsonData = parseFormToJson();
+        const jsonString = JSON.stringify(jsonData);
         Telegram.WebApp.sendData(jsonString);
     } else {
         form.reportValidity();
@@ -125,19 +125,23 @@ function submitForm() {
 }
 
 function formatPhoneNumber(input) {
-    let digits = input.value.replace(/\D/g, '');
+    let value = input.value.replace(/\D/g, '');
 
-    if (digits.length > 11) {
-        digits = digits.substring(0, 11);
+    if (!value.startsWith('7')) {
+        value = '7' + value; // если пользователь не ввел код
     }
 
-    let formatted = '+7';
-    if (digits.length > 1) formatted += ' (' + digits.substring(1, 4);
-    if (digits.length > 4) formatted += ') ' + digits.substring(4, 7);
-    if (digits.length > 7) formatted += '-' + digits.substring(7, 9);
-    if (digits.length > 9) formatted += '-' + digits.substring(9, 11);
+    if (value.length > 11) {
+        value = value.substring(0, 11);
+    }
 
-    input.value = formatted;
+    input.value = '+7' + value.substring(1);
+
+    if (value.length !== 11) {
+        input.setCustomValidity("Номер должен начинаться с +7 и содержать 11 цифр.");
+    } else {
+        input.setCustomValidity("");
+    }
 }
 
 function validateAndCapitalize(input) {
