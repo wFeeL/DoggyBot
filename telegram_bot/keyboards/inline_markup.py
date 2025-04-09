@@ -75,7 +75,7 @@ def get_back_menu_keyboard() -> InlineKeyboardMarkup:
 def get_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.add(
-        *get_profile_button(), *get_treatments_calendar_button(), *get_selection_button(), *get_consultation_button(),
+        *get_profile_button(), *get_treatments_calendar_button(), *get_consultation_button(), *get_selection_button(),
         *get_about_button()
     )
     builder.adjust(2, 1)
@@ -174,6 +174,7 @@ def get_admin_menu_keyboard() -> InlineKeyboardMarkup:
          InlineKeyboardButton(text="📈 Партнёры", callback_data="admin:partners:1")],
         [InlineKeyboardButton(text="👥 Пользователи", callback_data="admin:users:1")],
         [InlineKeyboardButton(text="➕ Добавить партнёра", callback_data="admin:add_partner")],
+        [InlineKeyboardButton(text="🔎 Поиск анкеты", callback_data="admin:search")],
         get_menu_button()])
 
 
@@ -309,4 +310,13 @@ def get_web_app_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🪪 Заполнить форму", web_app=WebAppInfo(url=env.webapp_url))]
     ])
+    return markup
+
+def get_wrong_promo_code_keyboard() -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text='🔄 Попробовать заново', callback_data='admin:search')],
+            get_delete_message_button()
+        ]
+    )
     return markup

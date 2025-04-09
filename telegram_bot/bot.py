@@ -1,15 +1,16 @@
 import asyncio
 import locale
-import pprint
+
+from aiogram.filters import ExceptionTypeFilter
+from aiogram_dialog import DialogManager, setup_dialogs
+from aiogram_dialog.api.exceptions import UnknownIntent
+
 from telegram_bot import text_message
-from telegram_bot.keyboards import inline_markup
 from telegram_bot.env import dp, bot
 from telegram_bot.handler import message, callback
-from telegram_bot.states import treatment_calendar, calendar
+from telegram_bot.keyboards import inline_markup
 from telegram_bot.scheduler import start_scheduler
-from aiogram_dialog import DialogManager, setup_dialogs, StartMode, ShowMode
-from aiogram.filters import ExceptionTypeFilter
-from aiogram_dialog.api.exceptions import UnknownIntent
+from telegram_bot.states import treatment_calendar, calendar, search_form
 
 locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
 
@@ -21,7 +22,7 @@ async def on_unknown_intent(event, dialog_manager: DialogManager):
     # await message.send_menu(message=callback_query.message, state=dialog_manager.__dict__['_data']['state'])
 
 async def main():
-    dp.include_routers(message.router, treatment_calendar.router, callback.router, calendar.dialog)
+    dp.include_routers(message.router, search_form.router, treatment_calendar.router, callback.router, calendar.dialog)
     setup_dialogs(dp)
     start_scheduler()
 

@@ -50,10 +50,7 @@ async def send_profile(message: Message, **kwargs):
     else:
         pets = await db.get_pets(user_id=message.chat.id, is_multiple=True)
         data = {
-            'full_name': user_profile['full_name'],
-            'phone_number': user_profile['phone_number'],
-            'birth_date': datetime.fromtimestamp(float(user_profile["birth_date"])).strftime('%d %B %Y'),
-            'age': round((time.time() - float(user_profile["birth_date"])) // (86400 * 365)),
+            'user': get_user_stroke(user_profile),
             'pets': get_pets_stroke(pets),
             'promo_code': user['promocode']
         }
@@ -227,3 +224,10 @@ def get_pets_stroke(pets_list) -> str:
             gender='мальчик' if pet['gender'] == 'male' else 'девочка',
             breed=pet['breed'])
         for pet in pets_list])
+
+def get_user_stroke(user_data) -> str:
+    return text_message.USER_PROFILE_TEXT.format(
+        full_name=user_data['full_name'], phone_number=user_data['phone_number'],
+        birth_date=datetime.fromtimestamp(float(user_data["birth_date"])).strftime('%d %B %Y'),
+        age=round((time.time() - float(user_data["birth_date"])) // (86400 * 365))
+    )
