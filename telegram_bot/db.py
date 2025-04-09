@@ -156,8 +156,15 @@ async def delete_pets(user_id: int, **kwargs):
 
 
 async def update_user_profile(user_id: int, **kwargs):
-    updations = ", ".join(
-        [f"{key} = {f"'{value}'" if isinstance(value, str) else value}" for key, value in kwargs.items()])
+    # updations = ", ".join(
+    #     [f"{key} = {f"'{value}'" if isinstance(value, str) else value}" for key, value in kwargs.items()])
+    result = []
+    for key, value in kwargs.items():
+        if isinstance(value, str):
+            result.append(f"{key} = '{value}'")
+        else:
+            result.append(f"{key} = {value}")
+    updations = ', '.join(result)
     await create_request(f"UPDATE user_profile SET {updations} WHERE user_id = '{user_id}'", is_return=False)
 
 
@@ -168,8 +175,8 @@ async def update_user(user_id: int, **kwargs):
     await create_request(f"UPDATE users SET {updations} WHERE user_id = '{user_id}'", is_return=False)
 
 
-async def validate_user_form_data(web_app_data: str, user_id: int):
-    if not web_app_data or (await get_users(user_id=user_id))["level"] < 0:
+async def validate_user_form_data(web_app_data: str):
+    if not web_app_data:
         return False
 
     def validate_full_name(full_name):
