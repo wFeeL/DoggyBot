@@ -178,22 +178,6 @@ function formatPhoneNumber(input) {
 }
 
 
-function validateAndCapitalize(input) {
-    let value = input.value.trim();
-
-    value = value
-        .split(/\s+/)
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ');
-
-    input.value = value;
-
-    const regex = /^([А-Я][а-я]{1,15}\s){2}[А-Я][а-я]{1,}$/;
-    if (!regex.test(input.value)) {
-        console.log("Неверный формат ФИО.");
-    }
-}
-
 function validateBreed(input) {
     const regex = /^[А-Яа-яA-Za-z\s]+$/;
     input.setCustomValidity(regex.test(input.value) ? "" : "Порода не должна содержать цифры или спец. символы.");

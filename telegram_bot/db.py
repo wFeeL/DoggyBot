@@ -144,18 +144,18 @@ async def get_reminders(
     return await create_request(sql_query, is_multiple=is_multiple)
 
 
-async def add_pet(user_id: int, approx_weight: int | float, name: str, birth_date: int | float, gender: str,
+async def add_pet(user_id: int | str, approx_weight: int | float, name: str, birth_date: int | float, gender: str,
                   pet_type: str, pet_breed: str):
     await create_request(
         f"INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed) VALUES ('{user_id}', {approx_weight}, '{name}', '{birth_date}', '{gender}', '{pet_type}', '{pet_breed}')",
         is_return=False)
 
 
-async def delete_pets(user_id: int, **kwargs):
+async def delete_pets(user_id: int | str, **kwargs):
     await create_request(f"DELETE FROM pets WHERE user_id = '{user_id}'", is_return=False)
 
 
-async def update_user_profile(user_id: int, **kwargs):
+async def update_user_profile(user_id: int | str, **kwargs):
     result = []
     for key, value in kwargs.items():
         if isinstance(value, str):
