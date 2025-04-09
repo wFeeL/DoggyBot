@@ -1,4 +1,5 @@
 import os
+from telegram_bot import env
 from datetime import datetime
 from urllib.parse import parse_qs
 
@@ -10,6 +11,7 @@ from flask import Flask, request, jsonify, render_template
 app = Flask(__name__, static_folder='static')
 load_dotenv()
 
+print(env.webapp_url)
 @app.route("/")
 def index():
     return render_template('index.html')
@@ -63,14 +65,6 @@ def handle_webapp_data():
         if not query_id:
             return jsonify({"ok": False, "error": "query_id не найден"})
 
-        bot_api_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/sendMessage"
-
-        payload = {
-            "chat_id": parsed.get("user", [None])[0],  # user id из initData
-            "text": f"Получены новые данные!\nИмя: {form_data['human']['full_name']}\nТелефон: {form_data['human']['phone_number']}"
-        }
-
-        requests.post(bot_api_url, json=payload)
 
         # Теперь отправляем ответ через Telegram API
         answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/answerWebAppQuery"

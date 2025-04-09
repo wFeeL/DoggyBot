@@ -114,7 +114,6 @@ async def send_admin_panel(message: Message, **kwargs):
         reply_markup=inline_markup.get_admin_menu_keyboard()
     )
 
-
 # @router.message(F.content_type == types.ContentType.WEB_APP_DATA)
 # @check_block_user
 # async def webapp_catch(message: Message, **kwargs):
