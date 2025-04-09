@@ -93,7 +93,7 @@ def handle_webapp_data():
             }
         }
 
-        response = requests.post(answer_url, json=json.dumps(answer_payload))
+        response = requests.post(answer_url, json=answer_payload)
 
         if response.status_code == 200:
             return jsonify({"ok": True})
