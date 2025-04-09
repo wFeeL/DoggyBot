@@ -177,13 +177,12 @@ async def update_user(user_id: int, **kwargs):
     await create_request(f"UPDATE users SET {updations} WHERE user_id = '{user_id}'", is_return=False)
 
 
-async def validate_user_form_data(web_app_data: str):
+async def validate_user_form_data(web_app_data):
     if not web_app_data:
         return False
 
     def validate_full_name(full_name):
-        pattern = r'^([А-Я][а-я]{1,15}\s){2}[А-Я][а-я]{1,15}$'
-        return re.match(pattern, full_name) is not None
+        return bool(re.match(r'^[^\d]+$', full_name))
 
     def validate_phone_number(phone_number):
         pattern = r'^\+7 \d{3} \d{3} \d{2} \d{2}$'
@@ -214,20 +213,16 @@ async def validate_user_form_data(web_app_data: str):
             return False
         return True
 
-    try:
-        data = json.loads(web_app_data)
-    except json.JSONDecodeError:
+
+    human = web_app_data['human']
+    if not validate_full_name(human['full_name']):
+        return False
+    if not validate_phone_number(human['phone_number']):
+        return False
+    if not validate_birth_date(human['birth_date']):
         return False
 
-    human = data.get('human', {})
-    if not validate_full_name(human.get('full_name', '')):
-        return False
-    if not validate_phone_number(human.get('phone_number', '')):
-        return False
-    if not validate_birth_date(human.get('birth_date', '')):
-        return False
-
-    pets = data.get('pets', [])
+    pets = web_app_data['pets']
     if not pets or len(pets) < 1:
         return False
 
@@ -235,7 +230,7 @@ async def validate_user_form_data(web_app_data: str):
         if not validate_pet(pet):
             return False
 
-    return data
+    return web_app_data
 
 
 async def delete_reminder(id: int):

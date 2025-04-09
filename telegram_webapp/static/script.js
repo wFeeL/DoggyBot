@@ -76,7 +76,7 @@ function addPetFromData(pet, index) {
 
 
 
-function parseFormToJson() {
+function parseFormToJson(user_id) {
     const fullName = document.querySelector('input[name="full_name"]').value;
     const phoneNumber = document.querySelector('input[name="phone_number"]').value;
     const humanBirthDate = document.querySelector('input[name="birth_date"]').value;
@@ -109,7 +109,8 @@ function parseFormToJson() {
             full_name: fullName,
             birth_date: humanBirthDate,
             phone_number: phoneNumber,
-            about_me: aboutMe
+            about_me: aboutMe,
+            user_id: user_id
         }
     };
 }
@@ -117,7 +118,7 @@ function parseFormToJson() {
 function submitForm() {
     const form = document.getElementById("form_body");
     if (form.checkValidity()) {
-        const jsonData = parseFormToJson();
+        const jsonData = parseFormToJson(Telegram.WebApp.initDataUnsafe.user.id);
         const initData = Telegram.WebApp.initData;
 
         fetch('https://doggybot.onrender.com/webapp_data', {

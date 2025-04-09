@@ -63,9 +63,9 @@ def handle_webapp_data():
 
 
         # Теперь отправляем ответ через Telegram API
-        # answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/answerWebAppQuery"
+        answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/answerWebAppQuery"
 
-        # valid_data = asyncio.run(db.validate_user_form_data(form_data))
+        form_data = asyncio.run(db.validate_user_form_data(form_data))
 
         user_id = '416966184'
         if form_data:
