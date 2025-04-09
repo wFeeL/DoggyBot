@@ -51,7 +51,7 @@ def get_create_task_button(text='➕ Создать напоминание') -> 
 
 
 def get_delete_task_button(page: int, text='🗑️ Удалить напоминание') -> list[InlineKeyboardButton]:
-    return [InlineKeyboardButton(text=text, callback_data=f'task:delete:{page}')]
+    return [InlineKeyboardButton(text=text, callback_data=f"task:delete:{page}")]
 
 
 def get_add_reminder_button(text='➕ Добавить напоминание') -> list[InlineKeyboardButton]:
@@ -94,7 +94,7 @@ async def get_treatments_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     treatments = await db.get_treatments(value=int(True), is_multiple=True)
     for treatment in treatments:
-        builder.add(InlineKeyboardButton(text=treatment['name'], callback_data=f'treatment:{treatment['id']}'))
+        builder.add(InlineKeyboardButton(text=treatment['name'], callback_data=f"treatment:{treatment['id']}"))
     builder.add(*get_menu_button())
     builder.adjust(1, 1)
     return builder.as_markup()
@@ -104,7 +104,7 @@ async def get_medicament_keyboard(treatments_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     medicament = await db.get_medicament(treatments_id=treatments_id, value=int(True), is_multiple=True)
     for elem in medicament:
-        builder.add(InlineKeyboardButton(text=elem['name'], callback_data=f'medicament:{elem['id']}'))
+        builder.add(InlineKeyboardButton(text=elem['name'], callback_data=f"medicament:{elem['id']}"))
     builder.add(InlineKeyboardButton(text='✏️ Ввести свой вариант', callback_data='medicament:choose'))
     builder.add(*get_treatments_calendar_button(text='⬅️ Назад'))
     builder.adjust(1, 1)
@@ -114,19 +114,19 @@ async def get_medicament_keyboard(treatments_id: int) -> InlineKeyboardMarkup:
 async def get_period_keyboard(treatment_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for elem in env.PERIODS_TO_DAYS:
-        builder.add(InlineKeyboardButton(text=elem, callback_data=f'period:{PERIODS_TO_DAYS[elem]}'))
+        builder.add(InlineKeyboardButton(text=elem, callback_data=f"period:{PERIODS_TO_DAYS[elem]}"))
     builder.adjust(2, 2)
     builder.row(InlineKeyboardButton(text='✏️ Ввести период', callback_data='period:choose'))
-    builder.row(InlineKeyboardButton(text='⬅️ Назад', callback_data=f'treatment:{treatment_id}'))
+    builder.row(InlineKeyboardButton(text='⬅️ Назад', callback_data=f"treatment:{treatment_id}"))
     return builder.as_markup()
 
 
 def get_task_keyboard(page: int, length: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    next_button = InlineKeyboardButton(text='Вперед ➡️', callback_data=f'task:page:{page + 1}')
-    back_button = InlineKeyboardButton(text='⬅️ Назад', callback_data=f'task:page:{page - 1}')
-    count_button = InlineKeyboardButton(text=f'{page}/{length}', callback_data='None')
+    next_button = InlineKeyboardButton(text='Вперед ➡️', callback_data=f"task:page:{page + 1}")
+    back_button = InlineKeyboardButton(text='⬅️ Назад', callback_data=f"task:page:{page - 1}")
+    count_button = InlineKeyboardButton(text=f"{page}/{length}", callback_data='None')
     if page == 1 and length == 1:
         builder.add(count_button)
 
@@ -269,5 +269,5 @@ def get_wrong_promo_code_keyboard() -> InlineKeyboardMarkup:
 
 def get_back_user_id_keyboard(user_id: int | str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='⬅️ Назад', callback_data=f'user:{user_id}')],
+        [InlineKeyboardButton(text='⬅️ Назад', callback_data=f"user:{user_id}")],
     ])

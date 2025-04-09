@@ -22,7 +22,7 @@ dp = Dispatcher()
 webapp_url = "https://doggybot.onrender.com/"
 BASE_DIR = Path(__file__).resolve().parent.parent
 pg_dsn = f"postgres://{os.environ['POSTGRES_USER']}:{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:{os.environ['POSTGRES_PORT']}/{os.environ['POSTGRES_DATABASE']}"
-img_path = f'{os.path.dirname(__file__)}/img'
+img_path = f"{os.path.dirname(__file__)}/img"
 local_timezone = tzlocal.get_localzone()
 PERIODS_TO_DAYS = {
     '1 месяц': '30',

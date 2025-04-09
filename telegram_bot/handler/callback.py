@@ -147,7 +147,7 @@ async def handle_consultation(callback: CallbackQuery) -> None:
         markup = inline_markup.get_back_free_consultation_keyboard()
 
         if callback_data[2] == 'zoo':
-            path = f'{img_path}/consultations/zoo.jpg'
+            path = f"{img_path}/consultations/zoo.jpg"
             if pathlib.Path(path).is_file():
                 await bot.send_photo(
                     chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
@@ -155,7 +155,7 @@ async def handle_consultation(callback: CallbackQuery) -> None:
                 )
 
         elif callback_data[2] == 'help':
-            path = f'{img_path}/consultations/help.jpg'
+            path = f"{img_path}/consultations/help.jpg"
             if pathlib.Path(path).is_file():
                 await bot.send_photo(
                     chat_id=callback.message.chat.id, photo=FSInputFile(path=path),

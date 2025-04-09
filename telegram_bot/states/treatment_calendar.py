@@ -28,7 +28,7 @@ router = Router()
 async def register_treatment_calendar(message: Message, state: FSMContext) -> None:
     markup = await inline_markup.get_treatments_keyboard()
     await state.clear()
-    path = f'{img_path}/treatments/treatments.jpg'
+    path = f"{img_path}/treatments/treatments.jpg"
     if pathlib.Path(path).is_file():
         await bot.send_photo(
             chat_id=message.chat.id, photo=FSInputFile(path=path),
@@ -47,7 +47,7 @@ async def process_treatment(callback: CallbackQuery, state: FSMContext) -> None:
         await state.update_data(treatment_id=treatment_id)
 
         markup = await inline_markup.get_medicament_keyboard(treatments_id=treatment_id)
-        path = f'{img_path}/treatments/{treatment_id if treatment_id != 3 else 2}.jpg'
+        path = f"{img_path}/treatments/{treatment_id if treatment_id != 3 else 2}.jpg"
         if pathlib.Path(path).is_file():
             await bot.send_photo(
                 chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
@@ -129,7 +129,7 @@ async def process_period(message: Message, state: FSMContext, dialog_manager: Di
         await state.clear()
 
     except Exception as error:
-        print(f'Error text: {error}')
+        print(f"Error text: {error}")
         await message.delete()
         await message.answer(text=text_message.TRY_AGAIN_ERROR,
                              reply_markup=inline_markup.get_delete_message_keyboard())
@@ -148,7 +148,7 @@ async def process_period(callback: CallbackQuery, state: FSMContext, dialog_mana
         await state.clear()
 
     except Exception as error:
-        print(f'Error text: {error}')
+        print(f"Error text: {error}")
         await callback.message.delete()
         await callback.message.answer(text=text_message.TRY_AGAIN_ERROR,
                                       reply_markup=inline_markup.get_delete_message_keyboard())
@@ -179,7 +179,7 @@ async def process_start_date(callback: CallbackQuery, selected_date: date, state
         ), reply_markup=inline_markup.get_reminder_keyboard())
 
     except Exception as error:
-        print(f'Error text: {error}')
+        print(f"Error text: {error}")
         await callback.message.delete()
         await callback.message.answer(text=text_message.TRY_AGAIN_ERROR,
                                       reply_markup=inline_markup.get_delete_message_keyboard())
@@ -210,6 +210,6 @@ async def process_reminder(callback: CallbackQuery, state: FSMContext) -> None:
     except KeyError:
         await callback.message.answer(text=text_message.ERROR_TEXT)
     except Exception as e:
-        print(f'Error text: {e}')
+        print(f"Error text: {e}")
     finally:
         await state.clear()

@@ -50,7 +50,7 @@ def create_connection():
         return connection
 
     except psycopg2.Error as error:
-        print(f'Error with connection to database {error}')
+        print(f"Error with connection to database {error}")
         return None
 
 
@@ -156,8 +156,6 @@ async def delete_pets(user_id: int, **kwargs):
 
 
 async def update_user_profile(user_id: int, **kwargs):
-    # updations = ", ".join(
-    #     [f"{key} = {f"'{value}'" if isinstance(value, str) else value}" for key, value in kwargs.items()])
     result = []
     for key, value in kwargs.items():
         if isinstance(value, str):
@@ -169,8 +167,6 @@ async def update_user_profile(user_id: int, **kwargs):
 
 
 async def update_user(user_id: int, **kwargs):
-    # updations = ", ".join(
-    #     [f"{key} = {f'"{value}"' if isinstance(value, str) else value}" for key, value in kwargs.items()])
     result = []
     for key, value in kwargs.items():
         if isinstance(value, str):
