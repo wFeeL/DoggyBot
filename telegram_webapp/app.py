@@ -1,17 +1,19 @@
 import os
-from telegram_bot import env
+from telegram_bot import db
 from datetime import datetime
 from urllib.parse import parse_qs
 
-import psycopg2
+import asyncio
 import requests
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template
 
+from telegram_bot.handler.message import str_to_timestamp
+
 app = Flask(__name__, static_folder='static')
 load_dotenv()
 
-print(env.webapp_url)
+
 @app.route("/")
 def index():
     return render_template('index.html')
@@ -20,15 +22,8 @@ def index():
 # Получение данных пользователя
 @app.route("/get_user_data/<telegram_id>", methods=["GET"])
 def get_user_data(telegram_id):
-    pg_dsn = f"postgres://{os.environ['POSTGRES_USER']}:{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:{os.environ['POSTGRES_PORT']}/{os.environ['POSTGRES_DATABASE']}"
-    connection = psycopg2.connect(str(pg_dsn))
-
-    with connection as conn:
-        with conn.cursor() as cur:
-            cur.execute(f"SELECT * FROM user_profile WHERE user_id = '{telegram_id}'ORDER by full_name ASC")
-            user_profile = get_dict_fetch(cur, cur.fetchall())[0]
-            cur.execute(f"SELECT * FROM pets WHERE user_id = '{telegram_id}' ORDER by name ASC")
-            pets = get_dict_fetch(cur, cur.fetchall())
+    user_profile = asyncio.run(db.get_user_profile(user_id=telegram_id))
+    pets = asyncio.run(db.get_pets(user_id=telegram_id, is_multiple=True))
     if user_profile:
         if len(pets) > 0:
             pets = list(map(lambda elem: dict(elem), pets))
@@ -68,6 +63,22 @@ def handle_webapp_data():
 
         # Теперь отправляем ответ через Telegram API
         answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/answerWebAppQuery"
+
+        valid_data = asyncio.run(db.validate_user_form_data(form_data))
+        user_id = form_data['user']['id']
+        if valid_data:
+            human = valid_data['human']
+            asyncio.run(db.update_user_profile(
+                user_id=user_id, birth_date=str_to_timestamp(human["birth_date"]), full_name=human["full_name"],
+                phone_number=human["phone_number"], about_me=human["about_me"]
+            ))
+            asyncio.run(db.delete_pets(user_id))
+            for pet in valid_data["pets"]:
+                asyncio.run(db.add_pet(
+                    user_id=user_id, birth_date=str_to_timestamp(pet["birth_date"]),
+                    approx_weight=pet["weight"],
+                    name=pet["name"], gender=pet["gender"], pet_type=pet["type"], pet_breed=pet["breed"]
+                ))
 
         answer_payload = {
             "web_app_query_id": query_id,
