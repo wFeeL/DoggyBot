@@ -38,6 +38,7 @@ def get_consultation_button(text="👨‍⚕️Консультация") -> lis
 def get_free_consultation(text="👨‍⚕️Бесплатные консультации") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="cons:free")]
 
+
 def get_selection_button(text="🐶 Зоотовары ") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="selection")]
 
@@ -50,11 +51,15 @@ def get_create_task_button(text='➕ Создать напоминание') -> 
     return [InlineKeyboardButton(text=text, callback_data='task:create')]
 
 
+def get_edit_task_button(page: int, text='✏️ Редактировать напоминание') -> list[InlineKeyboardButton]:
+    return [InlineKeyboardButton(text=text, callback_data=f"task:edit:{page}")]
+
+
 def get_delete_task_button(page: int, text='🗑️ Удалить напоминание') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data=f"task:delete:{page}")]
 
 
-def get_add_reminder_button(text='➕ Добавить напоминание') -> list[InlineKeyboardButton]:
+def get_add_reminder_button(text='✅ Сохранить напоминание') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data='reminder:create')]
 
 
@@ -90,34 +95,50 @@ def get_none_task_keyboard() -> InlineKeyboardMarkup:
     return markup
 
 
-async def get_treatments_keyboard() -> InlineKeyboardMarkup:
+async def get_treatments_keyboard(is_edit: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     treatments = await db.get_treatments(value=int(True), is_multiple=True)
     for treatment in treatments:
-        builder.add(InlineKeyboardButton(text=treatment['name'], callback_data=f"treatment:{treatment['id']}"))
-    builder.add(*get_menu_button())
+        if is_edit:
+            builder.add(InlineKeyboardButton(text=treatment['name'], callback_data=f"edit:treatment:{treatment['id']}"))
+        else:
+            builder.add(InlineKeyboardButton(text=treatment['name'], callback_data=f"treatment:{treatment['id']}"))
+            builder.add(*get_menu_button())
+
     builder.adjust(1, 1)
     return builder.as_markup()
 
 
-async def get_medicament_keyboard(treatments_id: int) -> InlineKeyboardMarkup:
+async def get_medicament_keyboard(treatments_id: int, is_edit: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     medicament = await db.get_medicament(treatments_id=treatments_id, value=int(True), is_multiple=True)
     for elem in medicament:
-        builder.add(InlineKeyboardButton(text=elem['name'], callback_data=f"medicament:{elem['id']}"))
-    builder.add(InlineKeyboardButton(text='✏️ Ввести свой вариант', callback_data='medicament:choose'))
-    builder.add(*get_treatments_calendar_button(text='⬅️ Назад'))
+        if is_edit:
+            builder.add(InlineKeyboardButton(text=elem['name'], callback_data=f"edit:medicament:{elem['id']}"))
+        else:
+            builder.add(InlineKeyboardButton(text=elem['name'], callback_data=f"medicament:{elem['id']}"))
+    if is_edit:
+        builder.add(InlineKeyboardButton(text='✏️ Ввести свой вариант', callback_data='edit:medicament:choose'))
+    else:
+        builder.add(InlineKeyboardButton(text='✏️ Ввести свой вариант', callback_data='medicament:choose'))
+        builder.add(*get_create_task_button(text='⬅️ Назад'))
     builder.adjust(1, 1)
     return builder.as_markup()
 
 
-async def get_period_keyboard(treatment_id: int) -> InlineKeyboardMarkup:
+async def get_period_keyboard(treatment_id: int, is_edit: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for elem in env.PERIODS_TO_DAYS:
-        builder.add(InlineKeyboardButton(text=elem, callback_data=f"period:{PERIODS_TO_DAYS[elem]}"))
+        if is_edit:
+            builder.add(InlineKeyboardButton(text=elem, callback_data=f"edit:period:{PERIODS_TO_DAYS[elem]}"))
+        else:
+            builder.add(InlineKeyboardButton(text=elem, callback_data=f"period:{PERIODS_TO_DAYS[elem]}"))
     builder.adjust(2, 2)
-    builder.row(InlineKeyboardButton(text='✏️ Ввести период', callback_data='period:choose'))
-    builder.row(InlineKeyboardButton(text='⬅️ Назад', callback_data=f"treatment:{treatment_id}"))
+    if is_edit:
+        builder.row(InlineKeyboardButton(text='✏️ Ввести период', callback_data='edit:period:choose'))
+    else:
+        builder.row(InlineKeyboardButton(text='✏️ Ввести период', callback_data='period:choose'))
+        builder.row(InlineKeyboardButton(text='⬅️ Назад', callback_data=f"treatment:{treatment_id}"))
     return builder.as_markup()
 
 
@@ -139,10 +160,23 @@ def get_task_keyboard(page: int, length: int) -> InlineKeyboardMarkup:
     else:
         builder.add(back_button, count_button, next_button)
     builder.adjust(3, 1)
+    builder.row(*get_edit_task_button(page))
     builder.row(*get_delete_task_button(page))
     builder.row(*get_create_task_button())
     builder.row(*get_menu_button())
     return builder.as_markup()
+
+def get_edit_task_keyboard(is_edited: bool = False) -> InlineKeyboardMarkup:
+    keyboard = [[InlineKeyboardButton(text='🪲 Изменить тип', callback_data='edit_treatment')],
+                [InlineKeyboardButton(text='💊 Изменить лекарство', callback_data='edit_medicament')],
+                [InlineKeyboardButton(text='🗓️ Изменить начальную дату', callback_data='edit_start_date')],
+                [InlineKeyboardButton(text='✏️ Изменить период', callback_data='edit_period')]]
+    if is_edited:
+        keyboard.append([InlineKeyboardButton(text='✅ Сохранить данные', callback_data='edit_data')])
+        keyboard.append([InlineKeyboardButton(text='👀 Скрыть', callback_data='stop_state')])
+    keyboard.append(get_treatments_calendar_button('⬅️ Назад'))
+    markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
+    return markup
 
 
 def get_reminder_keyboard() -> InlineKeyboardMarkup:
@@ -168,7 +202,6 @@ def get_admin_menu_keyboard() -> InlineKeyboardMarkup:
 
 def get_back_admin_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[get_admin_menu_button(text='⬅️ Назад')])
-
 
 
 async def get_users_keyboard(page) -> InlineKeyboardMarkup:
@@ -199,7 +232,7 @@ def get_user_keyboard(user_id: int, user_level: int) -> InlineKeyboardMarkup:
     builder.add(InlineKeyboardButton(text='📝 Анкета', callback_data=f"form:{user_id}"))
     if user_level == 2:
         builder.add(InlineKeyboardButton(text="👤 Сделать пользователем",
-                              callback_data=f"user_action:make_user:{user_id}"))
+                                         callback_data=f"user_action:make_user:{user_id}"))
     else:
         if user_level == 0:
             builder.add(InlineKeyboardButton(text="🚫 Заблокировать",
@@ -247,16 +280,27 @@ def get_back_consultation_keyboard() -> InlineKeyboardMarkup:
         get_consultation_button('⬅️ Назад')
     ])
 
-def get_back_free_consultation_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        get_free_consultation('⬅️ Назад')
-    ])
+
+def get_back_free_consultation_keyboard(media_group: tuple[int, int] = None) -> InlineKeyboardMarkup:
+    if media_group is None:
+        keyboard = get_free_consultation('⬅️ Назад')
+    else:
+        first_message_id = media_group[0]
+        last_message_id = first_message_id + media_group[1]
+        keyboard = [InlineKeyboardButton(
+            text='⬅️ Назад', callback_data="{" + f"\"action\":\"cons:free\",\"first_msg\":\"{first_message_id}\","
+                                                 f"\"last_msg\":\"{last_message_id}\"" + "}"
+        )]
+
+    return InlineKeyboardMarkup(inline_keyboard=[keyboard])
+
 
 def get_web_app_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🪪 Заполнить форму", web_app=WebAppInfo(url=env.webapp_url))]
     ])
     return markup
+
 
 def get_wrong_promo_code_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(
@@ -266,6 +310,7 @@ def get_wrong_promo_code_keyboard() -> InlineKeyboardMarkup:
         ]
     )
     return markup
+
 
 def get_back_user_id_keyboard(user_id: int | str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[

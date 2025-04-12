@@ -116,7 +116,7 @@ async def process_period(message: Message, state: FSMContext, dialog_manager: Di
     try:
         if message.text.isdigit():
             await state.update_data(period=message.text)
-            await dialog_manager.start(state=calendar.ReminderCalendar.calendar, mode=StartMode.RESET_STACK)
+            await dialog_manager.start(state=calendar.ReminderCalendar.calendar_reminder, mode=StartMode.RESET_STACK)
         else:
             raise TypeError
 
@@ -142,7 +142,7 @@ async def process_period(callback: CallbackQuery, state: FSMContext, dialog_mana
         data = callback.data.split(':')
         period = int(data[1])
         await state.update_data(period=period)
-        await dialog_manager.start(state=calendar.ReminderCalendar.calendar, mode=StartMode.RESET_STACK)
+        await dialog_manager.start(state=calendar.ReminderCalendar.calendar_reminder, mode=StartMode.RESET_STACK)
 
     except ValueError:
         await state.clear()

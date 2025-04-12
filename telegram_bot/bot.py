@@ -10,7 +10,7 @@ from telegram_bot.env import dp, bot
 from telegram_bot.handler import message, callback
 from telegram_bot.keyboards import inline_markup
 from telegram_bot.scheduler import start_scheduler
-from telegram_bot.states import treatment_calendar, calendar, search_form
+from telegram_bot.states import treatment_calendar, calendar, search_form, edit_task
 
 locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
 
@@ -22,7 +22,7 @@ async def on_unknown_intent(event, dialog_manager: DialogManager):
     # await message.send_menu(message=callback_query.message, state=dialog_manager.__dict__['_data']['state'])
 
 async def main():
-    dp.include_routers(message.router, search_form.router, treatment_calendar.router, callback.router, calendar.dialog)
+    dp.include_routers(message.router, search_form.router, treatment_calendar.router, edit_task.router, callback.router, calendar.dialog)
     setup_dialogs(dp)
     start_scheduler()
 

@@ -1,15 +1,14 @@
-import json
+import asyncio
 import os
-from telegram_bot import db
 from datetime import datetime
 from urllib.parse import parse_qs
 
-import asyncio
 import requests
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, render_template
 
-from telegram_bot.handler.message import str_to_timestamp
+from telegram_bot import db
+from telegram_bot.helper import str_to_timestamp
 
 app = Flask(__name__, static_folder='static')
 load_dotenv()
@@ -57,10 +56,8 @@ def handle_webapp_data():
         parsed = parse_qs(init_data)
         query_id = parsed.get("query_id", [None])[0]
 
-
         if not query_id:
             return jsonify({"ok": False, "error": "query_id не найден"})
-
 
         # Теперь отправляем ответ через Telegram API
         answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/answerWebAppQuery"
@@ -100,21 +97,10 @@ def handle_webapp_data():
             return jsonify({"ok": True})
         else:
             return jsonify({"ok": False, "error": response.text})
-    #
+
     except Exception as e:
         print("Ошибка обработки:", e)
         return jsonify({"ok": False, "error": str(e)})
-
-
-def get_dict_fetch(cursor, fetch):
-    results = []
-    columns = list(cursor.description)
-    for row in fetch:
-        row_dict = {}
-        for i, col in enumerate(columns):
-            row_dict[col.name] = row[i]
-        results.append(row_dict)
-    return results
 
 
 if __name__ == "__main__":

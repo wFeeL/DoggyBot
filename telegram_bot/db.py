@@ -3,10 +3,12 @@ import random
 import re
 import string
 from datetime import datetime, timedelta
+from turtledemo.penrose import start
 from typing import Any
 
 import psycopg2
 
+from telegram_bot.helper import get_dict_fetch, timestamp_to_str, str_to_timestamp
 from telegram_bot.env import bot, local_timezone, pg_dsn
 from telegram_bot.handler import message
 from telegram_bot.keyboards import inline_markup
@@ -75,7 +77,8 @@ async def create_request(sql_query: str, is_return: bool = True, is_multiple: bo
 
 
 async def get_users(
-        user_id: int | str = None, username: str = None, full_name: str = None, promocode: str = None, level: int = None,
+        user_id: int | str = None, username: str = None, full_name: str = None, promocode: str = None,
+        level: int = None,
         consultation: int = None, is_multiple: bool = False
 ) -> list | dict:
     condition_dict = locals()
@@ -213,7 +216,6 @@ async def validate_user_form_data(web_app_data):
             return False
         return True
 
-
     human = web_app_data['human']
     if not validate_full_name(human['full_name']):
         return False
@@ -253,6 +255,18 @@ async def add_reminder(
         is_return=False)
 
 
+async def update_reminder(task_id: int, treatment_id: int = None, medicament_id: int = None,
+                          medicament_name: str = '',
+                          start_date: str = None, period: str = None, **kwargs
+                          ) -> None:
+    start_date = datetime.strptime(timestamp_to_str(float(start_date)), "%d-%m-%Y")
+    end_date = start_date + timedelta(days=int(period))
+
+    await create_request(
+        f"UPDATE reminders SET treatment_id = {treatment_id}, medicament_id = {medicament_id}, medicament_name = '{medicament_name}', start_date = '{start_date.timestamp()}', end_date = '{end_date.timestamp()}', period = '{period}' WHERE id = {task_id}",
+        is_return=False)
+
+
 async def check_reminders():
     tasks = await get_reminders(value=int(True), is_multiple=True)
     now_timestamp = datetime.now().timestamp()
@@ -263,14 +277,3 @@ async def check_reminders():
                                  is_return=False)
             await bot.send_message(chat_id=task['user_id'], text=await message.get_task_text(task),
                                    reply_markup=inline_markup.get_delete_message_keyboard())
-
-
-def get_dict_fetch(cursor, fetch):
-    results = []
-    columns = list(cursor.description)
-    for row in fetch:
-        row_dict = {}
-        for i, col in enumerate(columns):
-            row_dict[col.name] = row[i]
-        results.append(row_dict)
-    return results

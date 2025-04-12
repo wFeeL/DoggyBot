@@ -15,21 +15,27 @@ from aiogram_dialog.widgets.text import Const, Format, Text
 from babel.dates import get_month_names
 
 from telegram_bot import text_message
-from telegram_bot.states import treatment_calendar
+from telegram_bot.states import treatment_calendar, edit_task
 
 
 async def start_date_selected(callback: CallbackQuery, widget,
-                                          dialog_manager: DialogManager, selected_date: date) -> None:
+                              dialog_manager: DialogManager, selected_date: date) -> None:
     await treatment_calendar.process_start_date(callback, selected_date, state=dialog_manager.middleware_data['state'])
     await dialog_manager.done()
 
 
-# ReminderCalendar state (only for calendar widget)
+async def start_edit_date(callback: CallbackQuery, widget,
+                          dialog_manager: DialogManager, selected_date: date) -> None:
+    await edit_task.process_edit_date(callback.message, selected_date, state=dialog_manager.middleware_data['state'])
+    await dialog_manager.done()
+
+
+# ReminderCalendar state (only for calendar_reminder widget)
 class ReminderCalendar(StatesGroup):
-    calendar = State()
+    calendar_reminder = State()
+    calendar_edit_reminder = State()
 
-
-# Custom month for calendar
+# Custom month for calendar_reminder
 class Month(Text):
     async def _render_text(self, data, manager: DialogManager) -> str:
         selected_date: date = data["date"]
@@ -39,7 +45,7 @@ class Month(Text):
         )[selected_date.month].title()
 
 
-# Configurate custom calendar (create range and buttons)
+# Configurate custom calendar_reminder (create range and buttons)
 class CustomCalendar(Calendar):
     def _init_views(self) -> Dict[CalendarScope, CalendarScopeView]:
         return {
@@ -65,17 +71,23 @@ class CustomCalendar(Calendar):
             ),
         }
 
+
 min_date = date.today()
-# Create calendar config with date ranges
+# Create calendar_reminder config with date ranges
 calendar_config = CalendarConfig(
     years_columns=1, years_per_page=1, month_columns=1
 )
 
-# Create dialog with calendar widget
+# Create dialog with calendar_reminder widget
 dialog = Dialog(
     Window(
         Const(text_message.CHOOSE_START_DATE),
-        CustomCalendar(id='homework_calendar', on_click=start_date_selected, config=calendar_config),
-        state=ReminderCalendar.calendar,
+        CustomCalendar(id='reminder_calendar', on_click=start_date_selected, config=calendar_config),
+        state=ReminderCalendar.calendar_reminder,
+    ),
+    Window(
+        Const(text_message.CHOOSE_START_DATE),
+        CustomCalendar(id='edit_reminder_calendar', on_click=start_edit_date, config=calendar_config),
+        state=ReminderCalendar.calendar_edit_reminder,
     )
 )

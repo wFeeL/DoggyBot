@@ -5,12 +5,13 @@ from aiogram import Router, F
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile
+from aiogram.types.input_media_photo import InputMediaPhoto
 
 from telegram_bot import db, text_message
 from telegram_bot.env import bot, img_path
 from telegram_bot.handler import message
 from telegram_bot.keyboards import inline_markup
-from telegram_bot.states import treatment_calendar
+from telegram_bot.states import treatment_calendar, edit_task
 
 router = Router()
 
@@ -40,7 +41,7 @@ async def call_function_from_callback(callback: CallbackQuery, **kwargs) -> None
 
 
 # CALLBACKS
-# Handle most of callback's (/menu, /tomorrow, /calendar, /homework etc.)
+# Handle most of callback's (/menu, /tomorrow, /calendar_reminder, /homework etc.)
 @router.callback_query(lambda call: call.data in list(CALLBACK.values()))
 async def handle_callback(callback: CallbackQuery, **kwargs) -> None:
     """
@@ -114,8 +115,16 @@ async def handle_create_page_tasks(callback: CallbackQuery, state: FSMContext) -
     await treatment_calendar.register_treatment_calendar(callback.message, state)
 
 
+@router.callback_query(F.data.startswith('task:edit'))
+async def handle_edit_task(callback: CallbackQuery, state: FSMContext) -> None:
+    await callback.message.delete()
+    page = int(callback.data.split(":")[2])
+    tasks = await db.get_reminders(user_id=callback.message.chat.id, value=int(True), is_multiple=True)
+    task_id = tasks[page - 1]['id']
+    await edit_task.update_edit_data(callback.message, state, task_id)
+
 @router.callback_query(F.data.startswith('task:delete'))
-async def handle_create_page_tasks(callback: CallbackQuery) -> None:
+async def handle_delete_task(callback: CallbackQuery) -> None:
     await callback.message.delete()
     page = int(callback.data.split(":")[2])
     tasks = await db.get_reminders(user_id=callback.message.chat.id, value=int(True), is_multiple=True)
@@ -124,10 +133,20 @@ async def handle_create_page_tasks(callback: CallbackQuery) -> None:
                                   reply_markup=inline_markup.get_back_menu_keyboard())
 
 
-@router.callback_query(F.data.startswith('cons'))
+@router.callback_query(F.data.contains('cons'))
 async def handle_consultation(callback: CallbackQuery) -> None:
+    try:
+        first_message = int(json.loads(callback.data)['first_msg'])
+        last_message = int(json.loads(callback.data)['last_msg'])
+        message_ids = list(range(first_message, last_message))
+        callback_data = str(json.loads(callback.data)['action']).split(':')
+
+        await bot.delete_messages(chat_id=callback.message.chat.id, message_ids=message_ids)
+
+    except Exception:
+        callback_data = callback.data.split(':')
+
     await callback.message.delete()
-    callback_data = callback.data.split(':')
     user = await db.get_users(callback.message.chat.id)
 
     if len(callback_data) == 2:
@@ -147,12 +166,15 @@ async def handle_consultation(callback: CallbackQuery) -> None:
         markup = inline_markup.get_back_free_consultation_keyboard()
 
         if callback_data[2] == 'zoo':
-            path = f"{img_path}/consultations/zoo.jpg"
-            if pathlib.Path(path).is_file():
-                await bot.send_photo(
-                    chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
-                    caption=text_message.CONSULTATION_ZOO, reply_markup=markup
-                )
+            folder_path = f"{img_path}/consultations/zoo/"
+            photos = list(map(lambda elem: FSInputFile(path=elem), [folder_path + f'{i}.jpg' for i in range(1, 6)]))
+            first_photo = [InputMediaPhoto(media=photos[0], caption=text_message.CONSULTATION_ZOO)]
+            media_group = first_photo + list(map(lambda elem: InputMediaPhoto(media=elem), photos[1:]))
+            media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
+
+            media_group_id, media_group_len = media_group[0].message_id, len(media_group)
+            markup = inline_markup.get_back_free_consultation_keyboard(media_group=(media_group_id, media_group_len))
+            await callback.message.answer(text_message.CHOOSE_ACTION, reply_markup=markup)
 
         elif callback_data[2] == 'help':
             path = f"{img_path}/consultations/help.jpg"
