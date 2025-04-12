@@ -1,16 +1,14 @@
-import json
 import random
 import re
 import string
 from datetime import datetime, timedelta
-from turtledemo.penrose import start
 from typing import Any
 
 import psycopg2
 
-from telegram_bot.helper import get_dict_fetch, timestamp_to_str, str_to_timestamp
 from telegram_bot.env import bot, local_timezone, pg_dsn
 from telegram_bot.handler import message
+from telegram_bot.helper import get_dict_fetch, timestamp_to_str
 from telegram_bot.keyboards import inline_markup
 
 
