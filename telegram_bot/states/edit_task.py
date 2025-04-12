@@ -228,7 +228,7 @@ async def edit_data(callback: CallbackQuery, state: FSMContext) -> None:
         data = await state.get_data()
         await db.update_reminder(**data)
         await callback.message.answer(
-            text_message.REMINDER_EDIT_COMPLETE, reply_markup=inline_markup.get_back_menu_keyboard()
+            text_message.REMINDER_EDIT_COMPLETE, reply_markup=inline_markup.get_reminder_add_complete_keyboard()
         )
 
     except TypeError or KeyError:

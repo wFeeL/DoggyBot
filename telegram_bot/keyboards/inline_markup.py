@@ -51,11 +51,11 @@ def get_create_task_button(text='➕ Создать напоминание') -> 
     return [InlineKeyboardButton(text=text, callback_data='task:create')]
 
 
-def get_edit_task_button(page: int, text='✏️ Редактировать напоминание') -> list[InlineKeyboardButton]:
+def get_edit_task_button(page: int, text='✏️ Редактировать') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data=f"task:edit:{page}")]
 
 
-def get_delete_task_button(page: int, text='🗑️ Удалить напоминание') -> list[InlineKeyboardButton]:
+def get_delete_task_button(page: int, text='🗑️ Удалить') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data=f"task:delete:{page}")]
 
 
@@ -103,7 +103,8 @@ async def get_treatments_keyboard(is_edit: bool = False) -> InlineKeyboardMarkup
             builder.add(InlineKeyboardButton(text=treatment['name'], callback_data=f"edit:treatment:{treatment['id']}"))
         else:
             builder.add(InlineKeyboardButton(text=treatment['name'], callback_data=f"treatment:{treatment['id']}"))
-            builder.add(*get_menu_button())
+    if not is_edit:
+        builder.add(*get_menu_button())
 
     builder.adjust(1, 1)
     return builder.as_markup()
@@ -160,17 +161,16 @@ def get_task_keyboard(page: int, length: int) -> InlineKeyboardMarkup:
     else:
         builder.add(back_button, count_button, next_button)
     builder.adjust(3, 1)
-    builder.row(*get_edit_task_button(page))
-    builder.row(*get_delete_task_button(page))
+    builder.row(*get_edit_task_button(page), *get_delete_task_button(page))
     builder.row(*get_create_task_button())
     builder.row(*get_menu_button())
     return builder.as_markup()
 
 def get_edit_task_keyboard(is_edited: bool = False) -> InlineKeyboardMarkup:
-    keyboard = [[InlineKeyboardButton(text='🪲 Изменить тип', callback_data='edit_treatment')],
-                [InlineKeyboardButton(text='💊 Изменить лекарство', callback_data='edit_medicament')],
-                [InlineKeyboardButton(text='🗓️ Изменить начальную дату', callback_data='edit_start_date')],
-                [InlineKeyboardButton(text='✏️ Изменить период', callback_data='edit_period')]]
+    keyboard = [[InlineKeyboardButton(text='🪲 Изменить тип', callback_data='edit_treatment'),
+                 InlineKeyboardButton(text='💊 Изменить лекарство', callback_data='edit_medicament')],
+                [InlineKeyboardButton(text='🗓️ Изменить начало', callback_data='edit_start_date'),
+                 InlineKeyboardButton(text='✏️ Изменить период', callback_data='edit_period')]]
     if is_edited:
         keyboard.append([InlineKeyboardButton(text='✅ Сохранить данные', callback_data='edit_data')])
         keyboard.append([InlineKeyboardButton(text='👀 Скрыть', callback_data='stop_state')])
