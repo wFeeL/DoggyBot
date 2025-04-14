@@ -19,7 +19,6 @@ def index():
     return render_template('index.html')
 
 
-# Получение данных пользователя
 @app.route("/get_user_data/<telegram_id>", methods=["GET"])
 def get_user_data(telegram_id):
     user_profile = asyncio.run(db.get_user_profile(user_id=telegram_id))
@@ -59,7 +58,6 @@ def handle_webapp_data():
         if not query_id:
             return jsonify({"ok": False, "error": "query_id не найден"})
 
-        # Теперь отправляем ответ через Telegram API
         answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/answerWebAppQuery"
 
         form_data = asyncio.run(db.validate_user_form_data(form_data))
