@@ -19,7 +19,6 @@ async def send_about(message: Message, **kwargs):
 
 
 @router.message(Command("menu", "start"))
-@check_block_user
 async def send_menu(message: Message, state: FSMContext, **kwargs):
     user = await db.get_users(user_id=message.chat.id)
     await state.clear()

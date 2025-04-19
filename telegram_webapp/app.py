@@ -58,7 +58,7 @@ def handle_webapp_data():
         if not query_id:
             return jsonify({"ok": False, "error": "query_id не найден"})
 
-        answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/answerWebAppQuery"
+        answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/sendMessage"
 
         form_data = asyncio.run(db.validate_user_form_data(form_data))
 
@@ -78,17 +78,10 @@ def handle_webapp_data():
                 ))
 
         answer_payload = {
-            "web_app_query_id": query_id,
-            "result": {
-                "type": "article",
-                "id": "id1",
-                "title": "Данные получены!",
-                "input_message_content": {
-                    "message_text": f"Спасибо, {form_data['human']['full_name']}! Мы получили ваши данные."
-                },
-                "reply_markup": {"inline_keyboard": [[{"text": "🔙 Главное меню",
-                                 "callback_data": "menu"}]]}
-            }
+            "chat_id": user_id,
+            "text": f"Спасибо, {form_data['human']['full_name']}! Мы получили ваши данные.",
+            "reply_markup": {"inline_keyboard": [[{"text": "🔙 Главное меню",
+                                                       "callback_data": "menu"}]]}
         }
 
         response = requests.post(answer_url, json=answer_payload)

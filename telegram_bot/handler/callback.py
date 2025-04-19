@@ -50,11 +50,13 @@ async def handle_callback(callback: CallbackQuery, **kwargs) -> None:
     :param callback: Callback
     :param kwargs: Other message options (need for callback function)
     """
-    try:
-        await callback.message.delete()
+    print(callback.message)
+    if callback.message is not None:
+        try:
+            await callback.message.delete()
 
-    except TelegramBadRequest:
-        pass
+        except TelegramBadRequest:
+            pass
     await call_function_from_callback(callback, **kwargs)
 
 
@@ -192,11 +194,11 @@ async def handle_consultation(callback: CallbackQuery) -> None:
                     promo_code=user['promocode'],
                     pets=message.get_pets_stroke(pets)
                 ),
-                reply_markup=markup)
+                reply_markup=markup, disable_web_page_preview=True)
         else:
             await callback.message.answer(
                 text=text_message.CONSULTATION_FREE_TEXT.format(promo_code=user['promocode']),
-                reply_markup=markup
+                reply_markup=markup, disable_web_page_preview=True
             )
 
 
