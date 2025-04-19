@@ -86,8 +86,8 @@ def handle_webapp_data():
                 "input_message_content": {
                     "message_text": f"Спасибо, {form_data['human']['full_name']}! Мы получили ваши данные."
                 },
-                "reply_markup": {"text": "🔙 Главное меню",
-                                 "callback_data": "menu"}
+                "reply_markup": {"inline_keyboard": [[{"text": "🔙 Главное меню",
+                                 "callback_data": "menu"}]]}
             }
         }
 
