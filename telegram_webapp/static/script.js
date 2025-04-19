@@ -132,17 +132,11 @@ function submitForm() {
             })
         })
         .then(response => response.json())
-        .then(data => {
-            if (data.ok) {
-                Telegram.WebApp.close(); // Успешно, можно закрыть приложение
-            } else {
-                alert("Ошибка при отправке данных: " + data.error);
-            }
-        })
         .catch(error => {
             console.error("Ошибка запроса:", error);
             alert("Ошибка при отправке данных.");
         });
+        Telegram.WebApp.close();
     } else {
         form.reportValidity();
     }

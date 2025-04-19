@@ -50,7 +50,6 @@ async def handle_callback(callback: CallbackQuery, **kwargs) -> None:
     :param callback: Callback
     :param kwargs: Other message options (need for callback function)
     """
-    print(callback.message)
     if callback.message is not None:
         try:
             await callback.message.delete()
