@@ -1,5 +1,5 @@
-import pathlib
 import json
+import pathlib
 
 from aiogram import Router, F
 from aiogram.exceptions import TelegramBadRequest
@@ -153,7 +153,7 @@ async def handle_consultation(callback: CallbackQuery) -> None:
         if callback_data[1] == 'vip':
             await callback.message.answer(
                 text=text_message.CONSULTATION_VIP,
-                reply_markup=inline_markup.get_back_consultation_keyboard(),
+                reply_markup=inline_markup.get_vip_consultation_keyboard(),
                 disable_web_page_preview=True
             )
 

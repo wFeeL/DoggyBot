@@ -3,7 +3,7 @@ from aiogram.types import WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from telegram_bot import db, env
-from telegram_bot.env import PERIODS_TO_DAYS
+from telegram_bot.env import PERIODS_TO_DAYS, bot_token
 
 
 # BUTTONS
@@ -280,6 +280,14 @@ def get_back_consultation_keyboard() -> InlineKeyboardMarkup:
         get_consultation_button('⬅️ Назад')
     ])
 
+def get_vip_consultation_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Публичная оферта',
+                              url="https://telegra.ph/PUBLICHNAYA-OFERTA-na-zaklyuchenie-dogovora-okazaniya-uslug-po-vklyucheniyu-v-programmu-strahovaniya-zhivotnyh-i-predostavleniyu-04-19")],
+        [InlineKeyboardButton(text='Как выглядит полис',
+                              url="https://disk.yandex.ru/i/RB0GYedycDkOxg")],
+        get_consultation_button('⬅️ Назад')
+    ])
 
 def get_back_free_consultation_keyboard(media_group: tuple[int, int] = None) -> InlineKeyboardMarkup:
     if media_group is None:

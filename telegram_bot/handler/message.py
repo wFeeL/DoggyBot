@@ -62,7 +62,7 @@ async def send_profile(message: Message, **kwargs):
 async def send_form(message: Message, **kwargs):
     await message.answer(
         text=text_message.FORM_TEXT, reply_markup=inline_markup.get_web_app_keyboard(), resize_keyboard=True,
-        one_time_keyboard=True
+        one_time_keyboard=True, disable_web_page_preview=True
     )
 
 
