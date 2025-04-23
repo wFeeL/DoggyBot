@@ -19,7 +19,7 @@ bot = Bot(bot_token, default=DefaultBotProperties(parse_mode='HTML'), storage=st
 dp = Dispatcher()
 
 
-webapp_url = "https://doggybot.onrender.com/"
+webapp_url = "https://doggyform.ru/"
 BASE_DIR = Path(__file__).resolve().parent.parent
 pg_dsn = f"postgres://{os.environ['POSTGRES_USER']}:{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:{os.environ['POSTGRES_PORT']}/{os.environ['POSTGRES_DATABASE']}"
 img_path = f"{os.path.dirname(__file__)}/img"
