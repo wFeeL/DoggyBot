@@ -22,7 +22,8 @@ window.addPet = addPet;
 window.removePet = removePet;
 
 async function loadUserData() {
-    const userId = window.Telegram.WebApp.initDataUnsafe.user.id;
+    // const userId = window.Telegram.WebApp.initDataUnsafe.user.id;
+    const userId = 416966184;
     if (!userId) return null;
 
     try {
@@ -121,7 +122,7 @@ function submitForm() {
         const jsonData = parseFormToJson(Telegram.WebApp.initDataUnsafe.user.id);
         const initData = Telegram.WebApp.initData;
 
-        fetch('https://doggyform.ru//webapp_data', {
+        fetch('https://doggyform.ru/webapp_data', {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
