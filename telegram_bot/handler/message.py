@@ -25,12 +25,12 @@ async def send_menu(message: Message, state: FSMContext, **kwargs):
     if user is None:
         await db.add_user(message.chat.id, message.chat.username, message.chat.first_name, message.chat.last_name)
     user_promo_code = user['promocode']
-    text = text_message.MENU_TEXT
-    if await db.is_user_have_form(message.chat.id):
-        text += text_message.PROMO_CODE_ENABLED.format(promo_code=user_promo_code)
-    else:
-        text += text_message.PROMO_CODE_NOT_ENABLED
 
+    if await db.is_user_have_form(message.chat.id):
+        promo_code_text = text_message.PROMO_CODE_ENABLED.format(promo_code=user_promo_code)
+    else:
+        promo_code_text = text_message.PROMO_CODE_NOT_ENABLED
+    text = text_message.MENU_TEXT.format(promo_code_text=promo_code_text)
     await message.answer(text=text, reply_markup=inline_markup.get_menu_keyboard())
 
 
