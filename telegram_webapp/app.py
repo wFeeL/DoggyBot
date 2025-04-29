@@ -69,6 +69,7 @@ def handle_webapp_data():
                 user_id=user_id, birth_date=str_to_timestamp(human["birth_date"]), full_name=human["full_name"],
                 phone_number=human["phone_number"], about_me=human["about_me"]
             ))
+            asyncio.run(db.update_user(user_id=user_id, form_value=1))
             asyncio.run(db.delete_pets(user_id))
             for pet in form_data["pets"]:
                 asyncio.run(db.add_pet(

@@ -227,9 +227,10 @@ def get_page_buttons(page: int, total_pages: int, callback_data_start: str):
     return buttons
 
 
-def get_user_keyboard(user_id: int, user_level: int) -> InlineKeyboardMarkup:
+def get_user_keyboard(user_id: int, user_level: int, form_value: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.add(InlineKeyboardButton(text='📝 Анкета', callback_data=f"form:{user_id}"))
+    if form_value == 1:
+        builder.add(InlineKeyboardButton(text='📝 Анкета', callback_data=f"form:{user_id}"))
     if user_level == 2:
         builder.add(InlineKeyboardButton(text="👤 Сделать пользователем",
                                          callback_data=f"user_action:make_user:{user_id}"))

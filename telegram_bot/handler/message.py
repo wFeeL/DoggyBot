@@ -24,9 +24,9 @@ async def send_menu(message: Message, state: FSMContext, **kwargs):
     await state.clear()
     if user is None:
         await db.add_user(message.chat.id, message.chat.username, message.chat.first_name, message.chat.last_name)
-    user_promo_code = user['promocode']
 
     if await db.is_user_have_form(message.chat.id):
+        user_promo_code = user['promocode']
         promo_code_text = text_message.PROMO_CODE_ENABLED.format(promo_code=user_promo_code)
     else:
         promo_code_text = text_message.PROMO_CODE_NOT_ENABLED
@@ -98,9 +98,10 @@ async def send_selection(message: Message, **kwargs):
 @check_admin
 async def send_admin_panel(message: Message, **kwargs):
     users = await db.get_users(is_multiple=True)
+    forms = await db.get_users(is_multiple=True, form_value=1)
     admins = await db.get_users(level=2, is_multiple=True)
     await message.answer(
-        text=text_message.ADMIN_PANEL_TEXT.format(users_len=len(users), admins_len=len(admins)),
+        text=text_message.ADMIN_PANEL_TEXT.format(users_len=len(users), form_len=len(forms), admins_len=len(admins)),
         reply_markup=inline_markup.get_admin_menu_keyboard()
     )
 

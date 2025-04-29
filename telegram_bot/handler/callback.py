@@ -96,11 +96,12 @@ async def handle_user_info(callback: CallbackQuery) -> None:
         user_id = int(callback.data.split(":")[2])
     user = await db.get_users(user_id=user_id)
     user_status = user["level"]
+    form_value = user["form_value"]
     user_status_text = "Пользователь" if user_status == 0 else "Администратор" if user_status == 2 else "Заблокирован" if user_status == -1 else "Неизвестно"
     user_info = text_message.USER_INFO_TEXT.format(full_name=user['full_name'], user_id=user['user_id'],
                                                    user_status=user_status_text)
     await callback.message.edit_text(text=user_info, reply_markup=inline_markup.get_user_keyboard(user_id=user_id,
-                                                                                                  user_level=user_status))
+                                                                                                  user_level=user_status, form_value=form_value))
 
 
 @router.callback_query(F.data.startswith('task:page'))

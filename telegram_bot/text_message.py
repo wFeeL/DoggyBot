@@ -79,8 +79,9 @@ SELECTION_TEXT = """🐶 <b>Зоотовары</b>:\n
 
 ADMIN_PANEL_TEXT = """🛡 <b>Админ-панель</b>\n
 📊 <b>Статистика</b>:
-👥 <i>Кол-во пользователей</i>: <code>{users_len}</code>
-👮‍♂️ <i>Кол-во администраторов</i>: <code>{admins_len}</code>"""
+👥 <i>Пользователи</i>: <code>{users_len}</code>
+👮‍♂️ <i>Администраторы</i>: <code>{admins_len}</code>
+📝 <i>Анкеты</i>: <code>{form_len}</code>"""
 
 USER_BLOCKED_TEXT = """❌ <b>Вы заблокированы, для разблокировки свяжитесь с администрацией.</b>"""
 

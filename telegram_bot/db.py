@@ -77,7 +77,7 @@ async def create_request(sql_query: str, is_return: bool = True, is_multiple: bo
 async def get_users(
         user_id: int | str = None, username: str = None, full_name: str = None, promocode: str = None,
         level: int = None,
-        consultation: int = None, is_multiple: bool = False
+        form_value: int = None, is_multiple: bool = False
 ) -> list | dict:
     condition_dict = locals()
     is_multiple = condition_dict.pop('is_multiple')
