@@ -1,5 +1,4 @@
 import time
-import pymorphy2
 from datetime import datetime
 
 from telegram_bot import db, text_message, env, inflector
