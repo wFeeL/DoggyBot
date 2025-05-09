@@ -47,7 +47,15 @@ async def process_treatment(callback: CallbackQuery, state: FSMContext) -> None:
         await state.update_data(treatment_id=treatment_id)
 
         markup = await inline_markup.get_medicament_keyboard(treatments_id=treatment_id)
-        await callback.message.answer(text=text_message.VACCINATION, reply_markup=markup)
+        if treatment_id != 3:
+            path = f"{img_path}/treatments/{treatment_id}.jpg"
+            if pathlib.Path(path).is_file():
+                await bot.send_photo(
+                    chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
+                    caption=text_message.CHOOSE_MEDICAMENT, reply_markup=markup
+                )
+        else:
+            await callback.message.answer(text=text_message.VACCINATION, reply_markup=markup)
 
     except ValueError:
         await state.clear()
