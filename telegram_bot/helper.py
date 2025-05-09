@@ -1,4 +1,5 @@
 import time
+import pymorphy2
 from datetime import datetime
 
 from telegram_bot import db, text_message, env, inflector
@@ -35,13 +36,19 @@ def timestamp_to_str(timestamp: float) -> str:
 def get_pets_stroke(pets_list) -> str:
     result = []
     for pet in pets_list:
-        forms = ("год", "лет", "года")
-        age = round((time.time() - float(pet["birth_date"])) // (86400 * 365))
-        age = f"{age} {inflector.inflect_with_num(age, forms)}"
+        year_forms = ("год", "лет", "года")
+        month_forms = ("месяц", "месяцев", "месяца")
+        years = round((time.time() - float(pet["birth_date"])) // (86400 * 365))
+        months = int(datetime.now().month - datetime.fromtimestamp(float(pet["birth_date"]), env.local_timezone).month)
+        if months == 0:
+            months = ''
+        else:
+            months = f"{months} {inflector.inflect_with_num(months, month_forms)}"
+        years = f"{years} {inflector.inflect_with_num(years, year_forms)}"
         pet_text = PET_PROFILE_TEXT.format(
             count=pets_list.index(pet) + 1, name=pet['name'], approx_weight=pet["approx_weight"],
             emoji='🐶' if pet['type'] == 'dog' else '🐱',
-            age=age,
+            years=years, months=months,
             birth_date=datetime.fromtimestamp(float(pet["birth_date"])).strftime('%d %B %Y'),
             type='собака' if pet['type'] == 'dog' else 'кот',
             gender='мальчик' if pet['gender'] == 'male' else 'девочка',

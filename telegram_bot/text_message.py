@@ -1,6 +1,6 @@
 ABOUT_TEXT = """<b>🐶 Doggy Logy</b> - это сервис для владельцев собак и кошек.
 
-• <a href="https://t.me/KinoSobaki_bot">Подбор на кастинг животных для съемок</a>
+• <a href="https://t.me/KinoSobaki_bot">Кастинг животных для съемок</a>
 • <a href="https://doggy-logy.ru/vmi">Консультации ветеринара</a>
 • <a href="https://doggy-logy.ru/vmi">Страхование здоровья питомца</a>
 • <a href="https://t.me/doggy_logy">Гуманная коррекция поведения/обучение командам</a>
@@ -18,7 +18,7 @@ ABOUT_TEXT = """<b>🐶 Doggy Logy</b> - это сервис для владел
 @manager_DogyLogy
 @doggy_logy
 
-С любовью к собакам и их людям❤️
+С любовью к животным и их людям! ❤️
 
 👥 Наши соцсети - <a href="https://vk.com/doggylogy">VK</a>, <a href="https://youtube.com/@doggylogy?si=TfojM_-KXnH6YckN">YouTube</a>, <a href="https://doggy-logy.ru">сайт</a>, <a href="https://t.me/DoggyLogyChannel">канал</a>, <a href="https://t.me/DoggyLogy">чат</a>."""
 
@@ -54,7 +54,7 @@ USER_FORM_TEXT = """👤 <b>Анкета пользователя:</b>\n
 🎟️ <b>Промокод</b>: <code>{promo_code}</code>"""
 
 FORM_TEXT = """❗Перед заполнением ознакомьтесь с <a href="https://telegra.ph/POLITIKA-KONFIDENCIALNOSTI-v-otnoshenii-obrabotki-i-zashchity-personalnyh-dannyh-na-sajte-httpsdoggy-logyru-04-19">Политикой конфиденциальности</a>.\n
-👇 <b>Для заполнения формы нажмите на кнопку ниже.</b>"""
+⭐ <b>️Заполните анкету для активации услуг сервиса.</b>"""
 
 CONSULTATION_TEXT = """<b>Выберите категорию</b>:"""
 
@@ -96,6 +96,8 @@ CHOOSE_TREATMENT = """🐶 <b>Тип обработки:</b>"""
 CHOOSE_MEDICAMENT = """💊 <b>Лекарственный препарат:</b>"""
 
 CHOOSE_PERIOD = """🗓 <b>Период:</b>"""
+
+VACCINATION = """🦠 <i>Вакцинацию от вирусных инфекций и бешенства рекомендуется проводить ежегодно.</i>\n\n""" + CHOOSE_MEDICAMENT
 
 CHOOSE_SPECIAL_PERIOD = """🗓 <b>Введите период в днях:</b>"""
 
@@ -158,7 +160,7 @@ USER_PROFILE_TEXT = """<b>ФИО</b>: <code>{full_name}</code>
 PET_PROFILE_TEXT = """<b>{count}. {emoji} {name}</b>
 <b>Вес</b>: <code>{approx_weight} кг</code>
 <b>Дата рождения</b>: <code>{birth_date}</code>
-<b>Возраст</b>: <code>{age}</code>
+<b>Возраст</b>: <code>{years} {months}</code>
 <b>Вид</b>: <code>{type}</code>
 <b>Пол</b>: <code>{gender}</code>
 <b>Порода</b>: <code>{breed}</code>\n"""
