@@ -64,7 +64,7 @@ SELECTION_TEXT = """🐶 <b>Зоотовары</b>:\n
 1. 🐕‍🦺 <a href='https://vk.com/derzhismenya'>Поводки-перестежки</a>
 Бренд: <b>Держись меня</b>
 Промокод: <code>DOGGYLOGY</code> <i>(cкидка 20%)</i>
-Заказ по промокоду: +79685872004\n
+Заказ по промокоду: <a href='https://www.instagram.com/derzhis_menya?igsh=MWRhdG1sM2lranYwbw=='>Instagram</a>\n
 2. 🔗 <a href='https://amo.si/K/RJP6LY/RI2FBC'>Ошейники/Шлейки</a> 
 Бренд: <b>COMPANION</b>
 Промокод: <code>DOGGYLOGY</code> <i>(cкидка 15%)</i>\n
