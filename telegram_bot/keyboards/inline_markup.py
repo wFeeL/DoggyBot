@@ -247,7 +247,7 @@ def get_user_keyboard(user_id: int, user_level: int, form_value: int, is_admin: 
     if is_admin:
         back_callback_data = "admin:admins"
         form_postfix = "admins"
-    elif is_admin:
+    elif is_form:
         back_callback_data = "admin:forms"
         form_postfix = "forms"
     else:
