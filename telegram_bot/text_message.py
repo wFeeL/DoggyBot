@@ -135,6 +135,8 @@ PARTNERS_TEXT = """📈 <b>Партнёры:</b>"""
 
 USERS_TEXT = """👥 <b>Пользователи:</b>"""
 
+ADMINS_TEXT = """👮‍♂️ <b>Администраторы:</b>"""
+
 USER_INFO_TEXT = """👤 <b>{full_name} (ID: {user_id})</b>
 <b>Статус:</b> <code>{user_status}</code>"""
 
@@ -160,7 +162,7 @@ USER_PROFILE_TEXT = """<b>ФИО</b>: <code>{full_name}</code>
 PET_PROFILE_TEXT = """<b>{count}. {emoji} {name}</b>
 <b>Вес</b>: <code>{approx_weight} кг</code>
 <b>Дата рождения</b>: <code>{birth_date}</code>
-<b>Возраст</b>: <code>{years} {months}</code>
+<b>Возраст</b>: <code>{age}</code>
 <b>Вид</b>: <code>{type}</code>
 <b>Пол</b>: <code>{gender}</code>
 <b>Порода</b>: <code>{breed}</code>\n"""

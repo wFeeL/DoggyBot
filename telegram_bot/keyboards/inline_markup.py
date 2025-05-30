@@ -195,7 +195,9 @@ def get_reminder_add_complete_keyboard() -> InlineKeyboardMarkup:
 
 def get_admin_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📝 Анкеты", callback_data="admin:forms:1")],
         [InlineKeyboardButton(text="👥 Пользователи", callback_data="admin:users:1")],
+        [InlineKeyboardButton(text="👮‍ Администраторы", callback_data="admin:admins:1")],
         [InlineKeyboardButton(text="🔎 Поиск анкеты", callback_data="admin:search")],
         get_menu_button()])
 
@@ -204,15 +206,27 @@ def get_back_admin_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[get_admin_menu_button(text='⬅️ Назад')])
 
 
-async def get_users_keyboard(page) -> InlineKeyboardMarkup:
+async def get_users_keyboard(page, is_admin: bool = False, is_have_forms: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    users = await db.get_users(is_multiple=True)
+    if is_admin:
+        users = await db.get_users(is_multiple=True, level=2)
+        callback_data_start = 'choose_admin'
+        prefix = 'admin:admins'
+    elif is_have_forms:
+        users = await db.get_users(is_multiple=True, form_value=1)
+        callback_data_start = 'choose_forms'
+        prefix = 'admin:forms'
+    else:
+        users = await db.get_users(is_multiple=True)
+        callback_data_start = 'choose_user'
+        prefix = 'admin:users'
+
     total_pages = (len(users) + 9) // 10
     users = users[(page - 1) * 10: page * 10]
     for user in users:
         builder.row(InlineKeyboardButton(text=f"{user['full_name']} (ID: {user['user_id']})",
-                                         callback_data=f"user:{user['user_id']}"))
-    navigation_buttons = get_page_buttons(page, total_pages, 'admin:users')
+                                         callback_data=f"{callback_data_start}:{user['user_id']}"))
+    navigation_buttons = get_page_buttons(page, total_pages, prefix)
     builder.row(*navigation_buttons)
     builder.row(*get_admin_menu_button('🔙 Главное меню'))
     return builder.as_markup()
@@ -227,10 +241,21 @@ def get_page_buttons(page: int, total_pages: int, callback_data_start: str):
     return buttons
 
 
-def get_user_keyboard(user_id: int, user_level: int, form_value: int) -> InlineKeyboardMarkup:
+def get_user_keyboard(user_id: int, user_level: int, form_value: int, is_admin: bool = False, is_form: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
+
+    if is_admin:
+        back_callback_data = "admin:admins"
+        form_postfix = "admins"
+    elif is_admin:
+        back_callback_data = "admin:forms"
+        form_postfix = "forms"
+    else:
+        back_callback_data = "admin:users"
+        form_postfix = "users"
+
     if form_value == 1:
-        builder.add(InlineKeyboardButton(text='📝 Анкета', callback_data=f"form:{user_id}"))
+        builder.add(InlineKeyboardButton(text='📝 Анкета', callback_data=f"form:{user_id}:{form_postfix}"))
     if user_level == 2:
         builder.add(InlineKeyboardButton(text="👤 Сделать пользователем",
                                          callback_data=f"user_action:make_user:{user_id}"))
@@ -242,8 +267,7 @@ def get_user_keyboard(user_id: int, user_level: int, form_value: int) -> InlineK
             builder.add(InlineKeyboardButton(
                 text="⭕ Разблокировать", callback_data=f"user_action:unblock:{user_id}"))
         builder.add(InlineKeyboardButton(text="🛡 Сделать админом", callback_data=f"user_action:make_admin:{user_id}"))
-
-    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:users"))
+    builder.add(InlineKeyboardButton(text="⬅️ Назад", callback_data=back_callback_data))
     builder.adjust(1, 1)
     return builder.as_markup()
 
@@ -321,7 +345,8 @@ def get_wrong_promo_code_keyboard() -> InlineKeyboardMarkup:
     return markup
 
 
-def get_back_user_id_keyboard(user_id: int | str) -> InlineKeyboardMarkup:
+def get_back_user_id_keyboard(user_id: int | str, is_admin: bool = False, is_form: bool = False) -> InlineKeyboardMarkup:
+    prefix = 'choose_admin' if is_admin else 'choose_form' if is_form else 'choose_user'
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='⬅️ Назад', callback_data=f"user:{user_id}")],
+        [InlineKeyboardButton(text='⬅️ Назад', callback_data=f"{prefix}:{user_id}")],
     ])

@@ -73,24 +73,41 @@ async def delete_message(callback: CallbackQuery) -> None:
 async def handle_form_request(callback: CallbackQuery) -> None:
     await callback.message.delete()
     user_id = callback.data.split(':')[1]
+    postfix = callback.data.split(':')[2]
     user = await db.get_users(user_id=user_id)
+    is_admin, is_form = False, False
+    if postfix == "admins":
+        is_admin = True
+    elif postfix == "forms":
+        is_form = True
+
     await message.send_form_text(
         callback.message, user_id=user_id, promo_code=user['promocode'],
-        reply_markup=inline_markup.get_back_user_id_keyboard(user_id)
+        reply_markup=inline_markup.get_back_user_id_keyboard(user_id, is_admin=is_admin, is_form=is_form)
     )
 
 
-@router.callback_query(lambda call: 'admin:user' in call.data)
+@router.callback_query(lambda call: call.data.startswith('admin:'))
 async def handle_admin_users(callback: CallbackQuery) -> None:
     await callback.message.delete()
-    page = int(callback.data.split(":")[2]) if len(callback.data.split(":")) > 2 else 1
-    await callback.message.answer(text=text_message.USERS_TEXT,
-                                  reply_markup=await inline_markup.get_users_keyboard(page=page))
+    callback_data = callback.data.split(":")
+    page = int(callback_data[2]) if len(callback_data) > 2 else 1
+    if callback_data[1] == 'users':
+        await callback.message.answer(text=text_message.USERS_TEXT,
+                                      reply_markup=await inline_markup.get_users_keyboard(page=page))
+    elif callback_data[1] == 'admins':
+        await callback.message.answer(text=text_message.ADMINS_TEXT,
+                                      reply_markup=await inline_markup.get_users_keyboard(page=page, is_admin=True))
+    elif callback_data[1] == 'forms':
+        await callback.message.answer(text=text_message.FORM_TEXT,
+                                      reply_markup=await inline_markup.get_users_keyboard(page=page, is_have_forms=True))
 
 
-@router.callback_query(F.data.startswith('user:'))
+@router.callback_query(lambda call: call.data.startswith('choose_'))
 async def handle_user_info(callback: CallbackQuery) -> None:
-    if callback.data.startswith('user:'):
+    is_admin = callback.data.startswith('choose_admin')
+    is_form = callback.data.startswith('choose_form')
+    if callback.data.startswith('choose_user') or is_admin or is_form:
         user_id = int(callback.data.split(":")[1])
     else:
         user_id = int(callback.data.split(":")[2])
@@ -101,7 +118,7 @@ async def handle_user_info(callback: CallbackQuery) -> None:
     user_info = text_message.USER_INFO_TEXT.format(full_name=user['full_name'], user_id=user['user_id'],
                                                    user_status=user_status_text)
     await callback.message.edit_text(text=user_info, reply_markup=inline_markup.get_user_keyboard(user_id=user_id,
-                                                                                                  user_level=user_status, form_value=form_value))
+                                                                                                  user_level=user_status, form_value=form_value, is_admin=is_admin, is_form=is_form))
 
 
 @router.callback_query(F.data.startswith('task:page'))
