@@ -56,6 +56,8 @@ USER_FORM_TEXT = """👤 <b>Анкета пользователя:</b>\n
 FORM_TEXT = """❗Перед заполнением ознакомьтесь с <a href="https://telegra.ph/POLITIKA-KONFIDENCIALNOSTI-v-otnoshenii-obrabotki-i-zashchity-personalnyh-dannyh-na-sajte-httpsdoggy-logyru-04-19">Политикой конфиденциальности</a>.\n
 ⭐ <b>️Заполните анкету для активации услуг сервиса.</b>"""
 
+LIST_OF_FORMS = """📝 <b>Анкеты</b>"""
+
 CONSULTATION_TEXT = """<b>Выберите категорию</b>:"""
 
 SELECTION_TEXT = """🐶 <b>Зоотовары</b>:\n

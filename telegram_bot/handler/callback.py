@@ -99,7 +99,7 @@ async def handle_admin_users(callback: CallbackQuery) -> None:
         await callback.message.answer(text=text_message.ADMINS_TEXT,
                                       reply_markup=await inline_markup.get_users_keyboard(page=page, is_admin=True))
     elif callback_data[1] == 'forms':
-        await callback.message.answer(text=text_message.FORM_TEXT,
+        await callback.message.answer(text=text_message.LIST_OF_FORMS,
                                       reply_markup=await inline_markup.get_users_keyboard(page=page, is_have_forms=True))
 
 
