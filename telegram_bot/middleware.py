@@ -1,9 +1,9 @@
 import json
-from random import randint
 from typing import Any, Callable, Dict, Awaitable
-from datetime import datetime
+
 from aiogram import BaseMiddleware
 from aiogram.types import CallbackQuery, TelegramObject
+
 
 class MediaGroupMiddleware(BaseMiddleware):
     async def __call__(

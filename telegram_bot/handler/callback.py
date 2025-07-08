@@ -197,6 +197,7 @@ async def handle_consultation(callback: CallbackQuery, callback_data: str = None
                     pets=message.get_pets_stroke(pets)
                 ),
                 reply_markup=markup, disable_web_page_preview=True)
+
         elif callback_data[2] == 'cats_care':
             media_group = get_media_group(path=f"{img_path}/consultations/cats_care/",
                                           first_message_text=text_message.CONSULTATION_CATS_CARE, photos_end=2)
