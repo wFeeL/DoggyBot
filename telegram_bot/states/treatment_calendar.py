@@ -72,15 +72,13 @@ async def process_treatment(callback: CallbackQuery, state: FSMContext) -> None:
         markup = await inline_markup.get_medicament_keyboard(treatments_id=treatment_id, pet_type=pet_type['id'])
 
         if pet_type_name == 'dog':
-            if treatment_id == 3:
-                await callback.message.answer(text=text_message.VACCINATION, reply_markup=markup)
-            else:
-                path = f"{path_folder}/{treatment_id}.jpg"
-                if pathlib.Path(path).is_file():
-                    await bot.send_photo(
-                        chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
-                        caption=text_message.CHOOSE_MEDICAMENT, reply_markup=markup
-                    )
+            path = f"{path_folder}/{treatment_id}.jpg"
+            if pathlib.Path(path).is_file():
+                await bot.send_photo(
+                    chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
+                    caption=text_message.CHOOSE_MEDICAMENT, reply_markup=markup
+                )
+
         elif pet_type_name == 'cat':
             photos_end = 4 if treatment_id == 4 else 6
             photos_start = 5 if treatment_id == 5 else 1
