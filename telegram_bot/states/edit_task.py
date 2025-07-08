@@ -9,13 +9,14 @@ from aiogram.types import Message, CallbackQuery
 from aiogram_dialog import DialogManager, StartMode
 
 from telegram_bot import db, text_message
-from telegram_bot.helper import timestamp_to_str, str_to_timestamp
+from telegram_bot.helper import timestamp_to_str, str_to_timestamp, get_media_group
 from telegram_bot.env import bot, img_path
 from telegram_bot.keyboards import inline_markup
 from telegram_bot.states import calendar
 
 
 class TaskForm(StatesGroup):
+    pet_type = State()
     task_id = State()
     treatment_id = State()
     medicament_id = State()
@@ -26,16 +27,15 @@ class TaskForm(StatesGroup):
 
 router = Router()
 
-
 async def update_edit_data(message: Message, state: FSMContext, task_id: int | str) -> None:
     task = await db.get_reminders(id=task_id, value=int(True))
-
     data = {
         'task_id': task_id,
         'treatment_id': task['treatment_id'],
         'medicament_id': task['medicament_id'],
         'medicament_name': task['medicament_name'],
         'start_date': task['start_date'],
+        'pet_type': task['pet_type'],
         'period': task['period']
     }
 
@@ -46,14 +46,16 @@ async def update_edit_data(message: Message, state: FSMContext, task_id: int | s
 async def process_edit_task(message: Message, state: FSMContext, is_edited: bool = True) -> None:
     try:
         data = await state.get_data()
-        task_id, treatment_id, medicament_id, medicament_name, start_date, period = data.values()
+        task_id, treatment_id, medicament_id, medicament_name, start_date, pet_type, period = data.values()
         treatment = await db.get_treatments(id=treatment_id)
+        pet_type = await db.get_pet_type(id=int(pet_type))
         if int(medicament_id) != 0:
             medicament = await db.get_medicament(id=medicament_id)
             medicament_name = medicament['name']
         task_text = text_message.REMINDER_TEXT_EDIT.format(
             treatment=treatment['name'],
             medicament=medicament_name,
+            pet=pet_type['name'],
             period=period,
             start_date=timestamp_to_str(float(start_date)),
         )
@@ -105,16 +107,26 @@ async def process_period(message: Message, state: FSMContext) -> None:
         await state.set_state(TaskForm.task_id)
         await process_edit_task(message, state)
 
+
 @router.callback_query(F.data == 'edit_treatment')
-async def edit_treatment(callback: CallbackQuery) -> None:
+async def edit_treatment(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.delete()
-    markup = await inline_markup.get_treatments_keyboard(is_edit=True)
-    path = f"{img_path}/treatments/treatments.jpg"
-    if pathlib.Path(path).is_file():
-        await bot.send_photo(
-            chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
-            caption=text_message.CHOOSE_TREATMENT, reply_markup=markup
-        )
+    data = await state.get_data()
+    pet_type = int(data['pet_type'])
+
+    pet_type = await db.get_pet_type(id=pet_type)
+
+    markup = await inline_markup.get_treatments_keyboard(is_edit=True, pet_type=pet_type['id'])
+
+    if pet_type['id'] == 1:
+        path = f"{img_path}/treatments/dog/treatments.jpg"
+        if pathlib.Path(path).is_file():
+            await bot.send_photo(
+                chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
+                caption=text_message.CHOOSE_TREATMENT, reply_markup=markup
+            )
+    else:
+        await callback.message.answer(text=text_message.CHOOSE_TREATMENT, reply_markup=markup)
 
 
 @router.callback_query(F.data.startswith('edit:treatment'))
@@ -136,16 +148,36 @@ async def edit_medicament(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.delete()
     data = await state.get_data()
     treatment_id = int(data['treatment_id'])
-    markup = await inline_markup.get_medicament_keyboard(treatments_id=treatment_id, is_edit=True)
-    path = f"{img_path}/treatments/{treatment_id if treatment_id != 3 else 2}.jpg"
-    if pathlib.Path(path).is_file():
-        await bot.send_photo(
-            chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
-            caption=text_message.CHOOSE_MEDICAMENT, reply_markup=markup
-        )
+    pet_type = await db.get_pet_type(id=data['pet_type'])
+    pet_type_name = pet_type['type']
+    path_folder = f"{img_path}/treatments/{pet_type_name}/"
+    markup = await inline_markup.get_medicament_keyboard(treatments_id=treatment_id, is_edit=True, pet_type=pet_type['id'])
+
+    if pet_type_name == 'dog':
+        if treatment_id == 3:
+            await callback.message.answer(text=text_message.VACCINATION, reply_markup=markup)
+        else:
+            path = f"{path_folder}/{treatment_id}.jpg"
+            if pathlib.Path(path).is_file():
+                await bot.send_photo(
+                    chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
+                    caption=text_message.CHOOSE_MEDICAMENT, reply_markup=markup
+                )
+    elif pet_type_name == 'cat':
+        photos_end = 4 if treatment_id == 4 else 6
+        photos_start = 5 if treatment_id == 5 else 1
+
+        media_group = get_media_group(path=path_folder, first_message_text=text_message.CHOOSE_MEDICAMENT,
+                                      photos_end=photos_end, photos_start=photos_start)
+        media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
+        media_group_id, media_group_len = media_group[0].message_id, len(media_group)
+        markup = await inline_markup.get_medicament_keyboard(treatments_id=treatment_id,
+                                                             media_group=(media_group_id, media_group_len),
+                                                             pet_type=pet_type['id'], is_edit=True)
+        await callback.message.answer(text_message.CHOOSE_ACTION, reply_markup=markup)
 
 
-@router.callback_query(F.data == 'edit:medicament:choose')
+@router.callback_query(F.data.contains('edit:medic:choose'))
 async def process_medicament_choose(callback: CallbackQuery, state: FSMContext) -> None:
     try:
         await callback.message.delete()
@@ -155,11 +187,11 @@ async def process_medicament_choose(callback: CallbackQuery, state: FSMContext) 
         await state.clear()
 
 
-@router.callback_query(F.data.startswith('edit:medicament'))
-async def process_medicament(callback: CallbackQuery, state: FSMContext) -> None:
+@router.callback_query(F.data.contains('edit:medic'))
+async def process_medicament(callback: CallbackQuery, state: FSMContext, callback_data: str = None) -> None:
     try:
         await callback.message.delete()
-        data = callback.data.split(':')
+        data = callback_data.split(':') if callback_data is not None else callback.data.split(':')
         medicament_id = int(data[2])
 
         await state.update_data(medicament_id=medicament_id)
@@ -196,7 +228,6 @@ async def process_period_choose(callback: CallbackQuery, state: FSMContext) -> N
         await state.clear()
 
 
-
 @router.callback_query(F.data.startswith('edit:period'))
 async def process_period(callback: CallbackQuery, state: FSMContext) -> None:
     try:
@@ -221,6 +252,7 @@ async def process_edit_date(message: Message, selected_date: date, state: FSMCon
 
     except ValueError:
         await state.clear()
+
 
 @router.callback_query(F.data == 'edit_data')
 async def edit_data(callback: CallbackQuery, state: FSMContext) -> None:

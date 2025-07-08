@@ -86,13 +86,19 @@ async def get_users(
     return await create_request(sql_query, is_multiple=is_multiple)
 
 
-async def get_treatments(id: int = None, name: str = None, value: int = None, is_multiple: bool = False) -> list | dict:
+async def get_treatments(id: int = None, name: str = None, value: int = None, pet_type: int = None, is_multiple: bool = False) -> list | dict:
     condition_dict = locals()
     is_multiple = condition_dict.pop('is_multiple')
     condition = create_condition(condition_dict)
     sql_query = f"SELECT * FROM treatments {condition} ORDER by name ASC"
     return await create_request(sql_query, is_multiple=is_multiple)
 
+async def get_pet_type(id: int = None, name: str = None, type: str = None, value: int = None, is_multiple: bool = False) -> list | dict:
+    condition_dict = locals()
+    is_multiple = condition_dict.pop('is_multiple')
+    condition = create_condition(condition_dict)
+    sql_query = f"SELECT * FROM pet_type {condition} ORDER by name ASC"
+    return await create_request(sql_query, is_multiple=is_multiple)
 
 async def get_medicament(
         id: int = None, name: str = None, treatments_id: int = None, value: int = None, is_multiple: bool = False
@@ -136,7 +142,7 @@ async def get_pets(
 
 async def get_reminders(
         id: int = None, user_id: int = None, treatment_id: int = None, medicament_id: int = None,
-        start_date: str = None, period: str = None, value: int = None, is_multiple: bool = False
+        start_date: str = None, period: str = None, value: int = None, pet_type: int = None, is_multiple: bool = False
 ) -> list | dict:
     condition_dict = locals()
     is_multiple = condition_dict.pop('is_multiple')
@@ -244,12 +250,12 @@ async def is_user_have_form(user_id: int) -> bool:
 
 async def add_reminder(
         user_id: int = None, treatment_id: int = None, medicament_id: int = None, medicament_name: str = '',
-        start_date: str = None, period: str = None, value: int = 1
+        start_date: str = None, period: str = None, pet_type: int = None, value: int = 1
 ) -> None:
     start_date = datetime.strptime(start_date, "%d.%m.%Y")
     end_date = start_date + timedelta(days=int(period))
     await create_request(
-        f"INSERT INTO reminders (user_id, treatment_id, medicament_id, medicament_name, start_date, end_date, period, value) VALUES ('{user_id}', {treatment_id}, {medicament_id}, '{medicament_name}', '{start_date.timestamp()}', '{end_date.timestamp()}', '{period}', {value})",
+        f"INSERT INTO reminders (user_id, treatment_id, medicament_id, medicament_name, start_date, end_date, period, value, pet_type) VALUES ('{user_id}', {treatment_id}, {medicament_id}, '{medicament_name}', '{start_date.timestamp()}', '{end_date.timestamp()}', '{period}', {value}, '{pet_type}')",
         is_return=False)
 
 

@@ -1,21 +1,36 @@
 import time
 from datetime import datetime
 
+from aiogram.types import FSInputFile
+from aiogram.types.input_media_photo import InputMediaPhoto
+
 from telegram_bot import db, text_message, env, inflector
 from telegram_bot.text_message import PET_PROFILE_TEXT
 
 
+class CallbackMediaGroupClass:
+    def __init__(self, action, first_message_id, last_message_id):
+        self.action = action
+        self.first_message_id = first_message_id
+        self.last_message_id = last_message_id
+
+    def __str__(self):
+        return "{" + f"\"act\":\"{self.action}\",\"first\":\"{self.first_message_id}\",\"last\":\"{self.last_message_id}\"" + "}"
+
+
 async def get_task_text(task: dict) -> str:
-    treatment_id, medicament_id, start_date, end_date, period = task['treatment_id'], task['medicament_id'], task[
-        'start_date'], task['end_date'], task['period']
+    treatment_id, medicament_id, start_date, end_date, period, pet_type = task['treatment_id'], task['medicament_id'], task[
+        'start_date'], task['end_date'], task['period'], task['pet_type']
     if int(medicament_id) != 0:
         medicament = await db.get_medicament(id=medicament_id)
         medicament_name = medicament["name"]
     else:
         medicament_name = task["medicament_name"]
     treatment = await db.get_treatments(id=treatment_id)
+    pet_type = await db.get_pet_type(id=pet_type)
     text = text_message.REMINDER_TEXT.format(
         treatment=treatment['name'],
+        pet=pet_type['name'],
         medicament=medicament_name,
         start_date=timestamp_to_str(float(start_date)),
         end_date=timestamp_to_str(float(end_date)),
@@ -96,3 +111,10 @@ def get_dict_fetch(cursor, fetch):
             row_dict[col.name] = row[i]
         results.append(row_dict)
     return results
+
+
+def get_media_group(path: str, first_message_text: str, photos_end: int, img_format: str = 'jpg', photos_start: int = 1) -> list:
+    photos = list(map(lambda elem: FSInputFile(path=elem), [path + f'{i}.{img_format}' for i in range(photos_start, photos_end + 1)]))
+    first_photo = [InputMediaPhoto(media=photos[0], caption=first_message_text)]
+    media_group = first_photo + list(map(lambda elem: InputMediaPhoto(media=elem), photos[1:]))
+    return media_group

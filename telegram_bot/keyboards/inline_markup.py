@@ -2,8 +2,9 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types import WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from telegram_bot import db, env
-from telegram_bot.env import PERIODS_TO_DAYS, bot_token
+from telegram_bot import db, env, text_message
+from telegram_bot.env import PERIODS_TO_DAYS
+from telegram_bot.helper import CallbackMediaGroupClass
 
 
 # BUTTONS
@@ -19,7 +20,7 @@ def get_delete_message_button(text='👀 Скрыть') -> list[InlineKeyboardBu
     return [InlineKeyboardButton(text=text, callback_data='delete_message')]
 
 
-def get_about_button(text="❔ О сервисе") -> list[InlineKeyboardButton]:
+def get_about_button(text="❔ Опции сервиса") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="about")]
 
 
@@ -62,6 +63,8 @@ def get_delete_task_button(page: int, text='🗑️ Удалить') -> list[Inl
 def get_add_reminder_button(text='✅ Сохранить напоминание') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data='reminder:create')]
 
+def get_magic_button(text='🔮 Волшебная кнопка') -> list[InlineKeyboardButton]:
+    return [InlineKeyboardButton(text=text, callback_data='magic:menu')]
 
 # INLINE_MARKUPS
 def get_back_menu_keyboard() -> InlineKeyboardMarkup:
@@ -72,7 +75,7 @@ def get_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.add(
         *get_profile_button(), *get_treatments_calendar_button(), *get_consultation_button(), *get_selection_button(),
-        *get_about_button()
+        *get_magic_button(), *get_about_button()
     )
     builder.adjust(2, 1)
     return builder.as_markup()
@@ -95,14 +98,14 @@ def get_none_task_keyboard() -> InlineKeyboardMarkup:
     return markup
 
 
-async def get_treatments_keyboard(is_edit: bool = False) -> InlineKeyboardMarkup:
+async def get_pets_keyboard(is_edit: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    treatments = await db.get_treatments(value=int(True), is_multiple=True)
-    for treatment in treatments:
+    pet_types = await db.get_pet_type(value=int(True), is_multiple=True)
+    for pet_type in pet_types:
         if is_edit:
-            builder.add(InlineKeyboardButton(text=treatment['name'], callback_data=f"edit:treatment:{treatment['id']}"))
+            builder.add(InlineKeyboardButton(text=pet_type['name'], callback_data=f"edit:pet_type:{pet_type['id']}"))
         else:
-            builder.add(InlineKeyboardButton(text=treatment['name'], callback_data=f"treatment:{treatment['id']}"))
+            builder.add(InlineKeyboardButton(text=pet_type['name'], callback_data=f"pet_type:{pet_type['id']}"))
     if not is_edit:
         builder.add(*get_menu_button())
 
@@ -110,19 +113,48 @@ async def get_treatments_keyboard(is_edit: bool = False) -> InlineKeyboardMarkup
     return builder.as_markup()
 
 
-async def get_medicament_keyboard(treatments_id: int, is_edit: bool = False) -> InlineKeyboardMarkup:
+async def get_treatments_keyboard(pet_type: int, is_edit: bool = False) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    treatments = await db.get_treatments(pet_type=pet_type, value=int(True), is_multiple=True)
+    for treatment in treatments:
+        if is_edit:
+            builder.add(InlineKeyboardButton(text=treatment['name'], callback_data=f"edit:treatment:{treatment['id']}"))
+        else:
+            builder.add(InlineKeyboardButton(text=treatment['name'], callback_data=f"treatment:{treatment['id']}"))
+
+    if not is_edit:
+        builder.add(*get_create_task_button(text='⬅️ Назад'))
+
+    builder.adjust(1, 1)
+    return builder.as_markup()
+
+
+async def get_medicament_keyboard(treatments_id: int, pet_type: int, is_edit: bool = False, media_group: tuple[int, int] = None) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     medicament = await db.get_medicament(treatments_id=treatments_id, value=int(True), is_multiple=True)
+
+    first_message_id = media_group[0] if media_group is not None else 0
+    last_message_id = first_message_id + media_group[1] if media_group is not None else 0
+    medicament_prefix_callback = 'edit:medic' if is_edit else 'medic'
+
     for elem in medicament:
-        if is_edit:
-            builder.add(InlineKeyboardButton(text=elem['name'], callback_data=f"edit:medicament:{elem['id']}"))
-        else:
-            builder.add(InlineKeyboardButton(text=elem['name'], callback_data=f"medicament:{elem['id']}"))
-    if is_edit:
-        builder.add(InlineKeyboardButton(text='✏️ Ввести свой вариант', callback_data='edit:medicament:choose'))
-    else:
-        builder.add(InlineKeyboardButton(text='✏️ Ввести свой вариант', callback_data='medicament:choose'))
-        builder.add(*get_create_task_button(text='⬅️ Назад'))
+        callback = f"{medicament_prefix_callback}:{elem['id']}"
+        if media_group is not None:
+            callback = str(CallbackMediaGroupClass(callback, first_message_id, last_message_id))
+        builder.add(InlineKeyboardButton(text=elem['name'], callback_data=callback))
+
+    callback = f"{medicament_prefix_callback}:choose"
+    if media_group is not None:
+        callback = str(CallbackMediaGroupClass(callback, first_message_id, last_message_id))
+    builder.add(InlineKeyboardButton(text='✏️ Ввести свой вариант', callback_data=callback))
+
+    callback = f'pet_type:{pet_type}'
+    if media_group is not None:
+        callback = str(CallbackMediaGroupClass(f'pet_type:{pet_type}', first_message_id, last_message_id))
+
+    if not is_edit:
+        builder.add(InlineKeyboardButton(text='⬅️ Назад', callback_data=callback))
+
     builder.adjust(1, 1)
     return builder.as_markup()
 
@@ -291,9 +323,10 @@ def get_free_consultation_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text='📝 Памятка от зооюриста', callback_data='cons:free:zoo')],
-            [InlineKeyboardButton(text='🔴 Памятка аптечка первой помощи', callback_data='cons:free:help')],
+            [InlineKeyboardButton(text='🧰 Памятка аптечка первой помощи', callback_data='cons:free:help')],
             [InlineKeyboardButton(text='⭐ Особенности моей породы', callback_data='cons:free:features')],
-            [InlineKeyboardButton(text='👨‍⚕️ Консультация ветеринара', callback_data='cons:free:vet')],
+            [InlineKeyboardButton(text='🐈 Забота о котиках', callback_data='cons:free:cats_care')],
+            [InlineKeyboardButton(text='🎮🐱 Полезные игры с котиком', callback_data='cons:free:cats_game')],
             get_consultation_button('⬅️ Назад')
         ]
     )
@@ -321,8 +354,22 @@ def get_back_free_consultation_keyboard(media_group: tuple[int, int] = None) -> 
         first_message_id = media_group[0]
         last_message_id = first_message_id + media_group[1]
         keyboard = [InlineKeyboardButton(
-            text='⬅️ Назад', callback_data="{" + f"\"action\":\"cons:free\",\"first_msg\":\"{first_message_id}\","
-                                                 f"\"last_msg\":\"{last_message_id}\"" + "}"
+            text='⬅️ Назад', callback_data="{" + f"\"act\":\"cons:free\",\"first\":\"{first_message_id}\","
+                                                 f"\"last\":\"{last_message_id}\"" + "}"
+        )]
+
+    return InlineKeyboardMarkup(inline_keyboard=[keyboard])
+
+
+def get_back_magic_keyboard(media_group: tuple[int, int] = None) -> InlineKeyboardMarkup:
+    if media_group is None:
+        keyboard = get_magic_button('⬅️ Назад')
+    else:
+        first_message_id = media_group[0]
+        last_message_id = first_message_id + media_group[1]
+        keyboard = [InlineKeyboardButton(
+            text='⬅️ Назад', callback_data="{" + f"\"act\":\"magic:menu\",\"first\":\"{first_message_id}\","
+                                                 f"\"last\":\"{last_message_id}\"" + "}"
         )]
 
     return InlineKeyboardMarkup(inline_keyboard=[keyboard])
@@ -350,3 +397,10 @@ def get_back_user_id_keyboard(user_id: int | str, is_admin: bool = False, is_for
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='⬅️ Назад', callback_data=f"{prefix}:{user_id}")],
     ])
+
+def get_magic_keyboard() -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=text_message.MAGIC_INSTRUCTION_TEXT, callback_data='magic:instruction')],
+        [InlineKeyboardButton(text='✨ Натальная карта для питомца', callback_data='magic:card')], get_menu_button()
+    ])
+    return markup

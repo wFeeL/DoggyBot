@@ -5,11 +5,11 @@ from aiogram import Router, F
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, FSInputFile
-from aiogram.types.input_media_photo import InputMediaPhoto
 
 from telegram_bot import db, text_message
 from telegram_bot.env import bot, img_path
 from telegram_bot.handler import message
+from telegram_bot.helper import get_media_group
 from telegram_bot.keyboards import inline_markup
 from telegram_bot.states import treatment_calendar, edit_task
 
@@ -128,7 +128,7 @@ async def handle_page_tasks(callback: CallbackQuery) -> None:
     await message.send_tasks(callback.message, page)
 
 
-@router.callback_query(F.data.startswith('task:create'))
+@router.callback_query(F.data.contains('task:create'))
 async def handle_create_page_tasks(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.delete()
     await treatment_calendar.register_treatment_calendar(callback.message, state)
@@ -153,21 +153,9 @@ async def handle_delete_task(callback: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.contains('cons'))
-async def handle_consultation(callback: CallbackQuery) -> None:
-    try:
-        first_message = int(json.loads(callback.data)['first_msg'])
-        last_message = int(json.loads(callback.data)['last_msg'])
-        message_ids = list(range(first_message, last_message))
-        callback_data = str(json.loads(callback.data)['action']).split(':')
-
-        await bot.delete_messages(chat_id=callback.message.chat.id, message_ids=message_ids)
-
-    except Exception:
-        callback_data = callback.data.split(':')
-
+async def handle_consultation(callback: CallbackQuery, callback_data: str = None) -> None:
+    callback_data = callback_data.split(':') if callback_data is not None else callback.data.split(':')
     await callback.message.delete()
-    user = await db.get_users(callback.message.chat.id)
-
     if len(callback_data) == 2:
         if callback_data[1] == 'vip':
             await callback.message.answer(
@@ -185,12 +173,9 @@ async def handle_consultation(callback: CallbackQuery) -> None:
         markup = inline_markup.get_back_free_consultation_keyboard()
 
         if callback_data[2] == 'zoo':
-            folder_path = f"{img_path}/consultations/zoo/"
-            photos = list(map(lambda elem: FSInputFile(path=elem), [folder_path + f'{i}.jpg' for i in range(1, 6)]))
-            first_photo = [InputMediaPhoto(media=photos[0], caption=text_message.CONSULTATION_ZOO)]
-            media_group = first_photo + list(map(lambda elem: InputMediaPhoto(media=elem), photos[1:]))
+            media_group = get_media_group(path=f"{img_path}/consultations/zoo/",
+                                          first_message_text=text_message.CONSULTATION_ZOO, photos_end=5)
             media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
-
             media_group_id, media_group_len = media_group[0].message_id, len(media_group)
             markup = inline_markup.get_back_free_consultation_keyboard(media_group=(media_group_id, media_group_len))
             await callback.message.answer(text_message.CHOOSE_ACTION, reply_markup=markup)
@@ -212,11 +197,22 @@ async def handle_consultation(callback: CallbackQuery) -> None:
                     pets=message.get_pets_stroke(pets)
                 ),
                 reply_markup=markup, disable_web_page_preview=True)
-        else:
-            await callback.message.answer(
-                text=text_message.CONSULTATION_FREE_TEXT.format(promo_code=user['promocode']),
-                reply_markup=markup, disable_web_page_preview=True
-            )
+        elif callback_data[2] == 'cats_care':
+            media_group = get_media_group(path=f"{img_path}/consultations/cats_care/",
+                                          first_message_text=text_message.CONSULTATION_CATS_CARE, photos_end=2)
+            media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
+            media_group_id, media_group_len = media_group[0].message_id, len(media_group)
+            markup = inline_markup.get_back_free_consultation_keyboard(media_group=(media_group_id, media_group_len))
+            await callback.message.answer(text_message.CHOOSE_ACTION, reply_markup=markup)
+
+        elif callback_data[2] == 'cats_game':
+            media_group = get_media_group(path=f"{img_path}/consultations/cats_game/",
+                                          first_message_text=text_message.CONSULTATION_CATS_GAME, photos_end=6)
+            media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
+            media_group_id, media_group_len = media_group[0].message_id, len(media_group)
+            markup = inline_markup.get_back_free_consultation_keyboard(media_group=(media_group_id, media_group_len))
+            await callback.message.answer(text_message.CHOOSE_ACTION, reply_markup=markup)
+
 
 
 @router.callback_query(F.data.startswith('user_action:'))
@@ -238,3 +234,24 @@ async def callback_handler(c: CallbackQuery, state: FSMContext):
         await db.update_user(user_id, level=2)
         await c.answer("✅ Пользователь стал админом.")
     await handle_user_info(c)
+
+@router.callback_query(F.data.contains('magic'))
+async def handle_magic(callback: CallbackQuery, callback_data: str = None) -> None:
+    await callback.message.delete()
+    data = callback_data.split(":")[1] if callback_data is not None else callback.data.split(":")[1]
+
+    if data == 'menu':
+        await callback.message.answer(text=text_message.MAGIC_TEXT, reply_markup=inline_markup.get_magic_keyboard())
+    elif data == 'instruction':
+        media_group = get_media_group(path=f"{img_path}/magic_button/",
+                                      first_message_text=text_message.MAGIC_INSTRUCTION_TEXT, photos_end=3)
+        media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
+        media_group_id, media_group_len = media_group[0].message_id, len(media_group)
+        markup = inline_markup.get_back_magic_keyboard(media_group=(media_group_id, media_group_len))
+        await callback.message.answer(text_message.CHOOSE_ACTION, reply_markup=markup)
+
+    elif data == 'card':
+        user = await db.get_users(user_id=callback.message.chat.id)
+        markup = inline_markup.get_back_magic_keyboard()
+        await callback.message.answer(text=text_message.MAGIC_CARD_TEXT.format(promo_code=user['promocode']), reply_markup=markup)
+
