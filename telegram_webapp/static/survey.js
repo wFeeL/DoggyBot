@@ -30,7 +30,7 @@ function submitSurvey() {
     const form = document.getElementById("survey_form");
 
     if (form.checkValidity()) {
-        const user_id = Telegram.WebApp.initDataUnsafe.user?.id;
+        const user_id = Telegram.WebApp.initDataUnsafe.user.id;
         const jsonData = parseSurveyToJson(user_id);
         const initData = Telegram.WebApp.initData;
 
