@@ -82,7 +82,7 @@ def handle_webapp_data():
             "chat_id": user_id,
             "text": f"Спасибо, {form_data['human']['full_name']}! Мы получили ваши данные.",
             "reply_markup": {"inline_keyboard": [[{"text": "🔙 Главное меню",
-                                                       "callback_data": "menu"}]]}
+                                                   "callback_data": "menu"}]]}
         }
 
         response = requests.post(answer_url, json=answer_payload)
@@ -94,6 +94,55 @@ def handle_webapp_data():
 
     except Exception as e:
         print("Ошибка обработки:", e)
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route("/survey")
+def survey():
+    return render_template('survey.html')
+
+
+@app.route("/survey_data", methods=["POST"])
+def handle_survey_data():
+    try:
+        content = request.json
+        init_data = content.get("initData")
+        survey_data = content.get("surveyData")
+
+        if not init_data:
+            return jsonify({"ok": False, "error": "initData отсутствует"})
+
+        parsed = parse_qs(init_data)
+        query_id = parsed.get("query_id", [None])[0]
+
+        if not query_id:
+            return jsonify({"ok": False, "error": "query_id не найден"})
+
+        # Формируем текст сообщения с ответами
+        message_text = f"📊 Новые ответы на анкету: {survey_data['service_name']}\n"
+        message_text += f"👤 Пользователь: {survey_data['user_id']}\n\n"
+
+        answers = survey_data['answers']
+        for i, (question_key, answer) in enumerate(answers.items(), 1):
+            message_text += f"❓ Вопрос {i}:\n{answer}\n\n"
+
+        # Отправляем сообщение в Telegram
+        answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/sendMessage"
+        answer_payload = {
+            "chat_id": survey_data['user_id'],
+            "text": message_text,
+            "parse_mode": "HTML"
+        }
+
+        response = requests.post(answer_url, json=answer_payload)
+
+        if response.status_code == 200:
+            return jsonify({"ok": True})
+        else:
+            return jsonify({"ok": False, "error": response.text})
+
+    except Exception as e:
+        print("Ошибка обработки survey_data:", e)
         return jsonify({"ok": False, "error": str(e)})
 
 
