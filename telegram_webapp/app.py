@@ -106,7 +106,6 @@ def survey():
 def handle_survey_data():
     try:
         content = request.json
-        print(dict(content))
         init_data = content.get("initData")
         survey_data = content.get("surveyData")
 
