@@ -20,6 +20,7 @@ dp = Dispatcher()
 
 
 webapp_url = "https://doggyform.ru/"
+admin_telegram_id = os.environ['ADMIN_TELEGRAM_ID']
 BASE_DIR = Path(__file__).resolve().parent.parent
 pg_dsn = f"postgres://{os.environ['POSTGRES_USER']}:{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:{os.environ['POSTGRES_PORT']}/{os.environ['POSTGRES_DATABASE']}"
 img_path = f"{os.path.dirname(__file__)}/img"

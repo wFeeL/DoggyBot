@@ -1,9 +1,12 @@
+import pathlib
+
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, InlineKeyboardMarkup
+from aiogram.types import Message, InlineKeyboardMarkup, FSInputFile
 
 from telegram_bot import db, text_message
+from telegram_bot.env import bot, img_path
 from telegram_bot.decorators import check_block_user, check_admin
 from telegram_bot.helper import get_user_stroke, get_pets_stroke, get_task_text
 from telegram_bot.keyboards import inline_markup
@@ -14,8 +17,14 @@ router = Router()
 @router.message(Command("about"))
 @check_block_user
 async def send_about(message: Message, **kwargs):
-    await message.answer(text=text_message.ABOUT_TEXT, reply_markup=inline_markup.get_back_menu_keyboard(),
-                         disable_web_page_preview=True)
+    path = f'{img_path}/help_spec.jpg'
+    if pathlib.Path(path).is_file():
+        await bot.send_photo(
+            chat_id=message.chat.id,
+            photo=FSInputFile(path=path),
+            caption=f'{text_message.ABOUT_TEXT}\n\n{text_message.CONTACT_TEXT}',
+            reply_markup=inline_markup.get_back_menu_keyboard()
+        )
 
 
 @router.message(Command("menu", "start"))
@@ -25,12 +34,11 @@ async def send_menu(message: Message, state: FSMContext, **kwargs):
     if user is None:
         await db.add_user(message.chat.id, message.chat.username, message.chat.first_name, message.chat.last_name)
 
-    if await db.is_user_have_form(message.chat.id):
-        user_promo_code = user['promocode']
-        promo_code_text = text_message.PROMO_CODE_ENABLED.format(promo_code=user_promo_code)
-    else:
+    promo_code_text = ''
+    if not await db.is_user_have_form(message.chat.id):
         promo_code_text = text_message.PROMO_CODE_NOT_ENABLED
-    text = text_message.MENU_TEXT.format(promo_code_text=promo_code_text)
+
+    text = text_message.MENU_TEXT.format(promo_code_text=promo_code_text, contact_text=text_message.CONTACT_TEXT)
     await message.answer(text=text, reply_markup=inline_markup.get_menu_keyboard())
 
 
@@ -70,7 +78,7 @@ async def send_form(message: Message, **kwargs):
 async def send_consultation(message: Message, **kwargs):
     await message.answer(
         text=text_message.CONSULTATION_TEXT,
-        reply_markup=inline_markup.get_consultation_keyboard()
+        reply_markup=inline_markup.get_free_consultation_keyboard()
     )
 
 
@@ -89,7 +97,7 @@ async def send_treatments_calendar(message: Message, **kwargs):
 async def send_selection(message: Message, **kwargs):
     await message.answer(
         text=text_message.SELECTION_TEXT,
-        reply_markup=inline_markup.get_back_menu_keyboard(),
+        reply_markup=inline_markup.get_selection_keyboard(),
         disable_web_page_preview=True
     )
 

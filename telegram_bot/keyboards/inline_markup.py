@@ -20,7 +20,7 @@ def get_delete_message_button(text='👀 Скрыть') -> list[InlineKeyboardBu
     return [InlineKeyboardButton(text=text, callback_data='delete_message')]
 
 
-def get_about_button(text="❔ Опции сервиса") -> list[InlineKeyboardButton]:
+def get_about_button(text="🔑 Помощь специалистов") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="about")]
 
 
@@ -32,12 +32,8 @@ def get_admin_menu_button(text="🛡 Панель админа") -> list[InlineK
     return [InlineKeyboardButton(text=text, callback_data="admin_panel")]
 
 
-def get_consultation_button(text="👨‍⚕️Консультация") -> list[InlineKeyboardButton]:
+def get_consultation_button(text="👩‍⚕️Памятки") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="consultation")]
-
-
-def get_free_consultation(text="👨‍⚕️Бесплатные консультации") -> list[InlineKeyboardButton]:
-    return [InlineKeyboardButton(text=text, callback_data="cons:free")]
 
 
 def get_selection_button(text="🐶 Зоотовары ") -> list[InlineKeyboardButton]:
@@ -52,6 +48,10 @@ def get_create_task_button(text='➕ Создать напоминание') -> 
     return [InlineKeyboardButton(text=text, callback_data='task:create')]
 
 
+def get_recommend_button(text='🐾 Порекомендовать пэт-бренд') -> list[InlineKeyboardButton]:
+    return [InlineKeyboardButton(text=text, callback_data='recommend')]
+
+
 def get_edit_task_button(page: int, text='✏️ Редактировать') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data=f"task:edit:{page}")]
 
@@ -63,8 +63,10 @@ def get_delete_task_button(page: int, text='🗑️ Удалить') -> list[Inl
 def get_add_reminder_button(text='✅ Сохранить напоминание') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data='reminder:create')]
 
+
 def get_magic_button(text='🔮 Волшебная кнопка') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data='magic:menu')]
+
 
 # INLINE_MARKUPS
 def get_back_menu_keyboard() -> InlineKeyboardMarkup:
@@ -129,7 +131,8 @@ async def get_treatments_keyboard(pet_type: int, is_edit: bool = False) -> Inlin
     return builder.as_markup()
 
 
-async def get_medicament_keyboard(treatments_id: int, pet_type: int, is_edit: bool = False, media_group: tuple[int, int] = None) -> InlineKeyboardMarkup:
+async def get_medicament_keyboard(treatments_id: int, pet_type: int, is_edit: bool = False,
+                                  media_group: tuple[int, int] = None) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     medicament = await db.get_medicament(treatments_id=treatments_id, value=int(True), is_multiple=True)
 
@@ -198,6 +201,7 @@ def get_task_keyboard(page: int, length: int) -> InlineKeyboardMarkup:
     builder.row(*get_menu_button())
     return builder.as_markup()
 
+
 def get_edit_task_keyboard(is_edited: bool = False) -> InlineKeyboardMarkup:
     keyboard = [[InlineKeyboardButton(text='🪲 Изменить тип', callback_data='edit_treatment'),
                  InlineKeyboardButton(text='💊 Изменить лекарство', callback_data='edit_medicament')],
@@ -221,6 +225,13 @@ def get_reminder_keyboard() -> InlineKeyboardMarkup:
 def get_reminder_add_complete_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(inline_keyboard=[
         get_create_task_button(), get_treatments_calendar_button(), get_menu_button()
+    ])
+    return markup
+
+
+def get_selection_keyboard() -> InlineKeyboardMarkup:
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        get_recommend_button(), get_menu_button()
     ])
     return markup
 
@@ -273,7 +284,8 @@ def get_page_buttons(page: int, total_pages: int, callback_data_start: str):
     return buttons
 
 
-def get_user_keyboard(user_id: int, user_level: int, form_value: int, is_admin: bool = False, is_form: bool = False) -> InlineKeyboardMarkup:
+def get_user_keyboard(user_id: int, user_level: int, form_value: int, is_admin: bool = False,
+                      is_form: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
     if is_admin:
@@ -309,52 +321,27 @@ def get_delete_message_keyboard() -> InlineKeyboardMarkup:
     return markup
 
 
-def get_consultation_keyboard() -> InlineKeyboardMarkup:
-    markup = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text='⭐ VIP подписка', callback_data='cons:vip')],
-            get_free_consultation(), get_menu_button()
-        ]
-    )
-    return markup
-
-
 def get_free_consultation_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text='📝 Памятка от зооюриста', callback_data='cons:free:zoo')],
-            [InlineKeyboardButton(text='🧰 Памятка аптечка первой помощи', callback_data='cons:free:help')],
-            [InlineKeyboardButton(text='⭐ Особенности моей породы', callback_data='cons:free:features')],
-            [InlineKeyboardButton(text='🐈 Забота о котиках', callback_data='cons:free:cats_care')],
-            [InlineKeyboardButton(text='🎮🐱 Полезные игры с котиком', callback_data='cons:free:cats_game')],
-            get_consultation_button('⬅️ Назад')
+            [InlineKeyboardButton(text='📝 Памятка от зооюриста', callback_data='cons:zoo')],
+            [InlineKeyboardButton(text='🧰 Памятка аптечка первой помощи', callback_data='cons:help')],
+            [InlineKeyboardButton(text='🐈 Забота о котиках', callback_data='cons:cats_care')],
+            [InlineKeyboardButton(text='🎮🐱 Полезные игры с котиком', callback_data='cons:cats_game')],
+            get_menu_button('⬅️ Назад')
         ]
     )
     return markup
 
 
-def get_back_consultation_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        get_consultation_button('⬅️ Назад')
-    ])
-
-def get_vip_consultation_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='Публичная оферта',
-                              url="https://telegra.ph/PUBLICHNAYA-OFERTA-na-zaklyuchenie-dogovora-okazaniya-uslug-po-vklyucheniyu-v-programmu-strahovaniya-zhivotnyh-i-predostavleniyu-04-19")],
-        [InlineKeyboardButton(text='Как выглядит полис',
-                              url="https://disk.yandex.ru/i/RB0GYedycDkOxg")],
-        get_consultation_button('⬅️ Назад')
-    ])
-
 def get_back_free_consultation_keyboard(media_group: tuple[int, int] = None) -> InlineKeyboardMarkup:
     if media_group is None:
-        keyboard = get_free_consultation('⬅️ Назад')
+        keyboard = get_consultation_button('⬅️ Назад')
     else:
         first_message_id = media_group[0]
         last_message_id = first_message_id + media_group[1]
         keyboard = [InlineKeyboardButton(
-            text='⬅️ Назад', callback_data="{" + f"\"act\":\"cons:free\",\"first\":\"{first_message_id}\","
+            text='⬅️ Назад', callback_data="{" + f"\"act\":\"consultation\",\"first\":\"{first_message_id}\","
                                                  f"\"last\":\"{last_message_id}\"" + "}"
         )]
 
@@ -392,11 +379,13 @@ def get_wrong_promo_code_keyboard() -> InlineKeyboardMarkup:
     return markup
 
 
-def get_back_user_id_keyboard(user_id: int | str, is_admin: bool = False, is_form: bool = False) -> InlineKeyboardMarkup:
+def get_back_user_id_keyboard(user_id: int | str, is_admin: bool = False,
+                              is_form: bool = False) -> InlineKeyboardMarkup:
     prefix = 'choose_admin' if is_admin else 'choose_form' if is_form else 'choose_user'
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='⬅️ Назад', callback_data=f"{prefix}:{user_id}")],
     ])
+
 
 def get_magic_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(inline_keyboard=[

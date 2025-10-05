@@ -10,7 +10,7 @@ from telegram_bot.env import dp, bot
 from telegram_bot.handler import message, callback
 from telegram_bot.keyboards import inline_markup
 from telegram_bot.scheduler import start_scheduler
-from telegram_bot.states import treatment_calendar, calendar, search_form, edit_task
+from telegram_bot.states import treatment_calendar, calendar, search_form, edit_task, recommend
 from telegram_bot.middleware import MediaGroupMiddleware
 
 locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
@@ -24,7 +24,10 @@ async def on_unknown_intent(event, dialog_manager: DialogManager):
 
 async def main():
     dp.update.outer_middleware(MediaGroupMiddleware())
-    dp.include_routers(message.router, search_form.router, treatment_calendar.router, edit_task.router, callback.router, calendar.dialog)
+    dp.include_routers(
+        message.router, search_form.router, treatment_calendar.router, edit_task.router, callback.router,
+        recommend.router, calendar.dialog
+    )
     setup_dialogs(dp)
     start_scheduler()
     dp.errors.register(

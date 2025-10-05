@@ -1,4 +1,3 @@
-import json
 import pathlib
 
 from aiogram import Router, F
@@ -153,66 +152,44 @@ async def handle_delete_task(callback: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data.contains('cons'))
-async def handle_consultation(callback: CallbackQuery, callback_data: str = None) -> None:
+async def handle_consultation(callback: CallbackQuery, callback_data: str = None, **kwargs) -> None:
     callback_data = callback_data.split(':') if callback_data is not None else callback.data.split(':')
+    markup = inline_markup.get_back_free_consultation_keyboard()
     await callback.message.delete()
-    if len(callback_data) == 2:
-        if callback_data[1] == 'vip':
-            await callback.message.answer(
-                text=text_message.CONSULTATION_VIP,
-                reply_markup=inline_markup.get_vip_consultation_keyboard(),
-                disable_web_page_preview=True
+    if callback_data[0] == 'consultation':
+        await message.send_consultation(callback.message, **kwargs)
+
+    elif callback_data[1] == 'zoo':
+        media_group = get_media_group(path=f"{img_path}/consultations/zoo/",
+                                      first_message_text=text_message.CONSULTATION_ZOO, photos_end=5)
+        media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
+        media_group_id, media_group_len = media_group[0].message_id, len(media_group)
+        markup = inline_markup.get_back_free_consultation_keyboard(media_group=(media_group_id, media_group_len))
+        await callback.message.answer(text_message.CONTACT_TEXT, reply_markup=markup)
+
+    elif callback_data[1] == 'help':
+        path = f"{img_path}/consultations/help.jpg"
+        if pathlib.Path(path).is_file():
+            await bot.send_photo(
+                chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
+                caption=f'{text_message.CONSULTATION_HELP}\n\n{text_message.CONTACT_TEXT}', reply_markup=markup
             )
 
-        elif callback_data[1] == 'free':
-            await callback.message.answer(
-                text=text_message.CHOOSE_CONSULTATION_FREE_TEXT,
-                reply_markup=inline_markup.get_free_consultation_keyboard()
-            )
-    else:
-        markup = inline_markup.get_back_free_consultation_keyboard()
+    elif callback_data[1] == 'cats_care':
+        media_group = get_media_group(path=f"{img_path}/consultations/cats_care/",
+                                      first_message_text=text_message.CONSULTATION_CATS_CARE, photos_end=2)
+        media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
+        media_group_id, media_group_len = media_group[0].message_id, len(media_group)
+        markup = inline_markup.get_back_free_consultation_keyboard(media_group=(media_group_id, media_group_len))
+        await callback.message.answer(text_message.CONTACT_TEXT, reply_markup=markup)
 
-        if callback_data[2] == 'zoo':
-            media_group = get_media_group(path=f"{img_path}/consultations/zoo/",
-                                          first_message_text=text_message.CONSULTATION_ZOO, photos_end=5)
-            media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
-            media_group_id, media_group_len = media_group[0].message_id, len(media_group)
-            markup = inline_markup.get_back_free_consultation_keyboard(media_group=(media_group_id, media_group_len))
-            await callback.message.answer(text_message.CHOOSE_ACTION, reply_markup=markup)
-
-        elif callback_data[2] == 'help':
-            path = f"{img_path}/consultations/help.jpg"
-            if pathlib.Path(path).is_file():
-                await bot.send_photo(
-                    chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
-                    caption=text_message.CONSULTATION_HELP, reply_markup=markup
-                )
-
-        elif callback_data[2] == 'features':
-            pets = await db.get_pets(user_id=callback.message.chat.id, is_multiple=True)
-            user = await db.get_users(callback.message.chat.id)
-            await callback.message.answer(
-                text=text_message.CONSULTATION_FEATURES_TEXT.format(
-                    promo_code=user['promocode'],
-                    pets=message.get_pets_stroke(pets)
-                ),
-                reply_markup=markup, disable_web_page_preview=True)
-
-        elif callback_data[2] == 'cats_care':
-            media_group = get_media_group(path=f"{img_path}/consultations/cats_care/",
-                                          first_message_text=text_message.CONSULTATION_CATS_CARE, photos_end=2)
-            media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
-            media_group_id, media_group_len = media_group[0].message_id, len(media_group)
-            markup = inline_markup.get_back_free_consultation_keyboard(media_group=(media_group_id, media_group_len))
-            await callback.message.answer(text_message.CHOOSE_ACTION, reply_markup=markup)
-
-        elif callback_data[2] == 'cats_game':
-            media_group = get_media_group(path=f"{img_path}/consultations/cats_game/",
-                                          first_message_text=text_message.CONSULTATION_CATS_GAME, photos_end=6)
-            media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
-            media_group_id, media_group_len = media_group[0].message_id, len(media_group)
-            markup = inline_markup.get_back_free_consultation_keyboard(media_group=(media_group_id, media_group_len))
-            await callback.message.answer(text_message.CHOOSE_ACTION, reply_markup=markup)
+    elif callback_data[1] == 'cats_game':
+        media_group = get_media_group(path=f"{img_path}/consultations/cats_game/",
+                                      first_message_text=text_message.CONSULTATION_CATS_GAME, photos_end=6)
+        media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
+        media_group_id, media_group_len = media_group[0].message_id, len(media_group)
+        markup = inline_markup.get_back_free_consultation_keyboard(media_group=(media_group_id, media_group_len))
+        await callback.message.answer(text_message.CONTACT_TEXT, reply_markup=markup)
 
 
 
