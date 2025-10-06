@@ -117,7 +117,7 @@ def survey():
     service = SERVICES[survey_id]
     service_name, service_description, service_questions = service['name'], service['description'], service['questions']
 
-    return render_template('survey.html', service_name=service_name,
+    return render_template('survey.html', survey_id=survey_id, service_name=service_name,
                            service_description=service_description, service_questions=enumerate(service_questions))
 
 
