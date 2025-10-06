@@ -19,45 +19,15 @@
             Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam euismod, nisl eget ultricies ultricies, nunc nisl aliquam nunc, eget ultricies nisl nunc eget sem.
         </p>
 
-        <div class="entry">
-            <label for="question1">Вопрос 1: Как вы узнали о нашей услуге?</label>
-            <span class="input_container">
-                <textarea name="question1" placeholder="Ваш ответ" maxlength="1024" required></textarea>
-                <span></span>
-            </span>
-        </div>
-
-        <div class="entry">
-            <label for="question2">Вопрос 2: Что вас больше всего заинтересовало в нашем предложении?</label>
-            <span class="input_container">
-                <textarea name="question2" placeholder="Ваш ответ" maxlength="1024" required></textarea>
-                <span></span>
-            </span>
-        </div>
-
-        <div class="entry">
-            <label for="question3">Вопрос 3: Как часто вы планируете пользоваться данной услугой?</label>
-            <span class="input_container">
-                <textarea name="question3" placeholder="Ваш ответ" maxlength="1024" required></textarea>
-                <span></span>
-            </span>
-        </div>
-
-        <div class="entry">
-            <label for="question4">Вопрос 4: Какие улучшения вы бы предложили для нашей услуги?</label>
-            <span class="input_container">
-                <textarea name="question4" placeholder="Ваш ответ" maxlength="1024" required></textarea>
-                <span></span>
-            </span>
-        </div>
-
-        <div class="entry">
-            <label for="question5">Вопрос 5: Порекомендуете ли вы нашу услугу друзьям и коллегам? Почему?</label>
-            <span class="input_container">
-                <textarea name="question5" placeholder="Ваш ответ" maxlength="1024" required></textarea>
-                <span></span>
-            </span>
-        </div>
+        {% for index, question in questions %}
+                <div class="entry">
+                    <label for="question{{ index + 1 }}">{{ question }}</label>
+                    <span class="input_container">
+                        <textarea name="question{{ index + 1 }}" data-question="{{ question }}" placeholder="Ваш ответ" maxlength="1024" required></textarea>
+                        <span></span>
+                    </span>
+                </div>
+        {% endfor %}
 
         <div class="button" onclick="submitSurvey()" style="margin: 20px 1% 10px 1%; width: 98%; text-align: center;">
             Отправить результат

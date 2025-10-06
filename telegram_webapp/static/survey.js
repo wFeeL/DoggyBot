@@ -13,12 +13,18 @@ function parseSurveyToJson() {
     const user_id = Telegram.WebApp.initDataUnsafe.user?.id;
     const answers = {};
 
-    for (let i = 1; i <= 5; i++) {
-        const questionElement = document.querySelector(`textarea[name="question${i}"]`);
-        if (questionElement) {
-            answers[`question${i}`] = questionElement.value.trim();
+    const questionElements = document.querySelectorAll('textarea[name^="question"]');
+
+    questionElements.forEach(textarea => {
+        const questionText = textarea.getAttribute('data-question');
+        if (questionText) {
+            answers[questionText] = textarea.value.trim();
+        } else {
+            // Запасной вариант, если data-атрибут не установлен
+            const questionName = textarea.getAttribute('name');
+            answers[questionName] = textarea.value.trim();
         }
-    }
+    });
 
     return {
         user_id: user_id,
