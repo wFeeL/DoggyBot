@@ -121,10 +121,6 @@ def handle_survey_data():
             return jsonify({"ok": False, "error": "initData отсутствует"})
 
         parsed = parse_qs(init_data)
-        query_id = parsed.get("query_id", [None])[0]
-
-        if not query_id:
-            return jsonify({"ok": False, "error": "query_id не найден"})
 
         # Формируем текст сообщения с ответами
         message_text = f"📊 Новые ответы на анкету: {survey_data['service_name']}\n"
