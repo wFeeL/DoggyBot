@@ -9,10 +9,14 @@
     <title>Анкетирование</title>
 </head>
 <body>
-    <form id="survey_form">
+    <div id="loading" style="text-align: center; padding: 20px;">
+        Загрузка...
+    </div>
+
+    <form id="survey_form" style="display: none;">
         <h2>Название услуги</h2>
         <p style="margin: 0 1% 20px 1%; color: var(--tg-theme-hint-color); line-height: 1.4;">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam euismod, nisl eget ultricies ultricies, nunc nisl aliquam nunc, eget ultricies nisl nunc eget sem. Nullam euismod, nisl eget ultricies ultricies, nunc nisl aliquam nunc, eget ultricies nisl nunc eget sem.
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam euismod, nisl eget ultricies ultricies, nunc nisl aliquam nunc, eget ultricies nisl nunc eget sem.
         </p>
 
         <div class="entry">
@@ -59,5 +63,20 @@
             Отправить результат
         </div>
     </form>
+
+    <script>
+        // Ждем инициализации Telegram Web App
+        if (window.Telegram && Telegram.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('survey_form').style.display = 'block';
+        } else {
+            setTimeout(function() {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('survey_form').style.display = 'block';
+            }, 1000);
+        }
+    </script>
 </body>
 </html>

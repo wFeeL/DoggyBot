@@ -1,16 +1,18 @@
 window.onload = function() {
     Telegram.WebApp.expand();
     Telegram.WebApp.ready();
-    // Скрываем кнопку "Сохранить" так как у нас своя кнопка
     Telegram.WebApp.MainButton.hide();
+
+    console.log("Telegram Web App initialized");
+    console.log("User data:", Telegram.WebApp.initDataUnsafe);
 };
 
 window.submitSurvey = submitSurvey;
 
-function parseSurveyToJson(user_id) {
+function parseSurveyToJson() {
+    const user_id = Telegram.WebApp.initDataUnsafe.user?.id;
     const answers = {};
 
-    // Собираем ответы на все вопросы
     for (let i = 1; i <= 5; i++) {
         const questionElement = document.querySelector(`textarea[name="question${i}"]`);
         if (questionElement) {
@@ -30,9 +32,11 @@ function submitSurvey() {
     const form = document.getElementById("survey_form");
 
     if (form.checkValidity()) {
-        const user_id = Telegram.WebApp.initDataUnsafe.user.id;
-        const jsonData = parseSurveyToJson(user_id);
+        const jsonData = parseSurveyToJson();
         const initData = Telegram.WebApp.initData;
+
+        console.log("Submitting data:", jsonData);
+        console.log("Init data available:", !!initData);
 
         fetch('/survey_data', {
             method: "POST",
@@ -44,14 +48,20 @@ function submitSurvey() {
                 surveyData: jsonData
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log("Response status:", response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log("Response data:", data);
             if (data.ok) {
                 Telegram.WebApp.showPopup({
                     title: "Успешно",
                     message: "Спасибо за ваши ответы!",
                     buttons: [{ type: "ok" }]
                 });
+                // Очистка формы после успешной отправки
+                form.reset();
             } else {
                 throw new Error(data.error || "Произошла ошибка при отправке");
             }
@@ -60,7 +70,7 @@ function submitSurvey() {
             console.error("Ошибка запроса:", error);
             Telegram.WebApp.showPopup({
                 title: "Ошибка",
-                message: "Не удалось отправить данные. Попробуйте еще раз.",
+                message: `Не удалось отправить данные: ${error.message}`,
                 buttons: [{ type: "ok" }]
             });
         });
@@ -74,13 +84,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const textareas = document.querySelectorAll('textarea[name^="question"]');
     textareas.forEach(textarea => {
         textarea.addEventListener('input', function() {
-            const span = this.parentElement.querySelector('span');
             if (this.value.trim().length > 0) {
                 this.setCustomValidity("");
-                span.style.display = 'inline';
             } else {
                 this.setCustomValidity("Это поле обязательно для заполнения");
-                span.style.display = 'inline';
             }
         });
     });
