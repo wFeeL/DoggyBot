@@ -11,6 +11,7 @@ window.submitSurvey = submitSurvey;
 
 function parseSurveyToJson() {
     const user_id = Telegram.WebApp.initDataUnsafe.user?.id;
+    const service_id = document.getElementById('service_id').value;
     const answers = {};
 
     const questionElements = document.querySelectorAll('textarea[name^="question"]');
@@ -28,9 +29,8 @@ function parseSurveyToJson() {
 
     return {
         user_id: user_id,
-        service_name: "Название услуги",
-        answers: answers,
-        timestamp: new Date().toISOString()
+        service_id: parseInt(service_id),
+        answers: answers
     };
 }
 

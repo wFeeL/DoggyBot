@@ -1,25 +1,31 @@
 import asyncio
-import traceback
-import json
 import os
 from datetime import datetime
 from urllib.parse import parse_qs
 
 import requests
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 
 from telegram_bot import db
 from telegram_bot.helper import str_to_timestamp
 
 app = Flask(__name__, static_folder='static')
 load_dotenv()
-QUESTION_LIST = [
-    "Как вы узнали о нашей услуге?", "Что вас больше всего заинтересовало в нашем предложении?",
-    "Как часто вы планируете пользоваться данной услугой?",
-    "Какие улучшения вы бы предложили для нашей услуги?",
-    "Порекомендуете ли вы нашу услугу друзьям и коллегам? Почему?"
-]
+
+# service_id, service_name, service_description, service_questions (list type)
+SERVICES = {
+    1: {
+        'name': 'Название услуги',
+        'description': 'Описание услуги',
+        'questions': [
+            "Как вы узнали о нашей услуге?", "Что вас больше всего заинтересовало в нашем предложении?",
+            "Как часто вы планируете пользоваться данной услугой?",
+            "Какие улучшения вы бы предложили для нашей услуги?",
+            "Порекомендуете ли вы нашу услугу друзьям и коллегам? Почему?"
+        ]
+    }
+}
 
 
 @app.route("/")
@@ -105,9 +111,14 @@ def handle_webapp_data():
         return jsonify({"ok": False, "error": str(e)})
 
 
-@app.route("/survey")
+@app.route("/survey", methods=["GET"])
 def survey():
-    return render_template('survey.html', questions=enumerate(QUESTION_LIST))
+    survey_id = int(request.args.get('id'))
+    service = SERVICES[survey_id]
+    service_name, service_description, service_questions = service['name'], service['description'], service['questions']
+
+    return render_template('survey.html', service_name=service_name,
+                           service_description=service_description, service_questions=enumerate(service_questions))
 
 
 @app.route("/survey_data", methods=["POST"])
@@ -120,12 +131,17 @@ def handle_survey_data():
         if not init_data:
             return jsonify({"ok": False, "error": "initData отсутствует"})
 
-        parsed = parse_qs(init_data)
+        # Получаем информацию об услуге из SERVICES
+        service_id = survey_data.get('service_id')
+        service = SERVICES.get(service_id)
+
+        if not service:
+            return jsonify({"ok": False, "error": f"Услуга с ID {service_id} не найдена"})
 
         # Формируем текст сообщения с ответами
-        message_text = f"📊 Новые ответы на анкету: {survey_data['service_name']}\n"
+        message_text = f"📊 Новые ответы на анкету: {service['name']}\n"
         message_text += f"👤 User ID: {survey_data['user_id']}\n"
-        message_text += f"🕒 Время: {survey_data['timestamp']}\n\n"
+        message_text += f"🆔 Service ID: {service_id}\n\n"
 
         answers = survey_data['answers']
         for question, answer in answers.items():
@@ -154,6 +170,7 @@ def handle_survey_data():
     except Exception as e:
         print(f"Ошибка обработки survey_data: {e}")
         return jsonify({"ok": False, "error": str(e)})
+
 
 if __name__ == "__main__":
     app.run(debug=True)

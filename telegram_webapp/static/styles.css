@@ -9,10 +9,14 @@
     --tg-theme-destructive-color: rgb(182, 78, 78);
     --tg-theme-button-color: rgb(88, 223, 233);
 }
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background-color: var(--tg-theme-bg-color);
     color: var(--tg-theme-text-color);
+    margin: 0;
+    padding: 10px;
+    box-sizing: border-box;
 }
 
 ::-webkit-scrollbar {
@@ -35,15 +39,21 @@ body {
     background-color: transparent;
 }
 
-#form_body {
+#form_body, #survey_form {
     border-radius: 5px;
     box-sizing: border-box;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 98%;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
     padding-bottom: 5px;
     color: var(--tg-theme-text-color);
+}
+
+.service-description {
+    margin: 0 1% 20px 1%;
+    color: var(--tg-theme-hint-color);
+    line-height: 1.4;
+    font-size: 14px;
 }
 
 .pet_entry {
@@ -57,13 +67,13 @@ body {
     min-height: 12px;
     margin-bottom: 10px;
     position: relative;
-	transition: 0.2s ease;
+    transition: 0.2s ease;
     overflow: hidden;
 }
 
 .pet_top_label {
-    position: absolute; 
-    top: 6px; 
+    position: absolute;
+    top: 6px;
     margin-left: 1%;
 }
 
@@ -74,11 +84,16 @@ body {
 .entry {
     margin-bottom: 20px;
     width: 100%;
+    box-sizing: border-box;
 }
 
 .entry label {
     user-select: none;
     margin-left: 1%;
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+    line-height: 1.4;
 }
 
 .entry input, .entry textarea {
@@ -86,25 +101,28 @@ body {
     border-radius: 5px;
     outline: none;
     border: 1px solid var(--tg-theme-hint-color);
-    padding: 5px;
+    padding: 10px;
     margin-top: 5px;
     margin-left: 1%;
     margin-right: 1%;
     background-color: var(--tg-theme-bg-color);
     color: var(--tg-theme-text-color);
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 14px;
 }
 
 .entry textarea {
     resize: vertical;
     max-height: 400px;
-    min-height: 15px;
+    min-height: 100px;
 }
 
 .entry input[type="date"] {
-    user-select: none;     
+    user-select: none;
     -webkit-appearance: textfield;
     -moz-appearance: textfield;
-    min-height: 1.2em; 
+    min-height: 1.2em;
 }
 
 .entry input[name^="pet_type"], .entry input[name^="gender"] {
@@ -114,20 +132,25 @@ body {
 .input_container {
     display: flex;
     align-items: center;
+    position: relative;
 }
 
-input + span::after {
+input + span::after, textarea + span::after {
     width: 20px;
     display: inline-block;
     text-align: center;
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
-input:invalid + span::after {
+input:invalid + span::after, textarea:invalid + span::after {
     content: "✖";
     color: var(--tg-theme-destructive-color);
 }
 
-input:valid + span::after {
+input:valid + span::after, textarea:valid + span::after {
     content: "✓";
     color: var(--tg-theme-button-color);
 }
@@ -140,9 +163,14 @@ button, .button {
     border-radius: 26px;
     border: none;
     box-sizing: border-box;
-    padding: 5px 10px 5px 10px;
+    padding: 12px 20px;
     transition: 0.2s ease;
     user-select: none;
+    cursor: pointer;
+    display: block;
+    width: 98%;
+    margin: 20px auto 10px auto;
+    font-size: 16px;
 }
 
 button:hover, .button:hover {
@@ -151,10 +179,50 @@ button:hover, .button:hover {
 
 button:disabled, .button:disabled {
     opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.submit-button {
+    margin: 20px auto 10px auto;
+    width: 98%;
+    max-width: 300px;
 }
 
 h2, h3 {
     margin: 0;
     margin-bottom: 10px;
     margin-left: 1%;
+    font-weight: 600;
+}
+
+#loading {
+    text-align: center;
+    padding: 40px 20px;
+    font-size: 16px;
+    color: var(--tg-theme-hint-color);
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 480px) {
+    body {
+        padding: 5px;
+    }
+
+    .entry label {
+        font-size: 13px;
+    }
+
+    .entry input, .entry textarea {
+        padding: 8px;
+        font-size: 13px;
+    }
+
+    button, .button {
+        padding: 10px 15px;
+        font-size: 14px;
+    }
+
+    .service-description {
+        font-size: 13px;
+    }
 }
