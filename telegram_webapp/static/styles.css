@@ -477,3 +477,37 @@ h2, h3 {
         transform: none;
     }
 }
+
+.free-form-header {
+    color: var(--tg-theme-text-color);
+    font-size: 15px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.standard-note {
+    margin-top: 8px;
+    color: var(--tg-theme-hint-color);
+}
+
+.additional-notes {
+    margin-top: 8px;
+}
+
+.note-item {
+    margin-top: 6px;
+    color: var(--tg-theme-hint-color);
+    line-height: 1.4;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 480px) {
+    .free-form-header {
+        font-size: 14px;
+    }
+
+    .note-item {
+        font-size: 13px;
+    }
+}
