@@ -7,9 +7,9 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
-from telegram_webapp.services import SERVICES
+from telegram_webapp.services_text import SERVICES, SURVEY_FORM_TEXT
 from telegram_bot import db
-from telegram_bot.helper import str_to_timestamp
+from telegram_bot.helper import str_to_timestamp, get_user_stroke
 
 app = Flask(__name__, static_folder='static')
 load_dotenv()
@@ -97,21 +97,60 @@ def handle_webapp_data():
         return jsonify({"ok": False, "error": str(e)})
 
 
+def number_to_emoji(number):
+    """Преобразует число в строку с эмодзи-цифрами"""
+    emoji_digits = {
+        '0': '0️⃣',
+        '1': '1️⃣',
+        '2': '2️⃣',
+        '3': '3️⃣',
+        '4': '4️⃣',
+        '5': '5️⃣',
+        '6': '6️⃣',
+        '7': '7️⃣',
+        '8': '8️⃣',
+        '9': '9️⃣'
+    }
+
+    return ''.join(emoji_digits[digit] for digit in str(number))
+
+
 @app.route("/survey", methods=["GET"])
 def survey():
     survey_id = int(request.args.get('id'))
     service = SERVICES[survey_id]
 
+    # Добавляем сквозную нумерацию для всех опций
+    global_counter = 1
+    formatted_option_groups = []
+
+    for group in service['option_groups']:
+        formatted_group = {
+            'title': group.get('title'),
+            'options': []
+        }
+
+        for option in group['options']:
+            formatted_option = dict(option)  # Копируем опцию
+            formatted_option['formatted_number'] = number_to_emoji(global_counter)
+            formatted_option['display_number'] = global_counter
+            formatted_group['options'].append(formatted_option)
+            global_counter += 1
+
+        formatted_option_groups.append(formatted_group)
+
     return render_template('survey.html',
                            survey_id=survey_id,
                            service_name=service['name'],
                            service_description=service.get('description'),
-                           service_option_groups=service['option_groups'],
-                           service_footer_link=service.get('footer_link'))
+                           service_option_groups=formatted_option_groups,
+                           service_footer_link=service.get('footer_link'),
+                           service_form_note=service.get('form_note'),
+                           total_options=global_counter - 1)
 
 
 @app.route("/survey_data", methods=["POST"])
-def handle_survey_data():
+async def handle_survey_data():
     try:
         content = request.json
         init_data = content.get("initData")
@@ -120,16 +159,18 @@ def handle_survey_data():
         if not init_data:
             return jsonify({"ok": False, "error": "initData отсутствует"})
 
-        # Формируем текст сообщения с ответами
         service_id = survey_data['service_id']
         service_name = SERVICES[service_id]['name']
+        user_id = survey_data['user_id']
+        user = await db.get_users(user_id=user_id)
+        user_profile = await db.get_user_profile(user_id=user_id)
+        contact_text = get_user_stroke(user_profile)
 
-        message_text = f"📊 Новая заявка на услугу: {service_name}\n"
-        message_text += f"👤 User ID: {survey_data['user_id']}\n"
-        message_text += f"🆔 Service ID: {service_id}\n\n"
-        message_text += f"✅ Выбранный вариант:\n{survey_data['selected_option']}\n\n"
-        message_text += f"📝 Описание ситуации:\n{survey_data['free_form']}\n\n"
-        message_text += f"🕒 Время заявки: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        message_text = SURVEY_FORM_TEXT.format(
+            service_name=service_name, selected_option=survey_data['selected_option'],
+            free_form=survey_data['free_form'], username=user['username'], contact_text=contact_text,
+            promo_code=user['promocode']
+        )
 
         # Отправляем сообщение в Telegram
         bot_token = os.environ.get('BOT_TOKEN')

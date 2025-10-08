@@ -27,7 +27,6 @@
         <div class="options-section">
             <h3>Пожалуйста, укажите, какой из следующих вариантов вам наиболее актуален:</h3>
 
-            {% set global_counter = [] %}
             {% for group in service_option_groups %}
             <div class="option-group">
                 {% if group.title %}
@@ -35,11 +34,10 @@
                 {% endif %}
 
                 {% for option in group.options %}
-                {% set _ = global_counter.append(1) %}
                 <div class="option-card" onclick="selectOption(this)">
                     <input type="radio" id="option_{{ option.id }}" name="selected_option" value="{{ option.id }}" class="option-radio">
                     <label for="option_{{ option.id }}" class="option-label">
-                        <span class="option-number">{{ global_counter|length }}️⃣</span>
+                        <span class="option-number">{{ option.formatted_number }}</span>
                         <span class="option-title">{{ option.title }}</span>
                         <span class="option-price">{{ option.price }}</span>
                     </label>
@@ -97,6 +95,9 @@
             <div class="free-form-header">
                 🙋‍♀️ Пожалуйста, напишите, какой из вариантов Вам актуален и опишите Ваш запрос и ситуацию в свободной форме— чем подробнее, тем лучше мы сможем помочь.
                 <div style="margin-top: 8px;">❔Информация из Вашего профиля будет подкреплена к заявке.</div>
+                {% if service_form_note %}
+                <div style="margin-top: 8px;">{{ service_form_note }}</div>
+                {% endif %}
             </div>
 
             <div class="entry">
