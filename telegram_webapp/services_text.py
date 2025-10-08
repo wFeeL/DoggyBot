@@ -502,7 +502,7 @@ SURVEY_FORM_TEXT = """
 ✅ <b>Выбранный вариант:</b>
 {selected_option}\n
 📝 <b>Описание ситуации</b>:
-{free_form}\n\n
+{free_form}
 👤<b>Пользователь</b> @{username}:
 {contact_text}
 🎟️ <b>Промокод</b>: <code>{promo_code}</code>
