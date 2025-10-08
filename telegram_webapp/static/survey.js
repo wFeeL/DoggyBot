@@ -56,7 +56,7 @@ function submitSurvey() {
         })
         .then(response => {
             console.log("Response status:", response.status);
-            return response.json();
+            return response.text();
         })
         .then(data => {
             console.log("Response data:", data);
