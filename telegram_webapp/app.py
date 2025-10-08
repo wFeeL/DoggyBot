@@ -1,5 +1,6 @@
 import asyncio
 import os
+import traceback
 from datetime import datetime
 from urllib.parse import parse_qs
 
@@ -156,21 +157,50 @@ async def handle_survey_data():
         init_data = content.get("initData")
         survey_data = content.get("surveyData")
 
+        print(f"Received survey data: {survey_data}")
+        print(f"Init data type: {type(init_data)}, length: {len(init_data) if init_data else 0}")
+
         if not init_data:
             return jsonify({"ok": False, "error": "initData отсутствует"})
+
+        # Проверяем, что init_data является строкой
+        if not isinstance(init_data, str):
+            return jsonify({"ok": False, "error": "initData должен быть строкой"})
+
+        # Пытаемся распарсить init_data, но не используем результат
+        # Это нужно только для валидации формата
+        try:
+            parsed = parse_qs(init_data)
+            print(f"Parsed init data keys: {list(parsed.keys())}")
+        except Exception as e:
+            print(f"Error parsing init_data: {e}")
+            # Не прерываем выполнение, так как нам не нужны данные из init_data
+            pass
 
         service_id = survey_data['service_id']
         service_name = SERVICES[service_id]['name']
         user_id = survey_data['user_id']
+
+        # Получаем данные пользователя
         user = await db.get_users(user_id=user_id)
         user_profile = await db.get_user_profile(user_id=user_id)
+
+        # Проверяем, что получили данные пользователя
+        if not user_profile:
+            return jsonify({"ok": False, "error": "Профиль пользователя не найден"})
+
         contact_text = get_user_stroke(user_profile)
 
         message_text = SURVEY_FORM_TEXT.format(
-            service_name=service_name, selected_option=survey_data['selected_option'],
-            free_form=survey_data['free_form'], username=user['username'], contact_text=contact_text,
-            promo_code=user['promocode']
+            service_name=service_name,
+            selected_option=survey_data['selected_option'],
+            free_form=survey_data['free_form'],
+            username=user['username'] if user else 'не указан',
+            contact_text=contact_text,
+            promo_code=user['promocode'] if user else 'не указан'
         )
+
+        print(f"Message text prepared, length: {len(message_text)}")
 
         # Отправляем сообщение в Telegram
         bot_token = os.environ.get('BOT_TOKEN')
@@ -179,21 +209,28 @@ async def handle_survey_data():
 
         answer_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         answer_payload = {
-            "chat_id": survey_data['user_id'],
+            "chat_id": user_id,
             "text": message_text,
             "parse_mode": "HTML"
         }
 
+        print(f"Sending to Telegram, chat_id: {user_id}")
+
         response = requests.post(answer_url, json=answer_payload)
+        print(f"Telegram API response: {response.status_code}")
 
         if response.status_code == 200:
             return jsonify({"ok": True})
         else:
-            return jsonify({"ok": False, "error": response.text})
+            error_msg = f"Telegram API error: {response.status_code} - {response.text}"
+            print(error_msg)
+            return jsonify({"ok": False, "error": error_msg})
 
     except Exception as e:
-        print(f"Ошибка обработки survey_data: {e}")
-        return jsonify({"ok": False, "error": str(e)})
+        error_msg = f"Exception in handle_survey_data: {str(e)}"
+        print(error_msg)
+        print(f"Traceback: {traceback.format_exc()}")
+        return jsonify({"ok": False, "error": error_msg})
 
 
 if __name__ == "__main__":

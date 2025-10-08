@@ -5,6 +5,7 @@ window.onload = function() {
 
     console.log("Telegram Web App initialized");
     console.log("User data:", Telegram.WebApp.initDataUnsafe);
+    console.log("Init data:", Telegram.WebApp.initData);
 };
 
 window.submitSurvey = submitSurvey;
@@ -42,7 +43,18 @@ function submitSurvey() {
         const initData = Telegram.WebApp.initData;
 
         console.log("Submitting data:", jsonData);
-        console.log("Init data available:", !!initData);
+        console.log("Init data:", initData);
+        console.log("Init data type:", typeof initData);
+
+        // Проверяем initData
+        if (!initData || typeof initData !== 'string') {
+            Telegram.WebApp.showPopup({
+                title: "Ошибка",
+                message: "Ошибка инициализации приложения. Пожалуйста, перезагрузите страницу.",
+                buttons: [{ type: "ok" }]
+            });
+            return;
+        }
 
         fetch('/survey_data', {
             method: "POST",
@@ -56,7 +68,10 @@ function submitSurvey() {
         })
         .then(response => {
             console.log("Response status:", response.status);
-            return response.text();
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
         })
         .then(data => {
             console.log("Response data:", data);
