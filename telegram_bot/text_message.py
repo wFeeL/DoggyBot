@@ -4,8 +4,8 @@ ABOUT_TEXT = """<b>Какая услуга Вам актуальна?</b>\n
 • <a href="https://t.me/DoggyLogy_bot/link2">Первые навыки щенка</a>
 • <a href="https://t.me/DoggyLogy_bot/link3">Дрессировка, формирование поведения</a>
 • <a href="https://t.me/DoggyLogy_bot/link4">Ветеринар</a> 
-• Груминг 
-• Передержка
+• <a href="https://t.me/DoggyLogy_bot/link5">Груминг</a>
+• <a href="https://t.me/DoggyLogy_bot/link6">Передержка</a>
 • Зооняня и выгул
 • Групповые занятия
 • Подготовка к выставкам\n

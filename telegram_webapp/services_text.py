@@ -498,12 +498,12 @@ SERVICES = {
 }
 
 SURVEY_FORM_TEXT = """
-📊 <b>Новая заявка на услугу:</b> {service_name}
+📊 <b>Новая заявка по услуге:</b> {service_name}\n
 ✅ <b>Выбранный вариант:</b>
-{selected_option}\n\n
-📝 Описание ситуации:
+{selected_option}\n
+📝 <b>Описание ситуации</b>:
 {free_form}\n\n
-👤Контактная информация от пользователя (@{username}):
-{contact_text}\n
+👤<b>Пользователь</b> @{username}:
+{contact_text}
 🎟️ <b>Промокод</b>: <code>{promo_code}</code>
 """

@@ -78,9 +78,15 @@ function submitSurvey() {
             if (data.ok) {
                 Telegram.WebApp.showPopup({
                     title: "Успешно",
-                    message: "Спасибо за вашу заявку! Мы свяжемся с вами в ближайшее время.",
+                    message: "Спасибо за вашу заявку! Мы свяжемся с вами в ближайшее время. Приложение закроется автоматически.",
                     buttons: [{ type: "ok" }]
                 });
+
+                // Закрываем Web App через 2 секунды после показа popup
+                setTimeout(() => {
+                    Telegram.WebApp.close();
+                }, 2000);
+
                 // Очистка формы после успешной отправки
                 setTimeout(() => {
                     form.reset();
