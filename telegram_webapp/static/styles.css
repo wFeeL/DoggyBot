@@ -50,15 +50,14 @@ body {
 /* Стили для страницы анкетирования */
 
 .service-description {
-    margin: 0 1% 20px 1%;
+    margin: 0 1% 15px 1%;
     color: var(--tg-theme-hint-color);
     line-height: 1.5;
     font-size: 15px;
     background-color: rgba(255, 255, 255, 0.05);
-    padding: 15px;
+    padding: 12px 15px;
     border-radius: 8px;
     border-left: 4px solid var(--tg-theme-button-color);
-    white-space: pre-line;
 }
 
 .options-section {
@@ -180,9 +179,15 @@ body {
     margin: 10px 0 5px 0;
 }
 
+.feature-header {
+    margin: 10px 0 5px 0;
+    font-weight: bold;
+    color: var(--tg-theme-button-color);
+}
+
 .feature-item {
     display: flex;
-    margin-bottom: 4px; /* Уменьшен отступ между пунктами */
+    margin-bottom: 4px;
     font-size: 14px;
     line-height: 1.4;
     color: var(--tg-theme-text-color);
@@ -205,17 +210,17 @@ body {
     background-color: rgba(88, 223, 233, 0.1);
     border-radius: 6px;
     font-size: 14px;
-    line-height: 1.4; /* Уменьшен межстрочный интервал */
+    line-height: 1.4;
 }
 
 .option-plan strong {
     display: block;
-    margin-bottom: 5px; /* Уменьшен отступ */
+    margin-bottom: 5px;
     color: var(--tg-theme-button-color);
 }
 
 .plan-item {
-    margin-bottom: 3px; /* Уменьшен отступ между пунктами плана */
+    margin-bottom: 2px;
     padding-left: 5px;
 }
 
@@ -254,7 +259,7 @@ body {
     font-size: 15px;
     line-height: 1.5;
     margin-bottom: 20px;
-    text-align: left; /* Выравнивание по левому краю */
+    text-align: left;
 }
 
 .footer-note {
@@ -321,6 +326,11 @@ body {
     box-sizing: border-box;
     font-family: inherit;
     font-size: 14px;
+}
+
+.entry input[readonly] {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--tg-theme-hint-color);
 }
 
 .entry textarea {
@@ -434,7 +444,7 @@ h2, h3 {
     }
 
     .service-description {
-        padding: 12px;
+        padding: 10px 12px;
         font-size: 14px;
     }
 

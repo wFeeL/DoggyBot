@@ -94,20 +94,9 @@ function submitSurvey() {
 // Добавляем валидацию для полей
 document.addEventListener('DOMContentLoaded', function() {
     const textareas = document.querySelectorAll('textarea[name="free_form"]');
-    const inputs = document.querySelectorAll('input[name="selected_option_text"]');
 
     textareas.forEach(textarea => {
         textarea.addEventListener('input', function() {
-            if (this.value.trim().length > 0) {
-                this.setCustomValidity("");
-            } else {
-                this.setCustomValidity("Это поле обязательно для заполнения");
-            }
-        });
-    });
-
-    inputs.forEach(input => {
-        input.addEventListener('input', function() {
             if (this.value.trim().length > 0) {
                 this.setCustomValidity("");
             } else {

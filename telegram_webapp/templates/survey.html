@@ -27,6 +27,7 @@
         <div class="options-section">
             <h3>Пожалуйста, укажите, какой из следующих вариантов вам наиболее актуален:</h3>
 
+            {% set global_counter = [] %}
             {% for group in service_option_groups %}
             <div class="option-group">
                 {% if group.title %}
@@ -34,10 +35,11 @@
                 {% endif %}
 
                 {% for option in group.options %}
+                {% set _ = global_counter.append(1) %}
                 <div class="option-card" onclick="selectOption(this)">
                     <input type="radio" id="option_{{ option.id }}" name="selected_option" value="{{ option.id }}" class="option-radio">
                     <label for="option_{{ option.id }}" class="option-label">
-                        <span class="option-number">{{ loop.index }}️⃣</span>
+                        <span class="option-number">{{ global_counter|length }}️⃣</span>
                         <span class="option-title">{{ option.title }}</span>
                         <span class="option-price">{{ option.price }}</span>
                     </label>
@@ -51,10 +53,16 @@
                     {% if option.features %}
                     <div class="option-features">
                         {% for feature in option.features %}
-                        <div class="feature-item">
-                            <span class="feature-bullet">•</span>
-                            <span class="feature-text">{{ feature | safe }}</span>
-                        </div>
+                            {% if feature.startswith('<strong>') %}
+                            <div class="feature-header">
+                                {{ feature | safe }}
+                            </div>
+                            {% else %}
+                            <div class="feature-item">
+                                <span class="feature-bullet">•</span>
+                                <span class="feature-text">{{ feature | safe }}</span>
+                            </div>
+                            {% endif %}
                         {% endfor %}
                     </div>
                     {% endif %}
@@ -93,7 +101,7 @@
 
             <div class="entry">
                 <label for="selected_option_text">Выбранный вариант:</label>
-                <input type="text" id="selected_option_text" name="selected_option_text" placeholder="Укажите номер и название выбранного варианта" required>
+                <input type="text" id="selected_option_text" name="selected_option_text" placeholder="Укажите номер и название выбранного варианта" required readonly>
             </div>
 
             <div class="entry">
