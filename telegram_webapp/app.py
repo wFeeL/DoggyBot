@@ -7,26 +7,12 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
+from telegram_webapp.services import SERVICES
 from telegram_bot import db
 from telegram_bot.helper import str_to_timestamp
 
 app = Flask(__name__, static_folder='static')
 load_dotenv()
-
-# service_id, service_name, service_description, service_questions (list type)
-SERVICES = {
-    1: {
-        'name': 'Название услуги',
-        'description': 'Описание услуги',
-        'questions': [
-            "Как вы узнали о нашей услуге?", "Что вас больше всего заинтересовало в нашем предложении?",
-            "Как часто вы планируете пользоваться данной услугой?",
-            "Какие улучшения вы бы предложили для нашей услуги?",
-            "Порекомендуете ли вы нашу услугу друзьям и коллегам? Почему?"
-        ]
-    }
-}
-
 
 @app.route("/")
 def index():
@@ -115,10 +101,13 @@ def handle_webapp_data():
 def survey():
     survey_id = int(request.args.get('id'))
     service = SERVICES[survey_id]
-    service_name, service_description, service_questions = service['name'], service['description'], service['questions']
 
-    return render_template('survey.html', survey_id=survey_id, service_name=service_name,
-                           service_description=service_description, service_questions=enumerate(service_questions))
+    return render_template('survey.html',
+                           survey_id=survey_id,
+                           service_name=service['name'],
+                           service_description=service.get('description'),
+                           service_option_groups=service['option_groups'],
+                           service_footer_link=service.get('footer_link'))
 
 
 @app.route("/survey_data", methods=["POST"])
@@ -131,22 +120,16 @@ def handle_survey_data():
         if not init_data:
             return jsonify({"ok": False, "error": "initData отсутствует"})
 
-        # Получаем информацию об услуге из SERVICES
-        service_id = survey_data.get('service_id')
-        service = SERVICES.get(service_id)
-
-        if not service:
-            return jsonify({"ok": False, "error": f"Услуга с ID {service_id} не найдена"})
-
         # Формируем текст сообщения с ответами
-        message_text = f"📊 Новые ответы на анкету: {service['name']}\n"
+        service_id = survey_data['service_id']
+        service_name = SERVICES[service_id]['name']
+
+        message_text = f"📊 Новая заявка на услугу: {service_name}\n"
         message_text += f"👤 User ID: {survey_data['user_id']}\n"
         message_text += f"🆔 Service ID: {service_id}\n\n"
-
-        answers = survey_data['answers']
-        for question, answer in answers.items():
-            message_text += f"<b>{question}</b>\n"
-            message_text += f"{answer}\n\n"
+        message_text += f"✅ Выбранный вариант:\n{survey_data['selected_option']}\n\n"
+        message_text += f"📝 Описание ситуации:\n{survey_data['free_form']}\n\n"
+        message_text += f"🕒 Время заявки: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
         # Отправляем сообщение в Telegram
         bot_token = os.environ.get('BOT_TOKEN')
@@ -173,4 +156,4 @@ def handle_survey_data():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=80)

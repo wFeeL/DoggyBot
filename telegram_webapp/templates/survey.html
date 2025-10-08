@@ -15,27 +15,122 @@
 
     <form id="survey_form" style="display: none;">
         <input type="hidden" id="service_id" value="{{ survey_id }}">
-        <h2>{{ service_name }}</h2>
-        <p class="service-description">
-            {{ service_description }}
-        </p>
 
-        {% for index, question in service_questions %}
-        <div class="entry">
-            <label for="question{{ index + 1 }}">{{ index + 1 }}. {{ question }}</label>
-            <span class="input_container">
-                <textarea name="question{{ index + 1 }}" data-question="{{ question }}" placeholder="Ваш ответ" maxlength="1024" required></textarea>
-                <span></span>
-            </span>
+        <h2>{{ service_name }}</h2>
+
+        {% if service_description %}
+        <div class="service-description">
+            {{ service_description | safe }}
         </div>
-        {% endfor %}
+        {% endif %}
+
+        <div class="options-section">
+            <h3>Пожалуйста, укажите, какой из следующих вариантов вам наиболее актуален:</h3>
+
+            {% for group in service_option_groups %}
+            <div class="option-group">
+                {% if group.title %}
+                <h4 class="group-title">{{ group.title }}</h4>
+                {% endif %}
+
+                {% for option in group.options %}
+                <div class="option-card" onclick="selectOption(this)">
+                    <input type="radio" id="option_{{ option.id }}" name="selected_option" value="{{ option.id }}" class="option-radio">
+                    <label for="option_{{ option.id }}" class="option-label">
+                        <span class="option-number">{{ loop.index }}️⃣</span>
+                        <span class="option-title">{{ option.title }}</span>
+                        <span class="option-price">{{ option.price }}</span>
+                    </label>
+
+                    {% if option.description %}
+                    <div class="option-description">
+                        {{ option.description | safe }}
+                    </div>
+                    {% endif %}
+
+                    {% if option.features %}
+                    <div class="option-features">
+                        {% for feature in option.features %}
+                        <div class="feature-item">
+                            <span class="feature-bullet">•</span>
+                            <span class="feature-text">{{ feature | safe }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if option.plan %}
+                    <div class="option-plan">
+                        <strong>— Какой план?</strong>
+                        {% for plan_item in option.plan %}
+                        <div class="plan-item">{{ plan_item | safe }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if option.link %}
+                    <div class="option-link">
+                        <a href="{{ option.link.url }}" target="_blank">{{ option.link.text }}</a>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+
+            {% if service_footer_link %}
+            <div class="footer-link">
+                <a href="{{ service_footer_link.url }}" target="_blank">⬆️ {{ service_footer_link.text }}</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="free-form-section">
+            <div class="free-form-header">
+                🙋‍♀️ Пожалуйста, напишите, какой из вариантов Вам актуален и опишите Ваш запрос и ситуацию в свободной форме— чем подробнее, тем лучше мы сможем помочь.
+                <div style="margin-top: 8px;">❔Информация из Вашего профиля будет подкреплена к заявке.</div>
+            </div>
+
+            <div class="entry">
+                <label for="selected_option_text">Выбранный вариант:</label>
+                <input type="text" id="selected_option_text" name="selected_option_text" placeholder="Укажите номер и название выбранного варианта" required>
+            </div>
+
+            <div class="entry">
+                <label for="free_form">Подробное описание вашей ситуации:</label>
+                <textarea id="free_form" name="free_form" placeholder="Опишите вашу ситуацию, вопросы и пожелания как можно подробнее..." maxlength="2048" required></textarea>
+            </div>
+        </div>
+
+        <div class="footer-note">
+            😍 Ждём вашего ответа!
+        </div>
 
         <div class="button submit-button" onclick="submitSurvey()">
-            Отправить результат
+            Отправить заявку
         </div>
     </form>
 
     <script>
+        // Функция для выбора опции при клике на карточку
+        function selectOption(card) {
+            const radio = card.querySelector('.option-radio');
+            radio.checked = true;
+
+            // Убираем выделение у всех карточек
+            document.querySelectorAll('.option-card').forEach(c => {
+                c.classList.remove('selected');
+            });
+
+            // Добавляем выделение текущей карточке
+            card.classList.add('selected');
+
+            // Заполняем поле выбранного варианта
+            const optionTitle = card.querySelector('.option-title').textContent;
+            const optionNumber = card.querySelector('.option-number').textContent;
+            document.getElementById('selected_option_text').value = `${optionNumber} ${optionTitle}`;
+        }
+
         // Ждем инициализации Telegram Web App
         if (window.Telegram && Telegram.WebApp) {
             Telegram.WebApp.ready();
