@@ -94,11 +94,24 @@ def get_pets_stroke(pets_list) -> str:
 
 def get_user_stroke(user_data) -> str:
     forms = ("год", "лет", "года")
-    age = round((time.time() - float(user_data["birth_date"])) // (86400 * 365))
-    age = f"{age} {inflector.inflect_with_num(age, forms)}"
+
+    # Обработка случая, когда birth_date может быть None
+    if user_data["birth_date"] is None:
+        age = "не указан"
+        birth_date_str = "не указана"
+    else:
+        try:
+            age = round((time.time() - float(user_data["birth_date"])) // (86400 * 365))
+            age = f"{age} {inflector.inflect_with_num(age, forms)}"
+            birth_date_str = datetime.fromtimestamp(float(user_data["birth_date"])).strftime('%d %B %Y')
+        except (ValueError, TypeError):
+            age = "не указан"
+            birth_date_str = "не указана"
+
     return text_message.USER_PROFILE_TEXT.format(
-        full_name=user_data['full_name'], phone_number=user_data['phone_number'],
-        birth_date=datetime.fromtimestamp(float(user_data["birth_date"])).strftime('%d %B %Y'),
+        full_name=user_data.get('full_name', 'не указано'),
+        phone_number=user_data.get('phone_number', 'не указан'),
+        birth_date=birth_date_str,
         age=age
     )
 

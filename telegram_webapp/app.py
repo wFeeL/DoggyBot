@@ -1,6 +1,6 @@
 import asyncio
+import json
 import os
-import traceback
 from datetime import datetime
 from urllib.parse import parse_qs
 
@@ -8,9 +8,9 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
-from telegram_webapp.services_text import SERVICES, SURVEY_FORM_TEXT
-from telegram_bot import db, env
+from telegram_bot import db
 from telegram_bot.helper import str_to_timestamp, get_user_stroke
+from telegram_webapp.services_text import SERVICES, SURVEY_FORM_TEXT
 
 app = Flask(__name__, static_folder='static')
 load_dotenv()
@@ -163,18 +163,14 @@ async def handle_survey_data():
         if not init_data:
             return jsonify({"ok": False, "error": "initData отсутствует"})
 
-        # Проверяем, что init_data является строкой
         if not isinstance(init_data, str):
             return jsonify({"ok": False, "error": "initData должен быть строкой"})
 
-        # Пытаемся распарсить init_data, но не используем результат
-        # Это нужно только для валидации формата
         try:
             parsed = parse_qs(init_data)
             print(f"Parsed init data keys: {list(parsed.keys())}")
         except Exception as e:
             print(f"Error parsing init_data: {e}")
-            # Не прерываем выполнение, так как нам не нужны данные из init_data
             pass
 
         service_id = survey_data['service_id']
@@ -204,30 +200,61 @@ async def handle_survey_data():
 
         # Отправляем сообщение в Telegram
         bot_token = os.environ.get('BOT_TOKEN')
-
         if not bot_token:
             return jsonify({"ok": False, "error": "BOT_TOKEN not configured"})
 
-        for admin_id in env.admins_telegram_id:
-            answer_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-            answer_payload = {
-                "chat_id": admin_id,
-                "text": message_text,
-                "parse_mode": "HTML"
-            }
-            response = requests.post(answer_url, json=answer_payload)
-            print(f"Telegram API response: {response.status_code}")
+        # Получаем список администраторов
+        try:
+            admin_ids = list(json.loads(os.environ['ADMIN_TELEGRAM_ID']))
+            print(f"Sending to admins: {admin_ids}")
+        except Exception as e:
+            print(f"Error parsing ADMIN_TELEGRAM_ID: {e}")
+            return jsonify({"ok": False, "error": "Ошибка в конфигурации администраторов"})
 
-            if response.status_code == 200:
-                return jsonify({"ok": True})
-            else:
-                error_msg = f"Telegram API error: {response.status_code} - {response.text}"
+        # Отправляем сообщение всем администраторам
+        success_count = 0
+        errors = []
+
+        for admin_id in admin_ids:
+            try:
+                answer_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                answer_payload = {
+                    "chat_id": admin_id,
+                    "text": message_text,
+                    "parse_mode": "HTML"
+                }
+
+                print(f"Sending to admin {admin_id}")
+                response = requests.post(answer_url, json=answer_payload)
+                print(f"Telegram API response for admin {admin_id}: {response.status_code}")
+
+                if response.status_code == 200:
+                    success_count += 1
+                else:
+                    error_msg = f"Ошибка отправки администратору {admin_id}: {response.status_code} - {response.text}"
+                    errors.append(error_msg)
+                    print(error_msg)
+
+            except Exception as e:
+                error_msg = f"Исключение при отправке администратору {admin_id}: {str(e)}"
+                errors.append(error_msg)
                 print(error_msg)
-                return jsonify({"ok": False, "error": error_msg})
+
+        # Если сообщение отправлено хотя бы одному администратору, считаем успехом
+        if success_count > 0:
+            print(f"Сообщение успешно отправлено {success_count} администраторам")
+            if errors:
+                print(f"Были ошибки при отправке некоторым администраторам: {errors}")
+            return jsonify({"ok": True})
+        else:
+            error_msg = "Не удалось отправить сообщение ни одному администратору: " + "; ".join(errors)
+            print(error_msg)
+            return jsonify({"ok": False, "error": error_msg})
 
     except Exception as e:
         error_msg = f"Exception in handle_survey_data: {str(e)}"
         print(error_msg)
+        import traceback
         print(f"Traceback: {traceback.format_exc()}")
         return jsonify({"ok": False, "error": error_msg})
 
