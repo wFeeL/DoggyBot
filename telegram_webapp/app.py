@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
 from telegram_webapp.services_text import SERVICES, SURVEY_FORM_TEXT
-from telegram_bot import db
+from telegram_bot import db, env
 from telegram_bot.helper import str_to_timestamp, get_user_stroke
 
 app = Flask(__name__, static_folder='static')
@@ -204,27 +204,26 @@ async def handle_survey_data():
 
         # Отправляем сообщение в Telegram
         bot_token = os.environ.get('BOT_TOKEN')
+
         if not bot_token:
             return jsonify({"ok": False, "error": "BOT_TOKEN not configured"})
 
-        answer_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        answer_payload = {
-            "chat_id": user_id,
-            "text": message_text,
-            "parse_mode": "HTML"
-        }
+        for admin_id in env.admins_telegram_id:
+            answer_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            answer_payload = {
+                "chat_id": admin_id,
+                "text": message_text,
+                "parse_mode": "HTML"
+            }
+            response = requests.post(answer_url, json=answer_payload)
+            print(f"Telegram API response: {response.status_code}")
 
-        print(f"Sending to Telegram, chat_id: {user_id}")
-
-        response = requests.post(answer_url, json=answer_payload)
-        print(f"Telegram API response: {response.status_code}")
-
-        if response.status_code == 200:
-            return jsonify({"ok": True})
-        else:
-            error_msg = f"Telegram API error: {response.status_code} - {response.text}"
-            print(error_msg)
-            return jsonify({"ok": False, "error": error_msg})
+            if response.status_code == 200:
+                return jsonify({"ok": True})
+            else:
+                error_msg = f"Telegram API error: {response.status_code} - {response.text}"
+                print(error_msg)
+                return jsonify({"ok": False, "error": error_msg})
 
     except Exception as e:
         error_msg = f"Exception in handle_survey_data: {str(e)}"
