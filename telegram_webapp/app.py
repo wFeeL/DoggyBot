@@ -2,7 +2,6 @@ import asyncio
 import json
 import os
 from datetime import datetime
-from turtledemo.penrose import start
 from urllib.parse import parse_qs
 
 import requests
