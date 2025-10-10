@@ -144,6 +144,7 @@ def survey():
                            survey_id=survey_id,
                            service_name=service['name'],
                            service_description=service.get('description'),
+                           service_options_title=service.get('options_title'),
                            service_option_groups=formatted_option_groups,
                            service_footer_link=service.get('footer_link'),
                            service_form_note=service.get('form_note'),
