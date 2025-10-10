@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 from datetime import datetime
+from turtledemo.penrose import start
 from urllib.parse import parse_qs
 
 import requests
@@ -17,11 +18,12 @@ load_dotenv()
 
 @app.route("/", methods=['GET'])
 def index():
-    startapp = request.args.get('startapp')
+    startapp = request.args.get('tgWebAppStartParam')
+    print(startapp)
     if not startapp or startapp == 'main':
         return render_template('index.html')
     else:
-        survey_id = int(request.args.get('startapp'))
+        survey_id = int(startapp)
         service = SERVICES[survey_id]
 
         global_counter = 1
