@@ -16,7 +16,8 @@ app = Flask(__name__, static_folder='static')
 load_dotenv()
 
 @app.route("/", methods=['GET'])
-def index(startapp):
+def index():
+    startapp = request.args.get('startapp')
     if not startapp or startapp == 'main':
         return render_template('index.html')
     else:
