@@ -1,26 +1,26 @@
 ABOUT_TEXT = """<b>Какая услуга Вам актуальна?</b>\n
 🐶 <b>Для собачек</b>:
-• <a href="https://t.me/DoggyLogy_bot/?startapp=1">Если выбираете щенка</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=2">Первые навыки щенка</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=3">Дрессировка, формирование поведения</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=4">Ветеринар</a> 
-• <a href="https://t.me/DoggyLogy_bot/?startapp=5">Груминг</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=6">Передержка</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=7">Зооняня и выгул</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=8">Групповые занятия</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=9">Подготовка к выставкам</a>\n
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=1">Если выбираете щенка</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=2">Первые навыки щенка</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=3">Дрессировка, формирование поведения</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=4">Ветеринар</a> 
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=5">Груминг</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=6">Передержка</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=7">Зооняня и выгул</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=8">Групповые занятия</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=9">Подготовка к выставкам</a>\n
 🐈 <b>Для котиков</b>:
-• <a href="https://t.me/DoggyLogy_bot/?startapp=10">Формирование поведения </a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=11">Ветеринар</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=12">Передержка</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=13">Зооняня</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=14">Груминг</a>\n
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=10">Формирование поведения </a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=11">Ветеринар</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=12">Передержка</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=13">Зооняня</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=14">Груминг</a>\n
 🐾 <b>Для собачек и котиков</b>:
-• <a href="https://t.me/DoggyLogy_bot/?startapp=15">Кастинг питомцев для съемок</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=16">Зоотакси</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=17">Диетолог для животных</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=18">Пэт-фотограф</a>
-• <a href="https://t.me/DoggyLogy_bot/?startapp=19">Страхование здоровья питомцев</a>"""
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=15">Кастинг питомцев для съемок</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=16">Зоотакси</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=17">Диетолог для животных</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=18">Пэт-фотограф</a>
+• <a href="https://t.me/DoggyLogy_bot/survey?startapp=19">Страхование здоровья питомцев</a>"""
 
 
 PROMO_CODE_NOT_ENABLED = """\n<b>📝 Хотите оставить заявку на услугу для вашего питомца?

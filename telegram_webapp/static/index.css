@@ -98,7 +98,11 @@ body {
     margin-bottom: 30px;
 }
 
+/* Стили для ссылок-карточек */
 .service-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
     background: #f7fafc;
     border: 2px solid #e2e8f0;
     border-radius: 15px;
@@ -113,6 +117,8 @@ body {
     transform: translateY(-5px);
     border-color: #667eea;
     box-shadow: 0 10px 25px rgba(102, 126, 234, 0.15);
+    text-decoration: none;
+    color: inherit;
 }
 
 .service-card::before {
@@ -189,9 +195,12 @@ body {
     margin-right: auto;
 }
 
+/* Стили для кнопки анкеты */
 .form-button {
+    display: inline-block;
     background: white;
     color: #667eea;
+    text-decoration: none;
     border: none;
     padding: 15px 30px;
     font-size: 1.1rem;
@@ -205,6 +214,8 @@ body {
 .form-button:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    text-decoration: none;
+    color: #667eea;
 }
 
 /* Футер */
@@ -246,6 +257,8 @@ body {
 .contact-item:hover {
     background: rgba(255,255,255,0.3);
     transform: translateY(-2px);
+    text-decoration: none;
+    color: white;
 }
 
 .social-grid {
@@ -269,6 +282,8 @@ body {
 .social-link:hover {
     background: rgba(255,255,255,0.3);
     transform: translateY(-2px);
+    text-decoration: none;
+    color: white;
 }
 
 .footer-bottom {
@@ -318,6 +333,11 @@ body {
     .social-grid {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    .contacts {
+        flex-direction: column;
+        align-items: center;
+    }
 }
 
 @media (max-width: 480px) {
@@ -340,5 +360,9 @@ body {
 
     .social-grid {
         grid-template-columns: 1fr;
+    }
+
+    .footer {
+        padding: 25px;
     }
 }

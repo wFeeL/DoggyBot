@@ -365,7 +365,7 @@ def get_back_magic_keyboard(media_group: tuple[int, int] = None) -> InlineKeyboa
 def get_web_app_keyboard() -> InlineKeyboardMarkup:
     page_url = f'{env.webapp_url}/form'
     markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🪪 Заполнить форму", web_app=WebAppInfo(url=page_urll))]
+        [InlineKeyboardButton(text="🪪 Заполнить форму", web_app=WebAppInfo(url=page_url))]
     ])
     return markup
 
