@@ -1,94 +1,259 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="../static/styles.css">
-    <script src="../static/script.js"></script>
-    <title>Information Form</title>
+    <link rel="stylesheet" href="../static/index.css">
+    <title>DoggyLogy - Профессиональные услуги для питомцев</title>
 </head>
 <body>
-    <form id="form_body">
-        <h2>Личные данные</h2>
-        <div class="entry">
-            <label for="full_name">Фамилия Имя Отчество</label>
-            <span class="input_container"><input name="full_name" type="text" maxlength="150" required>
-            <span></span></span>
-        </div>
-        <div class="entry">
-            <label for="phone_number">Номер телефона</label>
-            <span class="input_container"><input name="phone_number" type="tel" placeholder="+7 XXX XXX XX XX" pattern="\+7 \d{3} \d{3} \d{2} \d{2}" value="+7" oninput="formatPhoneNumber(this);" minlength="18" maxlength="18" required>
-            <span></span></span>
-        </div>
-        <div class="entry">
-            <label for="birth_date">Дата рождения</label>
-            <span class="input_container"><input name="birth_date" type="date" min="1900-01-01" onfocus="this.setAttribute('max', new Date().toISOString().slice(0, 10))" required>
-            <span></span></span>
-        </div>
-        <div class="entry">
-            <label for="about_me">Дополнительно о себе</label>
-            <span class="input_container"><textarea name="about_me" placeholder="По желанию" maxlength="2048"></textarea>
-            <span></span></span>
-        </div>
-        <h2 style="margin-top: 40px; margin-bottom: 5px;">Питомцы (минимум 1)</h2>
-        <div id="pets_entries">
-            <div class="pet_entry">
-                <span>
-                    <label class="pet_top_label">Питомец 1</label>
-                    <div class="arrow_down" onclick="">
-                        <svg onclick="pete = this.parentElement.parentElement.parentElement; if (this.style.rotate == '-180deg') {pete.style.maxHeight = null; this.style.rotate = null} else {this.style.rotate = '-180deg'; pete.style.maxHeight = '12px';}" style="position: absolute; top: 5px; right: 5px; transition: ease 0.2s;" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
+    <div class="container">
+        <!-- Хедер -->
+        <header class="header">
+            <div class="logo-section">
+                <div class="logo">🐕 DoggyLogy</div>
+                <p class="tagline">Профессиональные услуги для ваших питомцев</p>
+            </div>
+        </header>
+
+        <!-- Основной контент -->
+        <main class="main-content">
+            <section class="hero-section">
+                <h1>Какая услуга Вам актуальна?</h1>
+                <p class="hero-description">Выберите подходящую услугу для вашего питомца</p>
+            </section>
+
+            <!-- Услуги для собачек -->
+            <section class="services-section">
+                <div class="section-header">
+                    <div class="section-icon">🐶</div>
+                    <h2>Для собачек</h2>
+                </div>
+                <div class="services-grid">
+                    <div class="service-card" onclick="openService(1)">
+                        <div class="service-icon">🔍</div>
+                        <h3>Если выбираете щенка</h3>
+                        <p>Помощь в выборе подходящего щенка и заводчика</p>
+                        <div class="service-arrow">→</div>
                     </div>
-                </span>
-                <div class="entry" style="margin-top: 22px;">
-                    <label for="name">Кличка</label>
-                    <span class="input_container"><input name="name" maxlength="32" oninput="this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1).trim();" required>
-                    <span></span></span>
+
+                    <div class="service-card" onclick="openService(2)">
+                        <div class="service-icon">🎓</div>
+                        <h3>Первые навыки щенка</h3>
+                        <p>Основы воспитания и адаптации в новом доме</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(3)">
+                        <div class="service-icon">🏅</div>
+                        <h3>Дрессировка, формирование поведения</h3>
+                        <p>Коррекция поведения и обучение командам</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(4)">
+                        <div class="service-icon">👩‍⚕️</div>
+                        <h3>Ветеринар</h3>
+                        <p>Консультации и помощь ветеринарных специалистов</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(5)">
+                        <div class="service-icon">💇‍♂️</div>
+                        <h3>Груминг</h3>
+                        <p>Профессиональный уход за шерстью и гигиена</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(6)">
+                        <div class="service-icon">🏠</div>
+                        <h3>Передержка</h3>
+                        <p>Комфортное размещение на время вашего отсутствия</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(7)">
+                        <div class="service-icon">👶</div>
+                        <h3>Зооняня и выгул</h3>
+                        <p>Присмотр и активные прогулки с питомцем</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(8)">
+                        <div class="service-icon">👥</div>
+                        <h3>Групповые занятия</h3>
+                        <p>Обучение и социализация в группе</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(9)">
+                        <div class="service-icon">⭐</div>
+                        <h3>Подготовка к выставкам</h3>
+                        <p>Профессиональная подготовка к шоу и конкурсам</p>
+                        <div class="service-arrow">→</div>
+                    </div>
                 </div>
-                <div class="entry">
-                    <label for="weight">Примерный вес (кг.)</label>
-                    <span class="input_container"><input name="weight" type="number" min="0" max="100" required>
-                    <span></span></span>
+            </section>
+
+            <!-- Услуги для котиков -->
+            <section class="services-section">
+                <div class="section-header">
+                    <div class="section-icon">🐈</div>
+                    <h2>Для котиков</h2>
                 </div>
-                <div class="entry">
-                    <label for="birth_date">Дата рождения</label>
-                    <span class="input_container"><input name="birth_date" type="date" min="1900-01-01" onfocus="this.setAttribute('max', new Date().toISOString().slice(0, 10))" required>
-                    <span></span></span>
+                <div class="services-grid">
+                    <div class="service-card" onclick="openService(10)">
+                        <div class="service-icon">🎭</div>
+                        <h3>Формирование поведения</h3>
+                        <p>Коррекция поведения и решение проблем</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(11)">
+                        <div class="service-icon">👩‍⚕️</div>
+                        <h3>Ветеринар</h3>
+                        <p>Специализированная помощь для кошек</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(12)">
+                        <div class="service-icon">🏨</div>
+                        <h3>Передержка</h3>
+                        <p>Комфортный кото-отель в центре Москвы</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(13)">
+                        <div class="service-icon">👶</div>
+                        <h3>Зооняня</h3>
+                        <p>Присмотр и уход за котиком дома</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(14)">
+                        <div class="service-icon">💇‍♀️</div>
+                        <h3>Груминг</h3>
+                        <p>Гигиенические процедуры и уход за шерстью</p>
+                        <div class="service-arrow">→</div>
+                    </div>
                 </div>
-                <div class="entry">
-                    <label for="breed">Порода</label>
-                    <span class="input_container"><input name="breed" maxlength="32" oninput="validateBreed(this)" required>
-                    <span></span></span>
+            </section>
+
+            <!-- Услуги для всех -->
+            <section class="services-section">
+                <div class="section-header">
+                    <div class="section-icon">🐾</div>
+                    <h2>Для собачек и котиков</h2>
                 </div>
-                <div class="entry">
-                    <label for="gender">Пол</label>
-                    <span class="input_container">
-                        <input name="gender_1" type="radio" value="male" required>
-                        <label for="gender_1">Мужской</label>
-                    </span>
-                    <span class="input_container" style="margin-top: 5px;">
-                        <input name="gender_1" type="radio" value="female" required>
-                        <label for="gender_1">Женский</label>
-                    </span>
+                <div class="services-grid">
+                    <div class="service-card" onclick="openService(15)">
+                        <div class="service-icon">🎬</div>
+                        <h3>Кастинг питомцев для съемок</h3>
+                        <p>Ваш питомец может стать актёром</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(16)">
+                        <div class="service-icon">🚗</div>
+                        <h3>Зоотакси</h3>
+                        <p>Комфортная перевозка с питомцем</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(17)">
+                        <div class="service-icon">🥗</div>
+                        <h3>Диетолог для животных</h3>
+                        <p>Индивидуальный подбор рациона питания</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(18)">
+                        <div class="service-icon">📸</div>
+                        <h3>Пэт-фотограф</h3>
+                        <p>Профессиональная фотосессия питомца</p>
+                        <div class="service-arrow">→</div>
+                    </div>
+
+                    <div class="service-card" onclick="openService(19)">
+                        <div class="service-icon">🛡️</div>
+                        <h3>Страхование здоровья питомцев</h3>
+                        <p>Полис ДМС для собак и кошек</p>
+                        <div class="service-arrow">→</div>
+                    </div>
                 </div>
-                <div class="entry">
-                    <label for="pet_type">Вид питомца</label>
-                    <span class="input_container">
-                        <input name="pet_type_1" type="radio" value="dog" required>
-                        <label for="pet_type_1">Собака</label>
-                    </span>
-                    <span class="input_container" style="margin-top: 5px;">
-                        <input name="pet_type_1" type="radio" value="cat" required>
-                        <label for="pet_type_1">Кот</label>
-                    </span>
+            </section>
+
+            <!-- Анкета -->
+            <section class="form-section">
+                <div class="form-card">
+                    <div class="form-icon">📝</div>
+                    <h2>Станьте частью семьи DoggyLogy!</h2>
+                    <p class="form-description">
+                        Заполните анкету, чтобы мы лучше узнали вас и вашего питомца.
+                        Это поможет нам подобрать самые подходящие услуги и сделать наше
+                        сотрудничество максимально комфортным и эффективным.
+                    </p>
+                    <button class="form-button" onclick="openForm()">
+                        📋 Заполнить анкету
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Футер -->
+        <footer class="footer">
+            <div class="contact-info">
+                <h3>🙋‍♀️ Контактная информация:</h3>
+                <div class="contacts">
+                    <div class="contact-item">@doggy_logy</div>
+                    <div class="contact-item">@manager_DoggyLogy</div>
                 </div>
             </div>
-        </div>
-        <div id="add_pet_button" class="button" onclick="addPet(this);">
-            + Добавить питомца
-        </div>
-    </form>
+
+            <div class="social-links">
+                <h3>🌐 Следите за нами в социальных сетях:</h3>
+                <div class="social-grid">
+                    <a href="https://doggy-logy.ru/" target="_blank" class="social-link">🌐 Сайт</a>
+                    <a href="https://vk.com/doggylogy" target="_blank" class="social-link">📘 VK</a>
+                    <a href="https://youtube.com/@doggylogy?si=TfojM_-KXnH6YckN" target="_blank" class="social-link">📺 YouTube</a>
+                    <a href="https://t.me/DoggyLogyChannel" target="_blank" class="social-link">📢 Наш канал</a>
+                    <a href="https://t.me/DoggyLogy" target="_blank" class="social-link">💬 Чат</a>
+                    <a href="https://www.instagram.com/doggy.logy" target="_blank" class="social-link">📷 Instagram</a>
+                    <a href="https://www.tiktok.com/@doggy.logy?_t=ZS-90EzzqHoy5X&_r=1" target="_blank" class="social-link">🎵 TikTok</a>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>© 2024 DoggyLogy. Все права защищены.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Функция для открытия услуги
+        function openService(serviceId) {
+            if (window.Telegram && Telegram.WebApp) {
+                // В Telegram Web App используем startapp параметр
+                Telegram.WebApp.openLink(`https://t.me/DoggyLogy_bot/survey?startapp=${serviceId}`);
+            }
+        }
+
+        // Функция для открытия анкеты
+        function openForm() {
+            if (window.Telegram && Telegram.WebApp) {
+                Telegram.WebApp.openLink('https://t.me/DoggyLogy_bot/form');
+            } else {
+                window.open('/form', '_blank');
+            }
+        }
+
+        // Инициализация Telegram Web App
+        if (window.Telegram && Telegram.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+        }
+    </script>
 </body>
 </html>

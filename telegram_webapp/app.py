@@ -15,42 +15,49 @@ from telegram_webapp.services_text import SERVICES, SURVEY_FORM_TEXT
 app = Flask(__name__, static_folder='static')
 load_dotenv()
 
+
 @app.route("/", methods=['GET'])
 def index():
-    startapp = request.args.get('tgWebAppStartParam')
-    if not startapp or startapp == 'main':
-        return render_template('index.html')
-    else:
-        survey_id = int(startapp)
-        service = SERVICES[survey_id]
+    return render_template('index.html')
 
-        global_counter = 1
-        formatted_option_groups = []
 
-        for group in service['option_groups']:
-            formatted_group = {
-                'title': group.get('title'),
-                'options': []
-            }
+@app.route("/form", methods=['GET'])
+def form():
+    return render_template('form.html')
 
-            for option in group['options']:
-                formatted_option = dict(option)
-                formatted_option['formatted_number'] = number_to_emoji(global_counter)
-                formatted_option['display_number'] = global_counter
-                formatted_group['options'].append(formatted_option)
-                global_counter += 1
 
-            formatted_option_groups.append(formatted_group)
+@app.route("/survey", methods=['GET'])
+def survey(startapp):
+    survey_id = int(startapp)
+    service = SERVICES[survey_id]
 
-        return render_template('survey.html',
-                               survey_id=survey_id,
-                               service_name=service['name'],
-                               service_description=service.get('description'),
-                               service_options_title=service.get('options_title'),
-                               service_option_groups=formatted_option_groups,
-                               service_footer_link=service.get('footer_link'),
-                               service_form_note=service.get('form_note'),
-                               total_options=global_counter - 1)
+    global_counter = 1
+    formatted_option_groups = []
+
+    for group in service['option_groups']:
+        formatted_group = {
+            'title': group.get('title'),
+            'options': []
+        }
+
+        for option in group['options']:
+            formatted_option = dict(option)
+            formatted_option['formatted_number'] = number_to_emoji(global_counter)
+            formatted_option['display_number'] = global_counter
+            formatted_group['options'].append(formatted_option)
+            global_counter += 1
+
+        formatted_option_groups.append(formatted_group)
+
+    return render_template('survey.html',
+                           survey_id=survey_id,
+                           service_name=service['name'],
+                           service_description=service.get('description'),
+                           service_options_title=service.get('options_title'),
+                           service_option_groups=formatted_option_groups,
+                           service_footer_link=service.get('footer_link'),
+                           service_form_note=service.get('form_note'),
+                           total_options=global_counter - 1)
 
 
 @app.route("/get_user_data/<telegram_id>", methods=["GET"])
@@ -147,6 +154,7 @@ def number_to_emoji(number):
     }
 
     return ''.join(emoji_digits[digit] for digit in str(number))
+
 
 @app.route("/survey_data", methods=["POST"])
 async def handle_survey_data():
