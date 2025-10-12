@@ -207,8 +207,8 @@
             <div class="contact-info">
                 <h3>🙋‍♀️ Контактная информация:</h3>
                 <div class="contacts">
-                    <div class="contact-item">@doggy_logy</div>
-                    <div class="contact-item">@manager_DoggyLogy</div>
+                    <a href="https://t.me/doggy_logy" target="_blank" class="contact-item">@doggy_logy</a>
+                    <a href="https://t.me/manager_DoggyLogy" target="_blank" class="contact-item">@manager_DoggyLogy</a>
                 </div>
             </div>
 
@@ -229,21 +229,20 @@
                 <p>© 2024 DoggyLogy. Все права защищены.</p>
             </div>
         </footer>
-    </div>
 
     <script>
         // Функция для открытия услуги
         function openService(serviceId) {
             if (window.Telegram && Telegram.WebApp) {
                 // В Telegram Web App используем startapp параметр
-                Telegram.WebApp.openLink(`https://t.me/DoggyLogy_bot/survey?startapp=${serviceId}`);
+                Telegram.WebApp.openTelegramLink(`https://t.me/DoggyLogy_bot/survey?startapp=${serviceId}`);
             }
         }
 
         // Функция для открытия анкеты
         function openForm() {
             if (window.Telegram && Telegram.WebApp) {
-                Telegram.WebApp.openLink('https://t.me/DoggyLogy_bot/form');
+                Telegram.WebApp.openTelegramLink('https://t.me/DoggyLogy_bot/form');
             } else {
                 window.open('/form', '_blank');
             }

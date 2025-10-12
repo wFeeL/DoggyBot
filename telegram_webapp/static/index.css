@@ -233,10 +233,19 @@ body {
 }
 
 .contact-item {
+    display: inline-block;
     background: rgba(255,255,255,0.2);
+    color: white;
+    text-decoration: none;
     padding: 10px 20px;
     border-radius: 25px;
     font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.contact-item:hover {
+    background: rgba(255,255,255,0.3);
+    transform: translateY(-2px);
 }
 
 .social-grid {
