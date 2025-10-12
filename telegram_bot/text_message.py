@@ -124,7 +124,7 @@ USER_PROFILE_TEXT = """<b>ФИО</b>: <code>{full_name}</code>
 <b>Возраст</b>: <code>{age}</code>\n"""
 
 PET_PROFILE_TEXT = """<b>{count}. {emoji} {name}</b>
-<b>Вес</b>: <code>{app=rox_weight} кг</code>
+<b>Вес</b>: <code>{approx_weight} кг</code>
 <b>Дата рождения</b>: <code>{birth_date}</code>
 <b>Возраст</b>: <code>{age}</code>
 <b>Вид</b>: <code>{type}</code>
