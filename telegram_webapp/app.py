@@ -27,8 +27,8 @@ def form():
 
 
 @app.route("/survey", methods=['GET'])
-def survey(startapp):
-    survey_id = int(startapp)
+def survey():
+    survey_id = int(request.args.get('startapp'))
     service = SERVICES[survey_id]
 
     global_counter = 1
