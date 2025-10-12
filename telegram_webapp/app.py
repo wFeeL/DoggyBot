@@ -15,29 +15,58 @@ from telegram_webapp.services_text import SERVICES, SURVEY_FORM_TEXT
 app = Flask(__name__, static_folder='static')
 load_dotenv()
 
+# Включаем логирование
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 
 @app.route("/", methods=['GET'])
 def index():
+    logger.info("GET / - Главная страница")
     return render_template('index.html')
 
 
 @app.route("/form", methods=['GET'])
 def form():
+    logger.info("GET /form - Страница анкеты")
     return render_template('form.html')
 
 
 @app.route("/survey", methods=['GET'])
 def survey():
-    # Получаем ID из tgWebAppStartParam (основной способ) или из параметра id (резервный)
-    survey_id = request.args.get('tgWebAppStartParam') or request.args.get('id')
+    # Логируем все параметры запроса
+    logger.info(f"GET /survey - Параметры: {request.args}")
+
+    # Пробуем разные способы получения ID услуги
+    survey_id = None
+
+    # Способ 1: из tgWebAppStartParam (основной)
+    if 'tgWebAppStartParam' in request.args:
+        survey_id = request.args.get('tgWebAppStartParam')
+        logger.info(f"Получен tgWebAppStartParam: {survey_id}")
+
+    # Способ 2: из startapp (резервный)
+    if not survey_id and 'startapp' in request.args:
+        survey_id = request.args.get('startapp')
+        logger.info(f"Получен startapp: {survey_id}")
+
+    # Способ 3: из id (для тестирования)
+    if not survey_id and 'id' in request.args:
+        survey_id = request.args.get('id')
+        logger.info(f"Получен id: {survey_id}")
 
     if not survey_id:
+        logger.error("ID услуги не указан ни в одном параметре")
         return "ID услуги не указан", 400
 
     try:
         survey_id = int(survey_id)
         service = SERVICES[survey_id]
-    except (ValueError, KeyError):
+        logger.info(f"Услуга найдена: {service['name']}")
+    except (ValueError, KeyError) as e:
+        logger.error(f"Ошибка поиска услуги: {e}")
         return "Услуга не найдена", 404
 
     global_counter = 1
@@ -71,41 +100,57 @@ def survey():
 
 @app.route("/get_user_data/<telegram_id>", methods=["GET"])
 def get_user_data(telegram_id):
-    user_profile = asyncio.run(db.get_user_profile(user_id=telegram_id))
-    pets = asyncio.run(db.get_pets(user_id=telegram_id, is_multiple=True))
-    if user_profile:
-        if len(pets) > 0:
-            pets = list(map(lambda elem: dict(elem), pets))
-            for pet in pets:
-                pet['birth_date'] = datetime.fromtimestamp(float(pet["birth_date"])).strftime('%Y-%m-%d')
-        else:
-            pets = []
+    logger.info(f"GET /get_user_data/{telegram_id}")
+    try:
+        user_profile = asyncio.run(db.get_user_profile(user_id=telegram_id))
+        pets = asyncio.run(db.get_pets(user_id=telegram_id, is_multiple=True))
 
-        data = {
-            'full_name': user_profile['full_name'],
-            'phone_number': user_profile['phone_number'],
-            'birth_date': datetime.fromtimestamp(float(user_profile["birth_date"])).strftime('%Y-%m-%d'),
-            'about_me': user_profile['about_me'],
-            'pets': pets,
-        }
-        return jsonify(data)
-    return jsonify({"data": None})
+        if user_profile:
+            logger.info(f"Профиль пользователя найден: {user_profile['full_name']}")
+            if len(pets) > 0:
+                pets = list(map(lambda elem: dict(elem), pets))
+                for pet in pets:
+                    pet['birth_date'] = datetime.fromtimestamp(float(pet["birth_date"])).strftime('%Y-%m-%d')
+                logger.info(f"Найдено питомцев: {len(pets)}")
+            else:
+                pets = []
+                logger.info("Питомцы не найдены")
+
+            data = {
+                'full_name': user_profile['full_name'],
+                'phone_number': user_profile['phone_number'],
+                'birth_date': datetime.fromtimestamp(float(user_profile["birth_date"])).strftime('%Y-%m-%d'),
+                'about_me': user_profile['about_me'],
+                'pets': pets,
+            }
+            return jsonify(data)
+        else:
+            logger.info("Профиль пользователя не найден")
+            return jsonify({"data": None})
+    except Exception as e:
+        logger.error(f"Ошибка в get_user_data: {e}")
+        return jsonify({"data": None})
 
 
 @app.route("/webapp_data", methods=["POST"])
 def handle_webapp_data():
+    logger.info("POST /webapp_data")
     try:
         content = request.json
         init_data = content.get("initData")
         form_data = content.get("formData")
 
+        logger.info(f"Получены данные формы: {form_data}")
+
         if not init_data:
+            logger.error("initData отсутствует")
             return jsonify({"ok": False, "error": "initData отсутствует"})
 
         parsed = parse_qs(init_data)
         query_id = parsed.get("query_id", [None])[0]
 
         if not query_id:
+            logger.error("query_id не найден")
             return jsonify({"ok": False, "error": "query_id не найден"})
 
         answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/sendMessage"
@@ -113,6 +158,8 @@ def handle_webapp_data():
         form_data = asyncio.run(db.validate_user_form_data(form_data))
 
         user_id = form_data['human']['user_id']
+        logger.info(f"Обработка данных пользователя: {user_id}")
+
         if form_data:
             human = form_data['human']
             asyncio.run(db.update_user_profile(
@@ -135,15 +182,18 @@ def handle_webapp_data():
                                                    "callback_data": "menu"}]]}
         }
 
+        logger.info(f"Отправка сообщения пользователю {user_id}")
         response = requests.post(answer_url, json=answer_payload)
 
         if response.status_code == 200:
+            logger.info("Сообщение успешно отправлено")
             return jsonify({"ok": True})
         else:
+            logger.error(f"Ошибка отправки сообщения: {response.text}")
             return jsonify({"ok": False, "error": response.text})
 
     except Exception as e:
-        print("Ошибка обработки:", e)
+        logger.error(f"Ошибка обработки webapp_data: {e}")
         return jsonify({"ok": False, "error": str(e)})
 
 
@@ -167,30 +217,34 @@ def number_to_emoji(number):
 
 @app.route("/survey_data", methods=["POST"])
 async def handle_survey_data():
+    logger.info("POST /survey_data")
     try:
         content = request.json
         init_data = content.get("initData")
         survey_data = content.get("surveyData")
 
-        print(f"Received survey data: {survey_data}")
-        print(f"Init data type: {type(init_data)}, length: {len(init_data) if init_data else 0}")
+        logger.info(f"Получены данные опроса: {survey_data}")
 
         if not init_data:
+            logger.error("initData отсутствует")
             return jsonify({"ok": False, "error": "initData отсутствует"})
 
         if not isinstance(init_data, str):
+            logger.error("initData должен быть строкой")
             return jsonify({"ok": False, "error": "initData должен быть строкой"})
 
         try:
             parsed = parse_qs(init_data)
-            print(f"Parsed init data keys: {list(parsed.keys())}")
+            logger.info(f"Парсинг init_data: {list(parsed.keys())}")
         except Exception as e:
-            print(f"Error parsing init_data: {e}")
+            logger.error(f"Ошибка парсинга init_data: {e}")
             pass
 
         service_id = survey_data['service_id']
         service_name = SERVICES[service_id]['name']
         user_id = survey_data['user_id']
+
+        logger.info(f"Обработка опроса: услуга {service_id}, пользователь {user_id}")
 
         # Получаем данные пользователя
         user = await db.get_users(user_id=user_id)
@@ -198,6 +252,7 @@ async def handle_survey_data():
 
         # Проверяем, что получили данные пользователя
         if not user_profile:
+            logger.error(f"Профиль пользователя {user_id} не найден")
             return jsonify({"ok": False, "error": "Профиль пользователя не найден"})
 
         contact_text = get_user_stroke(user_profile)
@@ -211,19 +266,20 @@ async def handle_survey_data():
             promo_code=user['promocode'] if user else 'не указан'
         )
 
-        print(f"Message text prepared, length: {len(message_text)}")
+        logger.info(f"Текст сообщения подготовлен, длина: {len(message_text)}")
 
         # Отправляем сообщение в Telegram
         bot_token = os.environ.get('BOT_TOKEN')
         if not bot_token:
+            logger.error("BOT_TOKEN not configured")
             return jsonify({"ok": False, "error": "BOT_TOKEN not configured"})
 
         # Получаем список администраторов
         try:
             admin_ids = list(json.loads(os.environ['ADMIN_TELEGRAM_ID']))
-            print(f"Sending to admins: {admin_ids}")
+            logger.info(f"Отправка администраторам: {admin_ids}")
         except Exception as e:
-            print(f"Error parsing ADMIN_TELEGRAM_ID: {e}")
+            logger.error(f"Ошибка парсинга ADMIN_TELEGRAM_ID: {e}")
             return jsonify({"ok": False, "error": "Ошибка в конфигурации администраторов"})
 
         # Отправляем сообщение всем администраторам
@@ -239,38 +295,38 @@ async def handle_survey_data():
                     "parse_mode": "HTML"
                 }
 
-                print(f"Sending to admin {admin_id}")
+                logger.info(f"Отправка администратору {admin_id}")
                 response = requests.post(answer_url, json=answer_payload)
-                print(f"Telegram API response for admin {admin_id}: {response.status_code}")
+                logger.info(f"Ответ Telegram API для администратора {admin_id}: {response.status_code}")
 
                 if response.status_code == 200:
                     success_count += 1
                 else:
                     error_msg = f"Ошибка отправки администратору {admin_id}: {response.status_code} - {response.text}"
                     errors.append(error_msg)
-                    print(error_msg)
+                    logger.error(error_msg)
 
             except Exception as e:
                 error_msg = f"Исключение при отправке администратору {admin_id}: {str(e)}"
                 errors.append(error_msg)
-                print(error_msg)
+                logger.error(error_msg)
 
         # Если сообщение отправлено хотя бы одному администратору, считаем успехом
         if success_count > 0:
-            print(f"Сообщение успешно отправлено {success_count} администраторам")
+            logger.info(f"Сообщение успешно отправлено {success_count} администраторам")
             if errors:
-                print(f"Были ошибки при отправке некоторым администраторам: {errors}")
+                logger.warning(f"Были ошибки при отправке некоторым администраторам: {errors}")
             return jsonify({"ok": True})
         else:
             error_msg = "Не удалось отправить сообщение ни одному администратору: " + "; ".join(errors)
-            print(error_msg)
+            logger.error(error_msg)
             return jsonify({"ok": False, "error": error_msg})
 
     except Exception as e:
         error_msg = f"Exception in handle_survey_data: {str(e)}"
-        print(error_msg)
+        logger.error(error_msg)
         import traceback
-        print(f"Traceback: {traceback.format_exc()}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({"ok": False, "error": error_msg})
 
 

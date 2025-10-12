@@ -5,10 +5,27 @@ window.onload = async function() {
     Telegram.WebApp.ready();
     Telegram.WebApp.MainButton.onClick(submitForm);
 
+    console.log("Telegram Web App initialized");
+    console.log("User data:", Telegram.WebApp.initDataUnsafe);
+    console.log("Init data:", Telegram.WebApp.initData);
+
     try {
-        const userData = await loadUserData();
-        if (userData) {
-            fillForm(userData);
+        // Проверяем, есть ли данные пользователя
+        if (Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
+            const userData = await loadUserData();
+            if (userData) {
+                fillForm(userData);
+            } else {
+                console.log("Данные пользователя не найдены в базе");
+            }
+        } else {
+            console.log("Данные пользователя не получены от Telegram");
+            // Показываем сообщение пользователю
+            Telegram.WebApp.showPopup({
+                title: "Внимание",
+                message: "Не удалось получить данные пользователя. Пожалуйста, откройте приложение через бота.",
+                buttons: [{ type: "ok" }]
+            });
         }
     } catch (error) {
         console.error("Ошибка загрузки данных пользователя:", error);
@@ -23,7 +40,6 @@ window.removePet = removePet;
 
 async function loadUserData() {
     const userId = window.Telegram.WebApp.initDataUnsafe.user?.id;
-    if (!userId) return null;
 
     try {
         const response = await fetch(`/get_user_data/${userId}`);
