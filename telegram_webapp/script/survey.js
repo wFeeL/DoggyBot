@@ -11,7 +11,7 @@ window.onload = function() {
 window.submitSurvey = submitSurvey;
 
 function parseSurveyToJson() {
-    const user_id = Telegram.WebApp.initDataUnsafe.user?.id;
+    const user_id = Telegram.WebApp.initDataUnsafe.user.id;
     const service_id = document.getElementById('service_id').value;
     const selected_option_text = document.getElementById('selected_option_text').value;
     const free_form = document.getElementById('free_form').value;
