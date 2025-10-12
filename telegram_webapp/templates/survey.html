@@ -9,6 +9,11 @@
     <title>Анкетирование</title>
 </head>
 <body>
+    <!-- Добавляем кнопку возврата на главную -->
+    <div style="padding: 10px;">
+        <a href="/" style="text-decoration: none; color: #667eea; font-weight: bold;">← На главную</a>
+    </div>
+
     <div id="loading" style="text-align: center; padding: 20px;">
         Загрузка...
     </div>
@@ -158,6 +163,10 @@
         if (window.Telegram && Telegram.WebApp) {
             Telegram.WebApp.ready();
             Telegram.WebApp.expand();
+
+            console.log("Telegram Web App initialized");
+            console.log("Start param:", Telegram.WebApp.initDataUnsafe.start_param);
+
             document.getElementById('loading').style.display = 'none';
             document.getElementById('survey_form').style.display = 'block';
         } else {

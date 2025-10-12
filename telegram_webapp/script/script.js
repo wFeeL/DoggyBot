@@ -121,7 +121,7 @@ function submitForm() {
         const jsonData = parseFormToJson(Telegram.WebApp.initDataUnsafe.user.id);
         const initData = Telegram.WebApp.initData;
 
-        fetch('https://doggyform.ru/webapp_data', {
+        fetch('/webapp_data', {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"

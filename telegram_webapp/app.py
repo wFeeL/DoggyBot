@@ -28,8 +28,17 @@ def form():
 
 @app.route("/survey", methods=['GET'])
 def survey():
-    survey_id = int(request.args.get('tgWebAppStartParam'))
-    service = SERVICES[survey_id]
+    # Получаем ID из tgWebAppStartParam (основной способ) или из параметра id (резервный)
+    survey_id = request.args.get('tgWebAppStartParam') or request.args.get('id')
+
+    if not survey_id:
+        return "ID услуги не указан", 400
+
+    try:
+        survey_id = int(survey_id)
+        service = SERVICES[survey_id]
+    except (ValueError, KeyError):
+        return "Услуга не найдена", 404
 
     global_counter = 1
     formatted_option_groups = []
