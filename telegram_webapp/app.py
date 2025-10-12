@@ -146,31 +146,47 @@ def handle_webapp_data():
             logger.error("initData отсутствует")
             return jsonify({"ok": False, "error": "initData отсутствует"})
 
-        answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/sendMessage"
+        # Валидируем данные формы
+        validated_data = asyncio.run(db.validate_user_form_data(form_data))
 
-        form_data = asyncio.run(db.validate_user_form_data(form_data))
+        # Проверяем результат валидации
+        if validated_data is False:
+            logger.error("Данные формы не прошли валидацию")
+            return jsonify({"ok": False, "error": "Данные формы не прошли валидацию"})
 
-        user_id = form_data['human']['user_id']
+        # Если валидация прошла успешно, используем validated_data
+        user_id = validated_data['human']['user_id']
         logger.info(f"Обработка данных пользователя: {user_id}")
 
-        if form_data:
-            human = form_data['human']
-            asyncio.run(db.update_user_profile(
-                user_id=user_id, birth_date=str_to_timestamp(human["birth_date"]), full_name=human["full_name"],
-                phone_number=human["phone_number"], about_me=human["about_me"]
-            ))
-            asyncio.run(db.update_user(user_id=user_id, form_value=1))
-            asyncio.run(db.delete_pets(user_id))
-            for pet in form_data["pets"]:
-                asyncio.run(db.add_pet(
-                    user_id=user_id, birth_date=str_to_timestamp(pet["birth_date"]),
-                    approx_weight=pet["weight"],
-                    name=pet["name"], gender=pet["gender"], pet_type=pet["type"], pet_breed=pet["breed"]
-                ))
+        # Обновляем профиль пользователя
+        human = validated_data['human']
+        asyncio.run(db.update_user_profile(
+            user_id=user_id,
+            birth_date=str_to_timestamp(human["birth_date"]),
+            full_name=human["full_name"],
+            phone_number=human["phone_number"],
+            about_me=human["about_me"]
+        ))
+        asyncio.run(db.update_user(user_id=user_id, form_value=1))
 
+        # Удаляем старых питомцев и добавляем новых
+        asyncio.run(db.delete_pets(user_id))
+        for pet in validated_data["pets"]:
+            asyncio.run(db.add_pet(
+                user_id=user_id,
+                birth_date=str_to_timestamp(pet["birth_date"]),
+                approx_weight=pet["weight"],
+                name=pet["name"],
+                gender=pet["gender"],
+                pet_type=pet["type"],
+                pet_breed=pet["breed"]
+            ))
+
+        # Отправляем сообщение пользователю
+        answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/sendMessage"
         answer_payload = {
             "chat_id": user_id,
-            "text": f"Спасибо, {form_data['human']['full_name']}! Мы получили ваши данные.",
+            "text": f"Спасибо, {human['full_name']}! Мы получили ваши данные.",
             "reply_markup": {"inline_keyboard": [[{"text": "🔙 Главное меню",
                                                    "callback_data": "menu"}]]}
         }
@@ -187,6 +203,8 @@ def handle_webapp_data():
 
     except Exception as e:
         logger.error(f"Ошибка обработки webapp_data: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({"ok": False, "error": str(e)})
 
 

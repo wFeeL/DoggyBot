@@ -11,6 +11,12 @@ from telegram_bot.handler import message
 from telegram_bot.helper import get_dict_fetch, timestamp_to_str
 from telegram_bot.keyboards import inline_markup
 
+# Включаем логирование
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 
 def generate_promocode():
     return "DL" + ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(6))
@@ -220,23 +226,36 @@ async def validate_user_form_data(web_app_data):
             return False
         return True
 
-    human = web_app_data['human']
-    if not validate_full_name(human['full_name']):
-        return False
-    if not validate_phone_number(human['phone_number']):
-        return False
-    if not validate_birth_date(human['birth_date']):
-        return False
-
-    pets = web_app_data['pets']
-    if not pets or len(pets) < 1:
-        return False
-
-    for pet in pets:
-        if not validate_pet(pet):
+    try:
+        human = web_app_data['human']
+        if not validate_full_name(human['full_name']):
+            logger.error("Невалидное полное имя")
+            return False
+        if not validate_phone_number(human['phone_number']):
+            logger.error("Невалидный номер телефона")
+            return False
+        if not validate_birth_date(human['birth_date']):
+            logger.error("Невалидная дата рождения")
             return False
 
-    return web_app_data
+        pets = web_app_data['pets']
+        if not pets or len(pets) < 1:
+            logger.error("Нет питомцев")
+            return False
+
+        for pet in pets:
+            if not validate_pet(pet):
+                logger.error(f"Невалидные данные питомца: {pet}")
+                return False
+
+        # Если все проверки пройдены, возвращаем исходные данные
+        return web_app_data
+    except KeyError as e:
+        logger.error(f"Отсутствует обязательное поле: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Ошибка валидации: {e}")
+        return False
 
 
 async def delete_reminder(id: int):
