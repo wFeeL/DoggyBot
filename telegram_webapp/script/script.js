@@ -9,27 +9,8 @@ window.onload = async function() {
     console.log("User data:", Telegram.WebApp.initDataUnsafe);
     console.log("Init data:", Telegram.WebApp.initData);
 
-    try {
-        // Проверяем, есть ли данные пользователя
-        if (Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
-            const userData = await loadUserData();
-            if (userData) {
-                fillForm(userData);
-            } else {
-                console.log("Данные пользователя не найдены в базе");
-            }
-        } else {
-            console.log("Данные пользователя не получены от Telegram");
-            // Показываем сообщение пользователю
-            Telegram.WebApp.showPopup({
-                title: "Внимание",
-                message: "Не удалось получить данные пользователя. Пожалуйста, откройте приложение через бота.",
-                buttons: [{ type: "ok" }]
-            });
-        }
-    } catch (error) {
-        console.error("Ошибка загрузки данных пользователя:", error);
-    }
+    const userData = await loadUserData();
+    fillForm(userData);
 };
 
 
