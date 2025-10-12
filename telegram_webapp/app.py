@@ -146,13 +146,6 @@ def handle_webapp_data():
             logger.error("initData отсутствует")
             return jsonify({"ok": False, "error": "initData отсутствует"})
 
-        parsed = parse_qs(init_data)
-        query_id = parsed.get("query_id", [None])[0]
-
-        if not query_id:
-            logger.error("query_id не найден")
-            return jsonify({"ok": False, "error": "query_id не найден"})
-
         answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/sendMessage"
 
         form_data = asyncio.run(db.validate_user_form_data(form_data))

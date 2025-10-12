@@ -14,12 +14,6 @@
         <a href="/" style="text-decoration: none; color: #667eea; font-weight: bold;">← На главную</a>
     </div>
 
-    <!-- Отладочная информация -->
-    <div id="debug-info" style="padding: 10px; background: #f0f0f0; margin: 10px; border-radius: 5px; display: none;">
-        <h3>Отладочная информация:</h3>
-        <div id="debug-content"></div>
-    </div>
-
     <form id="form_body">
         <h2>Личные данные</h2>
         <div class="entry">
@@ -113,14 +107,6 @@
             console.log("User data:", Telegram.WebApp.initDataUnsafe.user);
             console.log("Init data:", Telegram.WebApp.initData);
 
-            // Показываем отладочную информацию
-            document.getElementById('debug-info').style.display = 'block';
-            document.getElementById('debug-content').innerHTML = `
-                <p><strong>User ID:</strong> ${Telegram.WebApp.initDataUnsafe.user?.id || 'не указан'}</p>
-                <p><strong>Username:</strong> ${Telegram.WebApp.initDataUnsafe.user?.username || 'не указан'}</p>
-                <p><strong>First Name:</strong> ${Telegram.WebApp.initDataUnsafe.user?.first_name || 'не указан'}</p>
-                <p><strong>Start Param:</strong> ${Telegram.WebApp.initDataUnsafe.start_param || 'не указан'}</p>
-            `;
         } else {
             console.log("Telegram Web App не инициализирован");
         }
