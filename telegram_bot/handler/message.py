@@ -23,7 +23,7 @@ async def send_about(message: Message, **kwargs):
             chat_id=message.chat.id,
             photo=FSInputFile(path=path),
             caption=f'{text_message.ABOUT_TEXT}\n\n{text_message.CONTACT_TEXT}',
-            reply_markup=inline_markup.get_back_menu_keyboard()
+            reply_markup=inline_markup.get_about_keyboard()
         )
 
 

@@ -16,7 +16,8 @@ router = Router()
 
 @router.callback_query(F.data.contains('recommend'))
 async def handle_recommend(callback: CallbackQuery, state: FSMContext) -> None:
-    await callback.message.edit_text('🐾 <b>Напишите пэт-бренд:</b>')
+    await callback.message.delete()
+    await callback.message.answer(text_message.RECOMMENDATION_TEXT)
     await state.set_state(RecommendForm.text)
 
 

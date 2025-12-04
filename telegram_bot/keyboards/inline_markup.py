@@ -20,7 +20,7 @@ def get_delete_message_button(text='👀 Скрыть') -> list[InlineKeyboardBu
     return [InlineKeyboardButton(text=text, callback_data='delete_message')]
 
 
-def get_about_button(text="🔑 Помощь специалистов") -> list[InlineKeyboardButton]:
+def get_about_button(text="🔑 Запись к специалистам") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="about")]
 
 
@@ -72,6 +72,11 @@ def get_magic_button(text='🔮 Волшебная кнопка') -> list[Inline
 def get_back_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[get_menu_button()])
 
+def get_about_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        get_recommend_button(),
+        get_menu_button()
+    ])
 
 def get_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
