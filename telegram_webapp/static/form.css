@@ -1,0 +1,353 @@
+/* form.css - Стили для страницы анкеты */
+.form-section {
+    margin-bottom: 30px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid var(--tg-theme-hint-color);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--tg-theme-hint-color);
+}
+
+.section-icon {
+    font-size: 1.8rem;
+}
+
+.section-header h3 {
+    margin: 0;
+    color: var(--tg-theme-text-color);
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+/* Карточка питомца */
+.pet_entry.card {
+    border: 1px solid var(--tg-theme-hint-color);
+    border-radius: 10px;
+    margin-bottom: 15px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.pet_header {
+    background-color: rgba(88, 223, 233, 0.1);
+    padding: 15px;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.pet_header_content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.pet_top_label {
+    font-weight: 600;
+    color: var(--tg-theme-text-color);
+    font-size: 16px;
+    flex-grow: 1;
+}
+
+.pet_actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.arrow_down {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.arrow_down svg {
+    transition: transform 0.3s ease;
+    color: var(--tg-theme-button-color);
+    width: 20px;
+    height: 20px;
+}
+
+.pet_entry.collapsed .arrow_down svg {
+    transform: rotate(-180deg);
+}
+
+/* Кнопка удаления питомца */
+.delete_pet {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.delete_pet:hover {
+    background: rgba(182, 78, 78, 0.2);
+    border-color: var(--tg-theme-destructive-color);
+    transform: scale(1.1);
+}
+
+.delete_pet:active {
+    transform: scale(0.95);
+}
+
+.delete_pet svg {
+    width: 16px;
+    height: 16px;
+    stroke: var(--tg-theme-hint-color);
+    transition: stroke 0.2s ease;
+}
+
+.delete_pet:hover svg {
+    stroke: var(--tg-theme-destructive-color);
+}
+
+.pet_content {
+    padding: 20px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+/* Когда карточка НЕ свернута */
+.pet_entry:not(.collapsed) .pet_content {
+    max-height: 1000px; /* Достаточно большая высота для всех полей */
+    overflow-y: visible;
+}
+
+/* Стили для прокрутки внутри карточки */
+.pet_content::-webkit-scrollbar {
+    width: 5px;
+}
+
+.pet_content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.pet_content::-webkit-scrollbar-thumb {
+    background: var(--tg-theme-hint-color);
+    border-radius: 5px;
+}
+
+.pet_content::-webkit-scrollbar-thumb:hover {
+    background: var(--tg-theme-button-color);
+}
+
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.radio-option:hover {
+    background-color: rgba(88, 223, 233, 0.05);
+}
+
+.radio-option input[type="radio"] {
+    display: none;
+}
+
+.radio-custom {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--tg-theme-button-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.radio-custom::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--tg-theme-button-color);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.radio-option input[type="radio"]:checked + .radio-custom::after {
+    opacity: 1;
+}
+
+.radio-label {
+    color: var(--tg-theme-text-color);
+    font-size: 14px;
+    flex-grow: 1;
+}
+
+.add-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background-color: rgba(88, 223, 233, 0.1);
+    color: var(--tg-theme-button-color);
+    border: 1px dashed var(--tg-theme-button-color);
+    transition: all 0.3s ease;
+}
+
+.add-button:hover {
+    background-color: rgba(88, 223, 233, 0.2);
+    transform: translateY(-2px);
+}
+
+.button-icon {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+/* Информационное сообщение */
+.form-note {
+    margin: 25px 1% 20px 1%;
+    padding: 15px;
+    background-color: rgba(88, 223, 233, 0.1);
+    border-radius: 10px;
+    border-left: 4px solid var(--tg-theme-button-color);
+}
+
+.form-note p {
+    margin: 8px 0;
+    color: var(--tg-theme-text-color);
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.form-note p:first-child {
+    margin-top: 0;
+}
+
+.form-note p:last-child {
+    margin-bottom: 0;
+}
+
+.submit-button {
+    margin: 20px auto;
+    width: 98%;
+    max-width: 300px;
+    background-color: var(--tg-theme-button-color);
+    color: var(--tg-theme-bg-color);
+    font-weight: 600;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.submit-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(88, 223, 233, 0.3);
+}
+
+/* Кнопка возврата */
+.back-button {
+    padding: 15px 5px 5px 5px;
+}
+
+.back-button a {
+    text-decoration: none;
+    color: var(--tg-theme-button-color);
+    font-weight: bold;
+    font-size: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: opacity 0.2s ease;
+}
+
+.back-button a:hover {
+    opacity: 0.8;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .form-section {
+        padding: 15px;
+    }
+
+    .pet_header, .pet_content {
+        padding: 12px;
+    }
+
+    .pet_entry:not(.collapsed) .pet_content {
+        max-height: 800px;
+        overflow-y: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .form-section {
+        padding: 12px;
+    }
+
+    .section-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 5px;
+    }
+
+    .section-icon {
+        font-size: 1.5rem;
+    }
+
+    .pet_header_content {
+        flex-wrap: wrap;
+    }
+
+    .pet_top_label {
+        font-size: 14px;
+    }
+
+    .pet_actions {
+        gap: 5px;
+    }
+
+    .delete_pet {
+        width: 28px;
+        height: 28px;
+    }
+
+    .pet_entry:not(.collapsed) .pet_content {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    .radio-group {
+        gap: 8px;
+    }
+
+    .form-note {
+        margin: 20px 1% 15px 1%;
+        padding: 12px;
+    }
+
+    .form-note p {
+        font-size: 13px;
+    }
+}
