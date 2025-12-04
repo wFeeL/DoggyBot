@@ -10,6 +10,7 @@ from telegram_bot.env import bot, img_path
 from telegram_bot.handler import message
 from telegram_bot.helper import get_media_group
 from telegram_bot.keyboards import inline_markup
+from telegram_bot.keyboards.inline_markup import get_consultation_keyboard
 from telegram_bot.states import treatment_calendar, edit_task
 
 router = Router()
@@ -154,17 +155,41 @@ async def handle_delete_task(callback: CallbackQuery) -> None:
 @router.callback_query(F.data.contains('cons'))
 async def handle_consultation(callback: CallbackQuery, callback_data: str = None, **kwargs) -> None:
     callback_data = callback_data.split(':') if callback_data is not None else callback.data.split(':')
-    markup = inline_markup.get_back_free_consultation_keyboard()
     await callback.message.delete()
     if callback_data[0] == 'consultation':
         await message.send_consultation(callback.message, **kwargs)
+
+    elif callback_data[1] == 'dog':
+        await callback.message.answer(text=text_message.CONSULTATION_TEXT, reply_markup=get_consultation_keyboard())
+
+    elif callback_data[1] == 'cat':
+        await callback.message.answer(
+            text=text_message.CONSULTATION_TEXT, reply_markup=get_consultation_keyboard(is_dog=False)
+        )
 
     elif callback_data[1] == 'zoo':
         media_group = get_media_group(path=f"{img_path}/consultations/zoo/",
                                       first_message_text=text_message.CONSULTATION_ZOO, photos_end=5)
         media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
         media_group_id, media_group_len = media_group[0].message_id, len(media_group)
-        markup = inline_markup.get_back_free_consultation_keyboard(media_group=(media_group_id, media_group_len))
+        markup = inline_markup.get_back_consultation_keyboard(media_group=(media_group_id, media_group_len), pet='dog')
+        await callback.message.answer(text_message.CONTACT_TEXT, reply_markup=markup)
+
+
+    elif callback_data[1] == 'products':
+        media_group = get_media_group(path=f"{img_path}/consultations/products/",
+                                      first_message_text=text_message.CONSULTATION_PRODUCT, photos_end=3)
+        media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
+        media_group_id, media_group_len = media_group[0].message_id, len(media_group)
+        markup = inline_markup.get_back_consultation_keyboard(media_group=(media_group_id, media_group_len), pet='dog')
+        await callback.message.answer(text_message.CONTACT_TEXT, reply_markup=markup)
+
+    elif callback_data[1] == 'shopping':
+        media_group = get_media_group(path=f"{img_path}/consultations/shopping/",
+                                      first_message_text=text_message.CONSULTATION_SHOPPING, photos_end=10, img_format='png')
+        media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
+        media_group_id, media_group_len = media_group[0].message_id, len(media_group)
+        markup = inline_markup.get_back_consultation_keyboard(media_group=(media_group_id, media_group_len), pet='dog')
         await callback.message.answer(text_message.CONTACT_TEXT, reply_markup=markup)
 
     elif callback_data[1] == 'help':
@@ -172,7 +197,8 @@ async def handle_consultation(callback: CallbackQuery, callback_data: str = None
         if pathlib.Path(path).is_file():
             await bot.send_photo(
                 chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
-                caption=f'{text_message.CONSULTATION_HELP}\n\n{text_message.CONTACT_TEXT}', reply_markup=markup
+                caption=f'{text_message.CONSULTATION_HELP}\n\n{text_message.CONTACT_TEXT}',
+                reply_markup=inline_markup.get_back_consultation_keyboard(pet='dog')
             )
 
     elif callback_data[1] == 'cats_care':
@@ -180,7 +206,7 @@ async def handle_consultation(callback: CallbackQuery, callback_data: str = None
                                       first_message_text=text_message.CONSULTATION_CATS_CARE, photos_end=2)
         media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
         media_group_id, media_group_len = media_group[0].message_id, len(media_group)
-        markup = inline_markup.get_back_free_consultation_keyboard(media_group=(media_group_id, media_group_len))
+        markup = inline_markup.get_back_consultation_keyboard(media_group=(media_group_id, media_group_len), pet='cat')
         await callback.message.answer(text_message.CONTACT_TEXT, reply_markup=markup)
 
     elif callback_data[1] == 'cats_game':
@@ -188,7 +214,7 @@ async def handle_consultation(callback: CallbackQuery, callback_data: str = None
                                       first_message_text=text_message.CONSULTATION_CATS_GAME, photos_end=6)
         media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
         media_group_id, media_group_len = media_group[0].message_id, len(media_group)
-        markup = inline_markup.get_back_free_consultation_keyboard(media_group=(media_group_id, media_group_len))
+        markup = inline_markup.get_back_consultation_keyboard(media_group=(media_group_id, media_group_len), pet='cat')
         await callback.message.answer(text_message.CONTACT_TEXT, reply_markup=markup)
 
 

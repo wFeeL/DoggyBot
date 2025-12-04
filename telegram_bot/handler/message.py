@@ -77,8 +77,9 @@ async def send_form(message: Message, **kwargs):
 @check_block_user
 async def send_consultation(message: Message, **kwargs):
     await message.answer(
-        text=text_message.CONSULTATION_TEXT,
-        reply_markup=inline_markup.get_free_consultation_keyboard()
+        text=text_message.SELECTION_TEXT,
+        reply_markup=inline_markup.get_pet_consultation_keyboard(),
+        disable_web_page_preview=True
     )
 
 
@@ -90,16 +91,6 @@ async def send_treatments_calendar(message: Message, **kwargs):
         await message.answer(text=text_message.NONE_REMINDER_TEXT, reply_markup=inline_markup.get_none_task_keyboard())
     else:
         await send_tasks(message, 1)
-
-
-@router.message(Command("selection"))
-@check_block_user
-async def send_selection(message: Message, **kwargs):
-    await message.answer(
-        text=text_message.SELECTION_TEXT,
-        reply_markup=inline_markup.get_selection_keyboard(),
-        disable_web_page_preview=True
-    )
 
 
 @router.message(Command(commands=["admin", "ap", "panel"]))

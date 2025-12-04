@@ -32,12 +32,8 @@ def get_admin_menu_button(text="🛡 Панель админа") -> list[InlineK
     return [InlineKeyboardButton(text=text, callback_data="admin_panel")]
 
 
-def get_consultation_button(text="👩‍⚕️Памятки") -> list[InlineKeyboardButton]:
+def get_consultation_button(text="👩‍⚕️Памятки и контакты") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="consultation")]
-
-
-def get_selection_button(text="🐶 Зоотовары ") -> list[InlineKeyboardButton]:
-    return [InlineKeyboardButton(text=text, callback_data="selection")]
 
 
 def get_treatments_calendar_button(text="🗓️ Календарь обработок") -> list[InlineKeyboardButton]:
@@ -81,7 +77,7 @@ def get_about_keyboard() -> InlineKeyboardMarkup:
 def get_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.add(
-        *get_profile_button(), *get_treatments_calendar_button(), *get_consultation_button(), *get_selection_button(),
+        *get_profile_button(), *get_treatments_calendar_button(), *get_consultation_button(),
         *get_magic_button(), *get_about_button()
     )
     builder.adjust(2, 1)
@@ -326,31 +322,51 @@ def get_delete_message_keyboard() -> InlineKeyboardMarkup:
     return markup
 
 
-def get_free_consultation_keyboard() -> InlineKeyboardMarkup:
+def get_consultation_keyboard(is_dog: bool = True) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if is_dog:
+        buttons = [
+            InlineKeyboardButton(text='📝 Памятка от зооюриста', callback_data='cons:zoo'),
+            InlineKeyboardButton(text='🧰 Памятка аптечка первой помощи', callback_data='cons:help'),
+            InlineKeyboardButton(text='⚠️ Опасная еда для собак', callback_data='cons:products'),
+            InlineKeyboardButton(text='🦴️ Что нужно купить щенку?', callback_data='cons:shopping'),
+        ]
+
+    else:
+        buttons = [
+            InlineKeyboardButton(text='😻 Забота о котиках', callback_data='cons:cats_care'),
+            InlineKeyboardButton(text='🎮 Полезные игры с котиком', callback_data='cons:cats_game')
+        ]
+    builder.add(*buttons)
+
+    builder.add(*get_consultation_button(text='⬅️ Назад'))
+    builder.adjust(1, 1)
+
+    return builder.as_markup()
+
+def get_pet_consultation_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text='📝 Памятка от зооюриста', callback_data='cons:zoo')],
-            [InlineKeyboardButton(text='🧰 Памятка аптечка первой помощи', callback_data='cons:help')],
-            [InlineKeyboardButton(text='🐈 Забота о котиках', callback_data='cons:cats_care')],
-            [InlineKeyboardButton(text='🎮🐱 Полезные игры с котиком', callback_data='cons:cats_game')],
+            [InlineKeyboardButton(text='🐶 Памятки про собачек', callback_data='cons:dog')],
+            [InlineKeyboardButton(text='🐈 Памятки про котиков', callback_data='cons:cat')],
             get_menu_button('⬅️ Назад')
         ]
     )
     return markup
 
 
-def get_back_free_consultation_keyboard(media_group: tuple[int, int] = None) -> InlineKeyboardMarkup:
+def get_back_consultation_keyboard(pet: str = None, media_group: tuple[int, int] = None) -> InlineKeyboardMarkup:
     if media_group is None:
-        keyboard = get_consultation_button('⬅️ Назад')
+        button = [InlineKeyboardButton(text='⬅️ Назад', callback_data=f'cons:{pet}')]
     else:
         first_message_id = media_group[0]
         last_message_id = first_message_id + media_group[1]
-        keyboard = [InlineKeyboardButton(
-            text='⬅️ Назад', callback_data="{" + f"\"act\":\"consultation\",\"first\":\"{first_message_id}\","
+        button = [InlineKeyboardButton(
+            text='⬅️ Назад', callback_data="{" + f"\"act\":\"cons:{pet}\",\"first\":\"{first_message_id}\","
                                                  f"\"last\":\"{last_message_id}\"" + "}"
         )]
 
-    return InlineKeyboardMarkup(inline_keyboard=[keyboard])
+    return InlineKeyboardMarkup(inline_keyboard=[button])
 
 
 def get_back_magic_keyboard(media_group: tuple[int, int] = None) -> InlineKeyboardMarkup:
