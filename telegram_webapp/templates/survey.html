@@ -4,22 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="../static/styles.css">
     <link rel="stylesheet" href="../static/survey.css">
     <script src="../static/survey.js"></script>
     <title>Анкетирование</title>
 </head>
-<body>
-    <!-- Добавляем кнопку возврата на главную -->
-    <div style="padding: 10px;">
-        <a href="/" style="text-decoration: none; color: #667eea; font-weight: bold;">← На главную</a>
+<body class="survey-page">
+    <!-- Кнопка возврата на главную -->
+    <div class="back-button-container">
+        <a href="/" class="back-button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            На главную
+        </a>
     </div>
 
-    <div id="loading" style="text-align: center; padding: 20px;">
-        Загрузка...
-    </div>
-
-    <form id="survey_form" style="display: none;">
+    <form id="survey_form">
         <input type="hidden" id="service_id" value="{{ survey_id }}">
 
         <h2>{{ service_name }}</h2>
@@ -31,7 +31,7 @@
         {% endif %}
 
         <div class="options-section">
-            {%  if service_options_title %}
+            {% if service_options_title %}
             <h3>{{ service_options_title }}</h3>
             {% else %}
             <h3>Пожалуйста, укажите, какой из следующих вариантов вам наиболее актуален:</h3>
@@ -103,7 +103,7 @@
 
         <div class="free-form-section">
             <div class="free-form-header">
-                🙋‍♀️ Пожалуйста, напишите, какой из вариантов Вам актуален и опишите Ваш запрос и ситуацию в свободной форме— чем подробнее, тем лучше мы сможем помочь.
+                🙋‍♀️ Пожалуйста, напишите, какой из вариантов Вам актуален и опишите Ваш запрос и ситуацию в свободной форме — чем подробнее, тем лучше мы сможем помочь.
 
                 <div class="standard-note">
                     ❔ Информация из Вашего профиля будет подкреплена к заявке.
@@ -122,12 +122,19 @@
 
             <div class="entry">
                 <label for="selected_option_text">Выбранный вариант:</label>
-                <input type="text" id="selected_option_text" name="selected_option_text" placeholder="Укажите номер и название выбранного варианта" required readonly>
+                <div class="input_container">
+                    <input type="text" id="selected_option_text" name="selected_option_text"
+                           placeholder="Укажите номер и название выбранного варианта" required readonly>
+                </div>
             </div>
 
             <div class="entry">
                 <label for="free_form">Подробное описание вашей ситуации:</label>
-                <textarea id="free_form" name="free_form" placeholder="Опишите вашу ситуацию, вопросы и пожелания как можно подробнее..." maxlength="2048" required></textarea>
+                <div class="input_container">
+                    <textarea id="free_form" name="free_form"
+                              placeholder="Опишите вашу ситуацию, вопросы и пожелания как можно подробнее..."
+                              maxlength="2048" required></textarea>
+                </div>
             </div>
         </div>
 
@@ -160,21 +167,13 @@
             document.getElementById('selected_option_text').value = `${optionNumber} ${optionTitle}`;
         }
 
-        // Ждем инициализации Telegram Web App
+        // Инициализация Telegram Web App (если есть)
         if (window.Telegram && Telegram.WebApp) {
             Telegram.WebApp.ready();
             Telegram.WebApp.expand();
 
             console.log("Telegram Web App initialized");
             console.log("Start param:", Telegram.WebApp.initDataUnsafe.start_param);
-
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('survey_form').style.display = 'block';
-        } else {
-            setTimeout(function() {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('survey_form').style.display = 'block';
-            }, 1000);
         }
     </script>
 </body>
