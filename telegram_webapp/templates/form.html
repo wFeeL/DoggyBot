@@ -1,115 +1,147 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="../static/styles.css">
-    <script src="../static/script.js"></script>
-    <title>Information Form</title>
+    <link rel="stylesheet" href="../static/form.css">
+    <script src="../static/script.js" defer></script>
+    <title>DoggyLogy - Анкета</title>
 </head>
-<body>
-    <!-- Добавляем кнопку возврата на главную -->
-    <div style="padding: 10px;">
-        <a href="/" style="text-decoration: none; color: #667eea; font-weight: bold;">← На главную</a>
+<body class="form-page">
+    <div class="form-header">
+        <a href="/" class="back-button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            На главную
+        </a>
+        <div class="form-logo">📋 Анкета</div>
     </div>
 
-    <form id="form_body">
-        <h2>Личные данные</h2>
-        <div class="entry">
-            <label for="full_name">Фамилия Имя Отчество</label>
-            <span class="input_container"><input name="full_name" type="text" maxlength="150" required>
-            <span></span></span>
-        </div>
-        <div class="entry">
-            <label for="phone_number">Номер телефона</label>
-            <span class="input_container"><input name="phone_number" type="tel" placeholder="+7 XXX XXX XX XX" pattern="\+7 \d{3} \d{3} \d{2} \d{2}" value="+7" oninput="formatPhoneNumber(this);" minlength="18" maxlength="18" required>
-            <span></span></span>
-        </div>
-        <div class="entry">
-            <label for="birth_date">Дата рождения</label>
-            <span class="input_container"><input name="birth_date" type="date" min="1900-01-01" onfocus="this.setAttribute('max', new Date().toISOString().slice(0, 10))" required>
-            <span></span></span>
-        </div>
-        <div class="entry">
-            <label for="about_me">Дополнительно о себе</label>
-            <span class="input_container"><textarea name="about_me" placeholder="По желанию" maxlength="2048"></textarea>
-            <span></span></span>
-        </div>
-        <h2 style="margin-top: 40px; margin-bottom: 5px;">Питомцы (минимум 1)</h2>
-        <div id="pets_entries">
-            <div class="pet_entry">
-                <span>
-                    <label class="pet_top_label">Питомец 1</label>
-                    <div class="arrow_down" onclick="">
-                        <svg onclick="pete = this.parentElement.parentElement.parentElement; if (this.style.rotate == '-180deg') {pete.style.maxHeight = null; this.style.rotate = null} else {this.style.rotate = '-180deg'; pete.style.maxHeight = '12px';}" style="position: absolute; top: 5px; right: 5px; transition: ease 0.2s;" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="6 9 12 15 18 9"/>
-                        </svg>
-                    </div>
-                </span>
-                <div class="entry" style="margin-top: 22px;">
-                    <label for="name">Кличка</label>
-                    <span class="input_container"><input name="name" maxlength="32" oninput="this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1).trim();" required>
-                    <span></span></span>
-                </div>
-                <div class="entry">
-                    <label for="weight">Примерный вес (кг.)</label>
-                    <span class="input_container"><input name="weight" type="number" min="0" max="100" required>
-                    <span></span></span>
-                </div>
-                <div class="entry">
-                    <label for="birth_date">Дата рождения</label>
-                    <span class="input_container"><input name="birth_date" type="date" min="1900-01-01" onfocus="this.setAttribute('max', new Date().toISOString().slice(0, 10))" required>
-                    <span></span></span>
-                </div>
-                <div class="entry">
-                    <label for="breed">Порода</label>
-                    <span class="input_container"><input name="breed" maxlength="32" oninput="validateBreed(this)" required>
-                    <span></span></span>
-                </div>
-                <div class="entry">
-                    <label for="gender">Пол</label>
-                    <span class="input_container">
-                        <input name="gender_1" type="radio" value="male" required>
-                        <label for="gender_1">Мужской</label>
-                    </span>
-                    <span class="input_container" style="margin-top: 5px;">
-                        <input name="gender_1" type="radio" value="female" required>
-                        <label for="gender_1">Женский</label>
-                    </span>
-                </div>
-                <div class="entry">
-                    <label for="pet_type">Вид питомца</label>
-                    <span class="input_container">
-                        <input name="pet_type_1" type="radio" value="dog" required>
-                        <label for="pet_type_1">Собака</label>
-                    </span>
-                    <span class="input_container" style="margin-top: 5px;">
-                        <input name="pet_type_1" type="radio" value="cat" required>
-                        <label for="pet_type_1">Кот</label>
-                    </span>
+    <div class="form-container">
+        <form id="form_body">
+            <h2>Личные данные</h2>
+            <div class="entry">
+                <label for="full_name">Фамилия Имя Отчество</label>
+                <div class="input_container">
+                    <input name="full_name" type="text" maxlength="150" required placeholder="Введите ваше полное имя" oninput="this.value = this.value.replace(/[^А-Яа-яA-Za-z\s\-]/g, '');">
+                    <span class="validation-icon"></span>
                 </div>
             </div>
-        </div>
-        <div id="add_pet_button" class="button" onclick="addPet(this);">
-            + Добавить питомца
-        </div>
-    </form>
+            <div class="entry">
+                <label for="phone_number">Номер телефона</label>
+                <div class="input_container">
+                    <input name="phone_number" class="phone-input" type="tel" placeholder="+7 XXX XXX XX XX" pattern="\+7 \d{3} \d{3} \d{2} \d{2}" value="+7" oninput="formatPhoneNumber(this);" minlength="18" maxlength="18" required>
+                    <span class="validation-icon"></span>
+                </div>
+            </div>
+            <div class="entry">
+                <label for="birth_date">Дата рождения</label>
+                <div class="input_container">
+                    <input name="birth_date" type="date" min="1900-01-01" required>
+                    <span class="validation-icon date-icon"></span>
+                </div>
+            </div>
+            <div class="entry">
+                <label for="about_me">Дополнительно о себе</label>
+                <div class="input_container">
+                    <textarea name="about_me" placeholder="Расскажите о своих интересах, опыте с животными, пожеланиях..." maxlength="2048"></textarea>
+                    <span class="validation-icon"></span>
+                </div>
+            </div>
 
-    <script>
-        // Дополнительная инициализация для Telegram Web App
-        if (window.Telegram && Telegram.WebApp) {
-            Telegram.WebApp.ready();
-            Telegram.WebApp.expand();
+            <h2>Питомцы</h2>
+            <p class="section-description">Минимально требуется добавить информацию об одном питомце</p>
 
-            console.log("Telegram Web App initialized");
-            console.log("Start param:", Telegram.WebApp.initDataUnsafe.start_param);
-            console.log("User data:", Telegram.WebApp.initDataUnsafe.user);
-            console.log("Init data:", Telegram.WebApp.initData);
+            <div id="pets_entries">
+                <div class="pet_entry">
+                    <div class="pet_header">
+                        <div class="pet_header_content">
+                            <span class="pet_top_label">Питомец 1</span>
+                            <div class="pet_controls">
+                                <div class="arrow_down" onclick="togglePet(this)">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="6 9 12 15 18 9"/>
+                                    </svg>
+                                </div>
+                                <div class="trashcan" onclick="removePet(this);">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"/>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pet_content">
+                        <div class="entry" style="margin-top: 15px;">
+                            <label for="name">Кличка</label>
+                            <div class="input_container">
+                                <input name="name" maxlength="32" oninput="this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1).trim();" required>
+                                <span class="validation-icon"></span>
+                            </div>
+                        </div>
+                        <div class="entry">
+                            <label for="weight">Примерный вес (кг.)</label>
+                            <div class="input_container">
+                                <input name="weight" type="number" min="0" max="100" step="0.1" required>
+                                <span class="validation-icon"></span>
+                            </div>
+                        </div>
+                        <div class="entry">
+                            <label for="pet_birth_date">Дата рождения</label>
+                            <div class="input_container">
+                                <input name="birth_date" type="date" min="1900-01-01" required>
+                                <span class="validation-icon date-icon"></span>
+                            </div>
+                        </div>
+                        <div class="entry">
+                            <label for="breed">Порода</label>
+                            <div class="input_container">
+                                <input name="breed" maxlength="32" oninput="validateBreed(this)" required>
+                                <span class="validation-icon"></span>
+                            </div>
+                        </div>
+                        <div class="entry">
+                            <label for="gender">Пол</label>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="gender_1" value="male" required>
+                                    <span class="radio-custom"></span>
+                                    <span class="radio-label">Мужской</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="gender_1" value="female" required>
+                                    <span class="radio-custom"></span>
+                                    <span class="radio-label">Женский</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="entry">
+                            <label for="pet_type">Вид питомца</label>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="pet_type_1" value="dog" required>
+                                    <span class="radio-custom"></span>
+                                    <span class="radio-label">Собака</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="pet_type_1" value="cat" required>
+                                    <span class="radio-custom"></span>
+                                    <span class="radio-label">Кот</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        } else {
-            console.log("Telegram Web App не инициализирован");
-        }
-    </script>
+            <button type="button" id="add_pet_button" onclick="addPet();">
+                + Добавить питомца
+            </button>
+        </form>
+    </div>
 </body>
 </html>
