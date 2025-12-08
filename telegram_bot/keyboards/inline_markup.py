@@ -77,8 +77,7 @@ def get_about_keyboard() -> InlineKeyboardMarkup:
 def get_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.add(
-        *get_profile_button(), *get_treatments_calendar_button(), *get_consultation_button(),
-        *get_magic_button(), *get_about_button()
+        *get_profile_button(), *get_treatments_calendar_button(), *get_consultation_button(), *get_about_button()
     )
     builder.adjust(2, 1)
     return builder.as_markup()

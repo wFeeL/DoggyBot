@@ -1,3 +1,4 @@
+import asyncio
 import random
 import re
 import string
@@ -300,3 +301,14 @@ async def check_reminders():
                                  is_return=False)
             await bot.send_message(chat_id=task['user_id'], text=await message.get_task_text(task),
                                    reply_markup=inline_markup.get_delete_message_keyboard())
+
+
+# helper function to change phone number format to default
+# async def set_format_for_phone_number():
+#     non_format_users = await create_request("SELECT full_name, phone_number FROM user_profile WHERE phone_number LIKE '%(%' ORDER BY full_name")
+#
+#     for user in non_format_users:
+#         user_full_name = user['full_name']
+#         user_phone_number = user['phone_number']
+#         user_phone_number = user_phone_number.replace('(', '').replace(')', '').replace('-', ' ')
+#         await create_request(f"UPDATE user_profile SET phone_number = '{user_phone_number}' WHERE full_name = '{user_full_name}'", is_return=False)
