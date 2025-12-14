@@ -36,6 +36,10 @@ def get_consultation_button(text="👩‍⚕️Памятки и контакт�
     return [InlineKeyboardButton(text=text, callback_data="consultation")]
 
 
+def get_instruction_button(text="⚙️Инструкция") -> list[InlineKeyboardButton]:
+    return [InlineKeyboardButton(text=text, callback_data="instruction")]
+
+
 def get_treatments_calendar_button(text="🗓️ Календарь обработок") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="treatments_calendar")]
 
@@ -47,8 +51,6 @@ def get_create_task_button(text='➕ Создать напоминание') -> 
 def get_recommend_button(text='🐾 Порекомендовать пэт-бренд') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data='recommend')]
 
-def get_support_button(text='🔰 Поддержка') -> list[InlineKeyboardButton]:
-    return [InlineKeyboardButton(text=text, callback_data='support')]
 
 def get_edit_task_button(page: int, text='✏️ Редактировать') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data=f"task:edit:{page}")]
@@ -62,13 +64,20 @@ def get_add_reminder_button(text='✅ Сохранить напоминание'
     return [InlineKeyboardButton(text=text, callback_data='reminder:create')]
 
 
-def get_magic_button(text='🔮 Волшебная кнопка') -> list[InlineKeyboardButton]:
-    return [InlineKeyboardButton(text=text, callback_data='magic:menu')]
-
-
 # INLINE_MARKUPS
-def get_back_menu_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[get_menu_button()])
+def get_back_menu_keyboard(media_group: tuple[int, int] = None) -> InlineKeyboardMarkup:
+    if media_group is None:
+        button = get_menu_button()
+    else:
+        first_message_id = media_group[0]
+        last_message_id = first_message_id + media_group[1]
+        button = [InlineKeyboardButton(
+            text='⬅️ Назад', callback_data="{" + f"\"act\":\"menu\",\"first\":\"{first_message_id}\","
+                                                 f"\"last\":\"{last_message_id}\"" + "}"
+        )]
+    return InlineKeyboardMarkup(inline_keyboard=[button])
+
+
 
 def get_about_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -76,13 +85,17 @@ def get_about_keyboard() -> InlineKeyboardMarkup:
         get_menu_button()
     ])
 
+
 def get_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.add(
-        *get_profile_button(), *get_treatments_calendar_button(), *get_consultation_button(), *get_about_button(),
-        *get_support_button()
+        *get_profile_button(),
+        *get_instruction_button(),
+        *get_treatments_calendar_button(),
+        *get_consultation_button(),
+        *get_about_button()
     )
-    builder.adjust(2, 1)
+    builder.adjust(2, 1, 1)
     return builder.as_markup()
 
 
@@ -346,6 +359,7 @@ def get_consultation_keyboard(is_dog: bool = True) -> InlineKeyboardMarkup:
 
     return builder.as_markup()
 
+
 def get_pet_consultation_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -369,20 +383,6 @@ def get_back_consultation_keyboard(pet: str = None, media_group: tuple[int, int]
         )]
 
     return InlineKeyboardMarkup(inline_keyboard=[button])
-
-
-def get_back_magic_keyboard(media_group: tuple[int, int] = None) -> InlineKeyboardMarkup:
-    if media_group is None:
-        keyboard = get_magic_button('⬅️ Назад')
-    else:
-        first_message_id = media_group[0]
-        last_message_id = first_message_id + media_group[1]
-        keyboard = [InlineKeyboardButton(
-            text='⬅️ Назад', callback_data="{" + f"\"act\":\"magic:menu\",\"first\":\"{first_message_id}\","
-                                                 f"\"last\":\"{last_message_id}\"" + "}"
-        )]
-
-    return InlineKeyboardMarkup(inline_keyboard=[keyboard])
 
 
 def get_web_app_keyboard() -> InlineKeyboardMarkup:
@@ -409,11 +409,3 @@ def get_back_user_id_keyboard(user_id: int | str, is_admin: bool = False,
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='⬅️ Назад', callback_data=f"{prefix}:{user_id}")],
     ])
-
-
-def get_magic_keyboard() -> InlineKeyboardMarkup:
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=text_message.MAGIC_INSTRUCTION_TEXT, callback_data='magic:instruction')],
-        [InlineKeyboardButton(text='✨ Натальная карта для питомца', callback_data='magic:card')], get_menu_button()
-    ])
-    return markup

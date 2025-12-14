@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='booking.css') }}" />
+    <title>Подтверждение — {{ profile.specialist }}</title>
+</head>
+<body data-page="booking-confirm" data-specialist="{{ profile.specialist }}">
+    <div id="tg-required" class="tg-required" style="display:none">Эта страница работает в Telegram Mini App.</div>
+
+    <div class="container">
+        <div class="topbar">
+            <a class="pill" href="/booking/comment">← Назад</a>
+            <div class="brand"><div class="brand-title">Подтверждение</div></div>
+            <a class="pill" href="/client">👤</a>
+        </div>
+
+        <div class="stack">
+            <div class="card">
+                <div class="section-title">
+                    <h2>✅ Проверьте запись</h2>
+                </div>
+                <div id="dt" class="muted" style="margin-top:8px"></div>
+                <div id="confirm-root" class="confirm" style="margin-top:14px"></div>
+                <div id="error" class="error" role="alert" aria-live="polite"></div>
+                <button class="btn btn-primary" id="submit-btn" type="button" style="width:100%; margin-top:12px">
+                    Подтвердить запись
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="form-required-modal" class="modal" aria-hidden="true">
+        <div class="sheet" role="dialog" aria-modal="true">
+            <h3>Нужна анкета</h3>
+            <p>Перед записью заполните анкету.</p>
+            <div class="sheet-actions">
+                <a class="btn btn-primary" href="/form">📝 Заполнить анкету</a>
+                <button class="btn" type="button" data-close>Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='booking.js') }}"></script>
+</body>
+</html>

@@ -1,10 +1,11 @@
+import json
 import time
 from datetime import datetime
+from pathlib import Path
 
-from aiogram.types import FSInputFile
 from aiogram.types.input_media_photo import InputMediaPhoto
 
-from telegram_bot import db, text_message, env, inflector
+from telegram_bot import db, env, inflector, text_message
 from telegram_bot.text_message import PET_PROFILE_TEXT
 
 
@@ -126,8 +127,37 @@ def get_dict_fetch(cursor, fetch):
     return results
 
 
-def get_media_group(path: str, first_message_text: str, photos_end: int, img_format: str = 'jpg', photos_start: int = 1) -> list:
-    photos = list(map(lambda elem: FSInputFile(path=elem), [path + f'{i}.{img_format}' for i in range(photos_start, photos_end + 1)]))
-    first_photo = [InputMediaPhoto(media=photos[0], caption=first_message_text)]
-    media_group = first_photo + list(map(lambda elem: InputMediaPhoto(media=elem), photos[1:]))
+async def get_photo_id(file_path: str) -> str:
+    relative_path = _make_relative_path(file_path)
+    await db.ensure_images_table()
+    image = await db.get_image(relative_path)
+    if image is None:
+        raise FileNotFoundError(f"Файл {relative_path} не найден в базе. Используйте /send_images для обновления хранилища.")
+    return image["file_id"]
+
+
+async def get_media_group(path: str, first_message_text: str, photos_end: int, img_format: str = 'jpg', photos_start: int = 1) -> list:
+    relative_prefix = _make_relative_path(path)
+    file_keys = [f"{relative_prefix}/{i}.{img_format}" for i in range(photos_start, photos_end + 1)]
+    photo_ids = [await get_photo_id(file_key) for file_key in file_keys]
+    first_photo = [InputMediaPhoto(media=photo_ids[0], caption=first_message_text)]
+    media_group = first_photo + [InputMediaPhoto(media=photo_id) for photo_id in photo_ids[1:]]
     return media_group
+
+
+def is_valid_json(json_str):
+    try:
+        json.loads(json_str)
+        return True
+    except json.JSONDecodeError:
+        return False
+
+
+def _make_relative_path(file_path: str) -> str:
+    base_path = Path(env.img_path)
+    path_obj = Path(file_path)
+    try:
+        return str(path_obj.relative_to(base_path))
+    except ValueError:
+        return str(path_obj)
+

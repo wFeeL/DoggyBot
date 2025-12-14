@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='booking.css') }}" />
+    <title>Выбор времени — {{ profile.specialist }}</title>
+</head>
+<body data-page="booking-time">
+    <div id="tg-required" class="tg-required" style="display:none">Эта страница работает в Telegram Mini App.</div>
+
+    <div class="container">
+        <div class="topbar">
+            <a class="pill" href="/booking/services">← Назад</a>
+            <div class="brand"><div class="brand-title">Время</div></div>
+            <a class="pill" href="/client">👤</a>
+        </div>
+
+        <div class="stack">
+            <div class="card">
+                <div class="field">
+                    <label class="label" for="date">Дата</label>
+                    <input class="input date-input" id="date" type="date" />
+                </div>
+                <div id="info" class="muted" style="margin-top:10px"></div>
+                <div id="slots-root" class="slots" style="margin-top:14px"></div>
+            </div>
+
+            <div class="bottom-bar">
+                <div class="bottom-card">
+                    <div class="summary"><strong>Выберите удобное время</strong><span>Свободные слоты обновляются по дате</span></div>
+                    <button class="btn btn-primary" id="next-btn" type="button" disabled>Далее</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="form-required-modal" class="modal" aria-hidden="true">
+        <div class="sheet" role="dialog" aria-modal="true">
+            <h3>Нужна анкета</h3>
+            <p>Перед записью заполните анкету.</p>
+            <div class="sheet-actions">
+                <a class="btn btn-primary" href="/form">📝 Заполнить анкету</a>
+                <button class="btn" type="button" data-close>Понятно</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='booking.js') }}"></script>
+</body>
+</html>
