@@ -65,9 +65,10 @@ async def handle_callback(callback: CallbackQuery, patched_callback: CallbackQue
 
 # Delete message
 @router.callback_query(F.data == 'delete_message')
-async def delete_message(callback: CallbackQuery) -> None:
+async def delete_message(callback: CallbackQuery, state: FSMContext) -> None:
     try:
         await callback.message.delete()
+        await state.clear()
 
     except TelegramBadRequest as error:
         print(error.message)

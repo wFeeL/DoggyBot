@@ -22,7 +22,7 @@ async def handle_recommend(callback: CallbackQuery, state: FSMContext) -> None:
 
 
 @router.message(RecommendForm.text)
-async def process_recommend_text(message: Message) -> None:
+async def process_recommend_text(message: Message, state: FSMContext) -> None:
     try:
         if message.text is None:
             raise TypeError
@@ -36,6 +36,7 @@ async def process_recommend_text(message: Message) -> None:
         await message.answer(
             text=text_message.RECOMMENDATION_TEXT_SUCCESS, reply_markup=inline_markup.get_back_menu_keyboard()
         )
+        await state.clear()
     except Exception as e:
         print(e)
         await message.answer(text=text_message.ERROR_TEXT)

@@ -17,12 +17,12 @@ router = Router()
 @router.callback_query(F.data.contains('support'))
 async def handle_support(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.message.delete()
-    await callback.message.answer(text_message.SUPPORT_TEXT)
+    await callback.message.answer(text_message.SUPPORT_TEXT, reply_markup=inline_markup.get_delete_message_keyboard())
     await state.set_state(SupportForm.text)
 
 
 @router.message(SupportForm.text)
-async def process_support_text(message: Message) -> None:
+async def process_support_text(message: Message, state: FSMContext) -> None:
     try:
         if message.text is None:
             raise TypeError
@@ -36,6 +36,7 @@ async def process_support_text(message: Message) -> None:
         await message.answer(
             text=text_message.SUPPORT_TEXT_SUCCESS, reply_markup=inline_markup.get_back_menu_keyboard()
         )
+        await state.clear()
     except Exception as e:
         print(e)
         await message.answer(text=text_message.ERROR_TEXT)
