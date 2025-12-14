@@ -22,6 +22,34 @@ body {
     background: linear-gradient(135deg, var(--bg1) 0%, var(--bg2) 100%);
     min-height: 100vh;
     color: var(--text);
+    position: relative;
+    overflow-x: hidden;
+    animation: bgFade 0.5s ease;
+}
+
+body::before,
+body::after {
+    content: '';
+    position: fixed;
+    width: 420px;
+    height: 420px;
+    filter: blur(100px);
+    opacity: 0.25;
+    z-index: 0;
+    pointer-events: none;
+    transform: translateZ(0);
+}
+
+body::before {
+    top: -120px;
+    left: -120px;
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.65), rgba(102, 126, 234, 0));
+}
+
+body::after {
+    right: -180px;
+    bottom: -160px;
+    background: radial-gradient(circle at 70% 70%, rgba(118, 75, 162, 0.7), rgba(118, 75, 162, 0));
 }
 
 a {
@@ -32,6 +60,9 @@ a {
     max-width: 900px;
     margin: 0 auto;
     padding: 16px;
+    position: relative;
+    z-index: 1;
+    animation: fadeSlide 0.45s ease;
 }
 
 .topbar {
@@ -66,13 +97,14 @@ a {
     border-radius: 999px;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(102, 126, 234, 0.25);
-    transition: transform 0.2s ease, background 0.2s ease;
+    transition: transform 0.24s ease, background 0.24s ease, box-shadow 0.24s ease;
     white-space: nowrap;
 }
 
 .pill:hover {
-    transform: translateY(-1px);
+    transform: translateY(-1px) scale(1.01);
     background: #e0e7ff;
+    box-shadow: 0 12px 28px rgba(102, 126, 234, 0.14);
 }
 
 .topbar .pill {
@@ -85,8 +117,26 @@ a {
     background: var(--card);
     border-radius: 20px;
     padding: 18px;
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
-    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.1), 0 2px 10px rgba(102, 126, 234, 0.08);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    position: relative;
+    overflow: hidden;
+    animation: cardRise 0.5s ease forwards;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 12% 16%, rgba(112, 136, 243, 0.12), transparent 48%),
+        radial-gradient(circle at 82% 10%, rgba(255, 255, 255, 0.5), transparent 42%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+}
+
+.card:hover::before {
+    opacity: 1;
 }
 
 .stack {
@@ -152,12 +202,13 @@ a {
     text-decoration: none;
     background: #f7fafc;
     color: var(--text);
-    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, filter 0.18s ease;
 }
 
 .btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 10px 24px rgba(102, 126, 234, 0.18);
+    filter: saturate(1.05);
 }
 
 .btn:disabled {
@@ -172,10 +223,28 @@ a {
     color: #fff;
     border: none;
     box-shadow: 0 10px 22px rgba(102, 126, 234, 0.22);
+    transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+    position: relative;
+    overflow: hidden;
 }
 
 .btn-primary:hover {
     box-shadow: 0 12px 28px rgba(102, 126, 234, 0.32);
+    transform: translateY(-2px);
+}
+
+.btn-primary::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 50%, rgba(255, 255, 255, 0.16), transparent 52%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+}
+
+.btn-primary:hover::after {
+    opacity: 1;
 }
 
 .btn-danger {
@@ -210,13 +279,14 @@ a {
     border: 2px solid var(--border);
     background: #f7fafc;
     cursor: pointer;
-    transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, filter 0.2s ease;
 }
 
 .service-item:hover {
-    transform: translateY(-1px);
+    transform: translateY(-2px);
     border-color: rgba(102, 126, 234, 0.55);
     box-shadow: 0 10px 22px rgba(102, 126, 234, 0.12);
+    filter: saturate(1.02);
 }
 
 .service-item.is-selected {
@@ -320,9 +390,11 @@ a {
 .bottom-bar {
     position: sticky;
     bottom: 0;
-    padding: 14px 0 8px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.82) 52%, rgba(255, 255, 255, 0.98) 100%);
-    backdrop-filter: blur(10px);
+    padding: 16px 0 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(245, 247, 255, 0.9) 56%, rgba(244, 246, 255, 1) 100%);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 -14px 30px rgba(76, 96, 144, 0.2);
+    z-index: 2;
 }
 
 .bottom-card {
@@ -334,7 +406,32 @@ a {
     border-radius: 18px;
     border: 1px solid rgba(226, 232, 240, 0.9);
     background: linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
-    box-shadow: 0 8px 22px rgba(102, 126, 234, 0.16), 0 2px 10px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 14px 30px rgba(82, 99, 159, 0.18), 0 6px 14px rgba(0, 0, 0, 0.08);
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    transition: transform 0.2s ease, box-shadow 0.25s ease;
+}
+
+.bottom-card::after {
+    content: '';
+    position: absolute;
+    inset: -12% -8%;
+    border-radius: inherit;
+    background: radial-gradient(circle at 50% 120%, rgba(112, 136, 243, 0.22), transparent 55%);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.bottom-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 34px rgba(82, 99, 159, 0.2), 0 8px 18px rgba(0, 0, 0, 0.08);
+}
+
+.bottom-card:hover::after {
+    opacity: 1;
 }
 
 .bottom-card .btn-primary {
@@ -383,11 +480,27 @@ a {
     cursor: pointer;
     font-weight: 800;
     text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
 .slot.is-selected {
     border-color: var(--primary);
     background: #edf2ff;
+}
+
+.slot:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.12);
+}
+
+.pill:focus-visible,
+.btn:focus-visible,
+.service-item:focus-visible,
+.slot:focus-visible,
+.input:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.22);
+    border-color: rgba(102, 126, 234, 0.65);
 }
 
 .hr {
@@ -419,6 +532,7 @@ a {
     border-radius: 22px;
     padding: 18px;
     box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+    animation: cardRise 0.4s ease;
 }
 
 .sheet h3 {
@@ -502,6 +616,36 @@ textarea.input {
 @keyframes dl_skeleton {
     0% { background-position: 100% 50%; }
     100% { background-position: 0 50%; }
+}
+
+@keyframes bgFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes cardRise {
+    from { opacity: 0; transform: translateY(8px) scale(0.995); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0s !important;
+    }
+
+    body,
+    .card,
+    .container,
+    .sheet {
+        animation: none !important;
+    }
 }
 
 .client {
