@@ -242,12 +242,12 @@
             list.forEach((s) => {
                 const isSel = selected.has(Number(s.id));
                 const el = document.createElement('div');
-                el.className = `service-item ${isSel ? 'is-selected' : ''}`;
+                el.className = `service-item with-check ${isSel ? 'is-selected' : ''}`;
                 el.setAttribute('role', 'button');
                 el.setAttribute('tabindex', '0');
                 el.innerHTML = `
-                    <div><span class="check ${isSel ? 'is-on' : ''}"></span></div>
-                    <div>
+                    <span class="service-check" aria-hidden="true"></span>
+                    <div class="service-body">
                         <div class="service-title">
                             <strong>${escapeHtml(s.name)}</strong>
                             <span class="muted">${money(s.price)}</span>
