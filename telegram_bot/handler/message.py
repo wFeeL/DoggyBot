@@ -3,12 +3,12 @@ import pathlib
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, InlineKeyboardMarkup, FSInputFile
+from aiogram.types import FSInputFile, InlineKeyboardMarkup, Message
 
 from telegram_bot import db, text_message
 from telegram_bot.env import bot, img_path
 from telegram_bot.decorators import check_block_user, check_admin
-from telegram_bot.helper import get_user_stroke, get_pets_stroke, get_task_text, get_media_group
+from telegram_bot.helper import get_media_group, get_pets_stroke, get_photo_id, get_task_text, get_user_stroke
 from telegram_bot.keyboards import inline_markup
 
 router = Router()
@@ -18,13 +18,13 @@ router = Router()
 @check_block_user
 async def send_about(message: Message, **kwargs):
     path = f'{img_path}/help_spec.jpg'
-    if pathlib.Path(path).is_file():
-        await bot.send_photo(
-            chat_id=message.chat.id,
-            photo=FSInputFile(path=path),
-            caption=f'{text_message.ABOUT_TEXT}\n\n{text_message.CONTACT_TEXT}',
-            reply_markup=inline_markup.get_about_keyboard()
-        )
+    photo_id = await get_photo_id(path)
+    await bot.send_photo(
+        chat_id=message.chat.id,
+        photo=photo_id,
+        caption=f'{text_message.ABOUT_TEXT}\n\n{text_message.CONTACT_TEXT}',
+        reply_markup=inline_markup.get_about_keyboard()
+    )
 
 
 @router.message(Command("menu", "start"))
@@ -85,8 +85,8 @@ async def send_consultation(message: Message, **kwargs):
 @router.message(Command("instruction"))
 @check_block_user
 async def send_instruction(message: Message, **kwargs):
-    media_group = get_media_group(path=f"{img_path}/instructions/",
-                                  first_message_text=text_message.INSTRUCTION_TEXT, photos_end=9, img_format='png')
+    media_group = await get_media_group(path=f"{img_path}/instructions/",
+                                        first_message_text=text_message.INSTRUCTION_TEXT, photos_end=9, img_format='png')
     media_group = await bot.send_media_group(chat_id=message.chat.id, media=media_group)
     media_group_id, media_group_len = media_group[0].message_id, len(media_group)
     markup = inline_markup.get_back_menu_keyboard((media_group_id, media_group_len))
@@ -113,6 +113,28 @@ async def send_admin_panel(message: Message, **kwargs):
         text=text_message.ADMIN_PANEL_TEXT.format(users_len=len(users), form_len=len(forms), admins_len=len(admins)),
         reply_markup=inline_markup.get_admin_menu_keyboard()
     )
+
+
+@router.message(Command("send_images"))
+@check_admin
+async def send_images(message: Message, **kwargs):
+    await db.ensure_images_table()
+    images_dir = pathlib.Path(img_path)
+    if not images_dir.exists():
+        await message.answer(text=text_message.ERROR_TEXT)
+        return
+
+    saved = 0
+    for file_path in sorted(images_dir.rglob("*")):
+        if not file_path.is_file():
+            continue
+        relative_key = str(file_path.relative_to(images_dir))
+        sent_message = await bot.send_photo(chat_id=message.chat.id, photo=FSInputFile(path=file_path), caption=relative_key)
+        file_id = sent_message.photo[-1].file_id
+        await db.upsert_image(relative_key, file_id)
+        saved += 1
+
+    await message.answer(text=f"Загружено и сохранено {saved} изображений.")
 
 
 async def send_tasks(message: Message, page: int = 1) -> None:

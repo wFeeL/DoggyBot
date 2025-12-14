@@ -1,15 +1,13 @@
-import pathlib
 from datetime import date
 
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import FSInputFile
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import CallbackQuery, Message
 from aiogram_dialog import DialogManager, StartMode
 
 from telegram_bot import db, text_message
-from telegram_bot.helper import timestamp_to_str, str_to_timestamp, get_media_group
+from telegram_bot.helper import get_media_group, get_photo_id, str_to_timestamp, timestamp_to_str
 from telegram_bot.env import bot, img_path
 from telegram_bot.keyboards import inline_markup
 from telegram_bot.states import calendar
@@ -120,11 +118,11 @@ async def edit_treatment(callback: CallbackQuery, state: FSMContext) -> None:
 
     if pet_type['id'] == 1:
         path = f"{img_path}/treatments/dog/treatments.jpg"
-        if pathlib.Path(path).is_file():
-            await bot.send_photo(
-                chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
-                caption=text_message.CHOOSE_TREATMENT, reply_markup=markup
-            )
+        photo_id = await get_photo_id(path)
+        await bot.send_photo(
+            chat_id=callback.message.chat.id, photo=photo_id,
+            caption=text_message.CHOOSE_TREATMENT, reply_markup=markup
+        )
     else:
         await callback.message.answer(text=text_message.CHOOSE_TREATMENT, reply_markup=markup)
 
@@ -158,17 +156,17 @@ async def edit_medicament(callback: CallbackQuery, state: FSMContext) -> None:
             await callback.message.answer(text=text_message.VACCINATION, reply_markup=markup)
         else:
             path = f"{path_folder}/{treatment_id}.jpg"
-            if pathlib.Path(path).is_file():
-                await bot.send_photo(
-                    chat_id=callback.message.chat.id, photo=FSInputFile(path=path),
-                    caption=text_message.CHOOSE_MEDICAMENT, reply_markup=markup
-                )
+            photo_id = await get_photo_id(path)
+            await bot.send_photo(
+                chat_id=callback.message.chat.id, photo=photo_id,
+                caption=text_message.CHOOSE_MEDICAMENT, reply_markup=markup
+            )
     elif pet_type_name == 'cat':
         photos_end = 4 if treatment_id == 4 else 6
         photos_start = 5 if treatment_id == 5 else 1
 
-        media_group = get_media_group(path=path_folder, first_message_text=text_message.CHOOSE_MEDICAMENT,
-                                      photos_end=photos_end, photos_start=photos_start)
+        media_group = await get_media_group(path=path_folder, first_message_text=text_message.CHOOSE_MEDICAMENT,
+                                            photos_end=photos_end, photos_start=photos_start)
         media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
         media_group_id, media_group_len = media_group[0].message_id, len(media_group)
         markup = await inline_markup.get_medicament_keyboard(treatments_id=treatment_id,
