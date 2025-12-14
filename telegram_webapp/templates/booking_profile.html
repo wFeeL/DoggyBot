@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='booking.css') }}" />
+    <title>{{ profile.specialist }} — онлайн-запись</title>
+</head>
+<body data-page="booking-profile">
+    <div id="tg-required" class="tg-required" style="display:none">
+        Эта страница работает в Telegram Mini App.
+    </div>
+
+    <div class="container">
+        <div class="topbar">
+            <div class="brand">
+                <div class="brand-title">🐾 DoggyLogy</div>
+            </div>
+            <a class="pill" href="/client">👤 Профиль</a>
+        </div>
+
+        <div class="stack">
+            <div class="card">
+                <div class="hero">
+                    <h1>{{ profile.full_name }}</h1>
+                    <div class="muted">{{ profile.title }}</div>
+                    <div class="meta">
+                        <span class="badge">📍 {{ profile.address }}</span>
+                        <span class="badge">📞 {{ profile.phone }}</span>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-primary" type="button" data-start-booking>
+                            📅 Записаться
+                        </button>
+                        <a class="btn" href="https://t.me/{{ profile.contacts.support|replace('@','') }}" target="_blank" rel="noreferrer">
+                            💬 Связаться
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-title">
+                    <h2>📝 {{ profile.about_title }}</h2>
+                </div>
+                <div class="muted">{{ profile.about | safe }}</div>
+            </div>
+
+            <div class="card">
+                <div class="section-title">
+                    <h2>💼 Услуги</h2>
+                    <a class="pill" href="/booking/services">Выбрать</a>
+                </div>
+                <div class="service-list" style="margin-top:12px">
+                    {% for s in services %}
+                        <div class="service-item" data-start-booking data-service-id="{{ s.id }}" role="button" tabindex="0">
+                            <div><span class="check"></span></div>
+                            <div>
+                                <div class="service-title">
+                                    <strong>{{ s.name }}</strong>
+                                    <span class="muted">{{ s.price }} ₽</span>
+                                </div>
+                                <div class="service-sub">
+                                    <span>⏱️ {{ s.duration_min }} мин</span>
+                                    {% if s.description %}<span>• {{ s.description }}</span>{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="form-required-modal" class="modal" aria-hidden="true">
+        <div class="sheet" role="dialog" aria-modal="true">
+            <h3>Нужна анкета</h3>
+            <p>Перед записью заполните анкету — так мы сможем подготовиться и учесть вашего питомца.</p>
+            <div class="sheet-actions">
+                <a class="btn btn-primary" href="/form">📝 Заполнить анкету</a>
+                <button class="btn" type="button" data-close>Позже</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='booking.js') }}"></script>
+</body>
+</html>

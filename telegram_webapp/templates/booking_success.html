@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='booking.css') }}" />
+    <title>Запись создана — {{ profile.specialist }}</title>
+</head>
+<body data-page="booking-success">
+    <div class="container">
+        <div class="topbar">
+            <a class="pill" href="/booking">← На главную</a>
+            <div class="brand"><div class="brand-title">Готово</div></div>
+            <a class="pill" href="/client">👤</a>
+        </div>
+
+        <div class="stack">
+            <div class="card" style="text-align:center">
+                <div class="success-icon">✅</div>
+                <h1 class="success-title">Запись успешно создана</h1>
+                <div id="booking-id" class="muted" style="margin-top:6px"></div>
+                <div class="muted" style="margin-top:10px">
+                    Мы отправили подтверждение и передали данные специалисту.
+                </div>
+                <div class="actions" style="margin-top:18px">
+                    <button class="btn btn-primary" id="to-client" type="button">👤 Мои записи</button>
+                    <button class="btn" id="to-booking" type="button">📅 Записаться ещё</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='booking.js') }}"></script>
+</body>
+</html>

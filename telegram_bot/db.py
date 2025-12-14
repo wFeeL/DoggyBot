@@ -73,7 +73,10 @@ async def create_request(sql_query: str, is_return: bool = True, is_multiple: bo
                     if is_multiple:
                         return get_dict_fetch(cur, cur.fetchall())
                     else:
-                        return get_dict_fetch(cur, [cur.fetchone()])[0]
+                        row = cur.fetchone()
+                        if row is None:
+                            return None
+                        return get_dict_fetch(cur, [row])[0]
                 else:
                     conn.commit()
     except Exception as e:
@@ -301,6 +304,129 @@ async def check_reminders():
                                  is_return=False)
             await bot.send_message(chat_id=task['user_id'], text=await message.get_task_text(task),
                                    reply_markup=inline_markup.get_delete_message_keyboard())
+
+
+# --- Online booking (single profile) ---
+
+
+async def ensure_bookings_table() -> None:
+    await create_request(
+        """
+        CREATE TABLE IF NOT EXISTS bookings (
+            id SERIAL PRIMARY KEY,
+            user_id BIGINT NOT NULL,
+            start_ts DOUBLE PRECISION NOT NULL,
+            end_ts DOUBLE PRECISION NOT NULL,
+            services JSONB NOT NULL,
+            total_price INTEGER NOT NULL,
+            comment TEXT,
+            promo_code TEXT,
+            specialist TEXT NOT NULL,
+            created_at DOUBLE PRECISION NOT NULL,
+            status TEXT NOT NULL DEFAULT 'confirmed'
+        );
+        """,
+        is_return=False,
+    )
+    await create_request("CREATE INDEX IF NOT EXISTS bookings_user_id_idx ON bookings(user_id);", is_return=False)
+    await create_request("CREATE INDEX IF NOT EXISTS bookings_start_ts_idx ON bookings(start_ts);", is_return=False)
+
+
+def _escape_sql_text(value: str | None) -> str:
+    return (value or "").replace("'", "''")
+
+
+async def add_booking(
+        user_id: int | str,
+        start_ts: float,
+        end_ts: float,
+        services: list[dict],
+        total_price: int,
+        specialist: str,
+        comment: str | None = None,
+        promo_code: str | None = None,
+) -> dict | None:
+    import json
+
+    services_json = _escape_sql_text(json.dumps(services, ensure_ascii=False))
+    comment = _escape_sql_text(comment)
+    promo_code = _escape_sql_text(promo_code)
+    specialist = _escape_sql_text(specialist)
+    created_at = datetime.now().timestamp()
+
+    sql = (
+        "INSERT INTO bookings (user_id, start_ts, end_ts, services, total_price, comment, promo_code, specialist, created_at) "
+        f"VALUES ('{user_id}', {float(start_ts)}, {float(end_ts)}, '{services_json}'::jsonb, {int(total_price)}, "
+        f"'{comment}', '{promo_code}', '{specialist}', {float(created_at)}) "
+        "RETURNING *;"
+    )
+    return await create_request(sql, is_multiple=False)
+
+
+async def get_user_bookings(user_id: int | str, kind: str = "upcoming", limit: int = 50) -> list:
+    now_ts = datetime.now().timestamp()
+    status_cond = "status = 'confirmed'"
+    if kind == "past":
+        cond = f"user_id = '{user_id}' AND {status_cond} AND start_ts < {now_ts}"
+        order = "start_ts DESC"
+    else:
+        cond = f"user_id = '{user_id}' AND {status_cond} AND start_ts >= {now_ts}"
+        order = "start_ts ASC"
+    sql = f"SELECT * FROM bookings WHERE {cond} ORDER BY {order} LIMIT {int(limit)}"
+    return await create_request(sql, is_multiple=True) or []
+
+
+async def get_bookings_in_range(start_ts: float, end_ts: float) -> list:
+    sql = (
+        "SELECT * FROM bookings "
+        f"WHERE status = 'confirmed' AND start_ts < {float(end_ts)} AND end_ts > {float(start_ts)} "
+        "ORDER BY start_ts ASC"
+    )
+    return await create_request(sql, is_multiple=True) or []
+
+async def get_booking_by_id(booking_id: int) -> dict | None:
+    return await create_request(f"SELECT * FROM bookings WHERE id = {int(booking_id)} LIMIT 1", is_multiple=False)
+
+
+async def cancel_booking(booking_id: int, user_id: int | str) -> dict | None:
+    sql = (
+        "UPDATE bookings SET status = 'cancelled' "
+        f"WHERE id = {int(booking_id)} AND user_id = '{user_id}' "
+        "RETURNING *;"
+    )
+    return await create_request(sql, is_multiple=False)
+
+
+async def reschedule_booking(
+        booking_id: int,
+        user_id: int | str,
+        start_ts: float,
+        end_ts: float,
+        services: list[dict] | None = None,
+        total_price: int | None = None,
+        comment: str | None = None,
+        promo_code: str | None = None,
+) -> dict | None:
+    import json
+
+    updates = [f"start_ts = {float(start_ts)}", f"end_ts = {float(end_ts)}", "status = 'confirmed'"]
+    if services is not None:
+        services_json = _escape_sql_text(json.dumps(services, ensure_ascii=False))
+        updates.append(f"services = '{services_json}'::jsonb")
+    if total_price is not None:
+        updates.append(f"total_price = {int(total_price)}")
+    if comment is not None:
+        updates.append(f"comment = '{_escape_sql_text(comment)}'")
+    if promo_code is not None:
+        updates.append(f"promo_code = '{_escape_sql_text(promo_code)}'")
+
+    sql = (
+        "UPDATE bookings SET "
+        + ", ".join(updates)
+        + f" WHERE id = {int(booking_id)} AND user_id = '{user_id}' RETURNING *;"
+    )
+    return await create_request(sql, is_multiple=False)
+
 
 
 # helper function to change phone number format to default

@@ -36,6 +36,11 @@ def get_consultation_button(text="👩‍⚕️Памятки и контакт�
     return [InlineKeyboardButton(text=text, callback_data="consultation")]
 
 
+def get_booking_webapp_button(text="📅 Онлайн-запись") -> list[InlineKeyboardButton]:
+    page_url = f'{env.webapp_url}/booking'
+    return [InlineKeyboardButton(text=text, web_app=WebAppInfo(url=page_url))]
+
+
 def get_treatments_calendar_button(text="🗓️ Календарь обработок") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="treatments_calendar")]
 
@@ -47,8 +52,6 @@ def get_create_task_button(text='➕ Создать напоминание') -> 
 def get_recommend_button(text='🐾 Порекомендовать пэт-бренд') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data='recommend')]
 
-def get_support_button(text='🔰 Поддержка') -> list[InlineKeyboardButton]:
-    return [InlineKeyboardButton(text=text, callback_data='support')]
 
 def get_edit_task_button(page: int, text='✏️ Редактировать') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data=f"task:edit:{page}")]
@@ -79,10 +82,13 @@ def get_about_keyboard() -> InlineKeyboardMarkup:
 def get_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.add(
-        *get_profile_button(), *get_treatments_calendar_button(), *get_consultation_button(), *get_about_button(),
-        *get_support_button()
+        *get_booking_webapp_button(),
+        *get_profile_button(),
+        *get_treatments_calendar_button(),
+        *get_consultation_button(),
+        *get_about_button()
     )
-    builder.adjust(2, 1)
+    builder.adjust(2, 2, 1)
     return builder.as_markup()
 
 
