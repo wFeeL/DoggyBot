@@ -428,6 +428,46 @@ async def reschedule_booking(
     return await create_request(sql, is_multiple=False)
 
 
+# --- Images cache ---
+
+
+async def ensure_images_table() -> None:
+    await create_request(
+        """
+        CREATE TABLE IF NOT EXISTS bot_images (
+            key TEXT PRIMARY KEY,
+            file_id TEXT NOT NULL,
+            media_type TEXT NOT NULL DEFAULT 'photo'
+        );
+        """,
+        is_return=False,
+    )
+
+
+async def upsert_image(key: str, file_id: str, media_type: str = "photo") -> None:
+    key = _escape_sql_text(key)
+    file_id = _escape_sql_text(file_id)
+    media_type = _escape_sql_text(media_type)
+    sql = (
+        "INSERT INTO bot_images (key, file_id, media_type) "
+        f"VALUES ('{key}', '{file_id}', '{media_type}') "
+        "ON CONFLICT (key) DO UPDATE SET file_id = EXCLUDED.file_id, media_type = EXCLUDED.media_type;"
+    )
+    await create_request(sql, is_return=False)
+
+
+async def get_image(key: str) -> dict | None:
+    key = _escape_sql_text(key)
+    sql = f"SELECT * FROM bot_images WHERE key = '{key}'"
+    return await create_request(sql, is_multiple=False)
+
+
+async def get_images_by_prefix(prefix: str) -> list:
+    prefix = _escape_sql_text(prefix)
+    sql = f"SELECT * FROM bot_images WHERE key LIKE '{prefix}%' ORDER BY key"
+    return await create_request(sql, is_multiple=True) or []
+
+
 
 # helper function to change phone number format to default
 # async def set_format_for_phone_number():
