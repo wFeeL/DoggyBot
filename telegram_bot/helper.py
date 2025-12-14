@@ -138,7 +138,7 @@ async def get_photo_id(file_path: str) -> str:
 
 async def get_media_group(path: str, first_message_text: str, photos_end: int, img_format: str = 'jpg', photos_start: int = 1) -> list:
     relative_prefix = _make_relative_path(path)
-    file_keys = [f"{relative_prefix}{i}.{img_format}" for i in range(photos_start, photos_end + 1)]
+    file_keys = [f"{relative_prefix}/{i}.{img_format}" for i in range(photos_start, photos_end + 1)]
     photo_ids = [await get_photo_id(file_key) for file_key in file_keys]
     first_photo = [InputMediaPhoto(media=photo_ids[0], caption=first_message_text)]
     media_group = first_photo + [InputMediaPhoto(media=photo_id) for photo_id in photo_ids[1:]]

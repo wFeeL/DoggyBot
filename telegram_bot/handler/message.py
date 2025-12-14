@@ -129,7 +129,10 @@ async def send_images(message: Message, **kwargs):
         if not file_path.is_file():
             continue
         relative_key = str(file_path.relative_to(images_dir))
-        sent_message = await bot.send_photo(chat_id=message.chat.id, photo=FSInputFile(path=file_path), caption=relative_key)
+        if relative_key.split('.')[-1] not in ['png', 'jpg']:
+            continue
+        print(file_path, relative_key)
+        sent_message = await bot.send_photo(chat_id=message.chat.id, photo=FSInputFile(path=file_path, filename=relative_key), caption=relative_key)
         file_id = sent_message.photo[-1].file_id
         await db.upsert_image(relative_key, file_id)
         saved += 1
