@@ -1,4 +1,5 @@
 import time
+import json
 from datetime import datetime
 
 from aiogram.types import FSInputFile
@@ -131,3 +132,12 @@ def get_media_group(path: str, first_message_text: str, photos_end: int, img_for
     first_photo = [InputMediaPhoto(media=photos[0], caption=first_message_text)]
     media_group = first_photo + list(map(lambda elem: InputMediaPhoto(media=elem), photos[1:]))
     return media_group
+
+
+def is_valid_json(json_str):
+    try:
+        json.loads(json_str)
+        return True
+    except json.JSONDecodeError:
+        return False
+

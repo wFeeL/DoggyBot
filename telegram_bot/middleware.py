@@ -25,5 +25,6 @@ class MediaGroupMiddleware(BaseMiddleware):
                 await bot.delete_messages(chat_id=user.id, message_ids=message_ids)
 
                 data['callback_data'] = json_data['act']
+                data['patched_callback'] = event.callback_query.model_copy(update={"data": json_data['act']})
 
         return await handler(event, data)

@@ -1,4 +1,5 @@
 import pathlib
+import json
 
 from aiogram import Router, F
 from aiogram.exceptions import TelegramBadRequest
@@ -8,7 +9,7 @@ from aiogram.types import CallbackQuery, FSInputFile
 from telegram_bot import db, text_message
 from telegram_bot.env import bot, img_path
 from telegram_bot.handler import message
-from telegram_bot.helper import get_media_group
+from telegram_bot.helper import get_media_group, is_valid_json
 from telegram_bot.keyboards import inline_markup
 from telegram_bot.keyboards.inline_markup import get_consultation_keyboard
 from telegram_bot.states import treatment_calendar, edit_task
@@ -24,7 +25,8 @@ CALLBACK = {
     'send_categories': 'categories',
     'send_consultation': 'consultation',
     'send_treatments_calendar': 'treatments_calendar',
-    'send_selection': 'selection'
+    'send_selection': 'selection',
+    'send_instruction': 'instruction'
 }
 
 # Call a function from callback data
@@ -42,14 +44,17 @@ async def call_function_from_callback(callback: CallbackQuery, **kwargs) -> None
 
 # CALLBACKS
 # Handle most of callback's (/menu, /tomorrow, /calendar_reminder, /homework etc.)
-@router.callback_query(lambda call: call.data in list(CALLBACK.values()))
-async def handle_callback(callback: CallbackQuery, **kwargs) -> None:
+@router.callback_query(lambda call: call.data in list(CALLBACK.values()) or (is_valid_json(call.data) and json.loads(call.data)['act'] in list(CALLBACK.values())))
+async def handle_callback(callback: CallbackQuery, patched_callback: CallbackQuery = None, **kwargs) -> None:
     """
     Handle callback to call function.
 
     :param callback: Callback
     :param kwargs: Other message options (need for callback function)
     """
+    if is_valid_json(callback.data):
+        callback = patched_callback
+
     if callback.message is not None:
         try:
             await callback.message.delete()
@@ -238,24 +243,3 @@ async def callback_handler(c: CallbackQuery, state: FSMContext):
         await db.update_user(user_id, level=2)
         await c.answer("✅ Пользователь стал админом.")
     await handle_user_info(c)
-
-@router.callback_query(F.data.contains('magic'))
-async def handle_magic(callback: CallbackQuery, callback_data: str = None) -> None:
-    await callback.message.delete()
-    data = callback_data.split(":")[1] if callback_data is not None else callback.data.split(":")[1]
-
-    if data == 'menu':
-        await callback.message.answer(text=text_message.MAGIC_TEXT, reply_markup=inline_markup.get_magic_keyboard())
-    elif data == 'instruction':
-        media_group = get_media_group(path=f"{img_path}/magic_button/",
-                                      first_message_text=text_message.MAGIC_INSTRUCTION_TEXT, photos_end=3)
-        media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
-        media_group_id, media_group_len = media_group[0].message_id, len(media_group)
-        markup = inline_markup.get_back_magic_keyboard(media_group=(media_group_id, media_group_len))
-        await callback.message.answer(text_message.CHOOSE_ACTION, reply_markup=markup)
-
-    elif data == 'card':
-        user = await db.get_users(user_id=callback.message.chat.id)
-        markup = inline_markup.get_back_magic_keyboard()
-        await callback.message.answer(text=text_message.MAGIC_CARD_TEXT.format(promo_code=user['promocode']), reply_markup=markup)
-

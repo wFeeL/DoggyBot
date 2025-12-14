@@ -8,7 +8,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, FSInputFile
 from telegram_bot import db, text_message
 from telegram_bot.env import bot, img_path
 from telegram_bot.decorators import check_block_user, check_admin
-from telegram_bot.helper import get_user_stroke, get_pets_stroke, get_task_text
+from telegram_bot.helper import get_user_stroke, get_pets_stroke, get_task_text, get_media_group
 from telegram_bot.keyboards import inline_markup
 
 router = Router()
@@ -81,6 +81,16 @@ async def send_consultation(message: Message, **kwargs):
         reply_markup=inline_markup.get_pet_consultation_keyboard(),
         disable_web_page_preview=True
     )
+
+@router.message(Command("instruction"))
+@check_block_user
+async def send_instruction(message: Message, **kwargs):
+    media_group = get_media_group(path=f"{img_path}/instructions/",
+                                  first_message_text=text_message.INSTRUCTION_TEXT, photos_end=9, img_format='png')
+    media_group = await bot.send_media_group(chat_id=message.chat.id, media=media_group)
+    media_group_id, media_group_len = media_group[0].message_id, len(media_group)
+    markup = inline_markup.get_back_menu_keyboard((media_group_id, media_group_len))
+    await message.answer(text_message.CONTACT_TEXT, reply_markup=markup)
 
 
 @router.message(Command("calendar_reminder"))
