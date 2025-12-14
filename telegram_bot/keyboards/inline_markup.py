@@ -39,6 +39,8 @@ def get_consultation_button(text="👩‍⚕️Памятки и контакт�
 def get_instruction_button(text="⚙️Инструкция") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="instruction")]
 
+def get_support_button(text="🔰Поддержка") -> list[InlineKeyboardButton]:
+    return [InlineKeyboardButton(text=text, callback_data="support")]
 
 def get_treatments_calendar_button(text="🗓️ Календарь обработок") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="treatments_calendar")]
@@ -93,7 +95,8 @@ def get_menu_keyboard() -> InlineKeyboardMarkup:
         *get_instruction_button(),
         *get_treatments_calendar_button(),
         *get_consultation_button(),
-        *get_about_button()
+        *get_about_button(),
+        *get_support_button()
     )
     builder.adjust(2, 1, 1)
     return builder.as_markup()
