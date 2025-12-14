@@ -55,16 +55,13 @@
                 <div class="service-list" style="margin-top:12px">
                     {% for s in services %}
                         <div class="service-item" data-start-booking data-service-id="{{ s.id }}" role="button" tabindex="0">
-                            <div><span class="check"></span></div>
-                            <div>
-                                <div class="service-title">
-                                    <strong>{{ s.name }}</strong>
-                                    <span class="muted">{{ s.price }} ₽</span>
-                                </div>
-                                <div class="service-sub">
-                                    <span>⏱️ {{ s.duration_min }} мин</span>
-                                    {% if s.description %}<span>• {{ s.description }}</span>{% endif %}
-                                </div>
+                            <div class="service-title">
+                                <strong>{{ s.name }}</strong>
+                                <span class="muted">{{ s.price }} ₽</span>
+                            </div>
+                            <div class="service-sub">
+                                <span>⏱️ {{ s.duration_min }} мин</span>
+                                {% if s.description %}<span>• {{ s.description }}</span>{% endif %}
                             </div>
                         </div>
                     {% endfor %}
