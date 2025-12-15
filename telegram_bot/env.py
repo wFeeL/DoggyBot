@@ -2,7 +2,7 @@ import os
 import json
 from pathlib import Path
 
-import tzlocal
+from zoneinfo import ZoneInfo
 from aiogram import Bot, Dispatcher
 from aiogram.client.bot import DefaultBotProperties
 from aiogram.fsm.storage.redis import DefaultKeyBuilder, RedisStorage
@@ -25,7 +25,9 @@ admins_telegram_id = list(json.loads(os.environ['ADMIN_TELEGRAM_ID']))
 BASE_DIR = Path(__file__).resolve().parent.parent
 pg_dsn = f"postgres://{os.environ['POSTGRES_USER']}:{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:{os.environ['POSTGRES_PORT']}/{os.environ['POSTGRES_DATABASE']}"
 img_path = f"{os.path.dirname(__file__)}/img"
-local_timezone = tzlocal.get_localzone()
+# Сервер работает в UTC, поэтому явно указываем московский часовой пояс
+# чтобы время записей совпадало с ожидаемым для пользователей.
+local_timezone = ZoneInfo("Europe/Moscow")
 PERIODS_TO_DAYS = {
     '1 месяц': '30',
     '35 дней': '35',
