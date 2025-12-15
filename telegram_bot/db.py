@@ -436,13 +436,14 @@ async def check_booking_reminders() -> None:
     in_24h = now_ts + 24 * 3600
     in_3h = now_ts + 3 * 3600
     followup_threshold = now_ts - 6 * 24 * 3600
+    followup_window_start = now_ts - 7 * 24 * 3600
 
     sql = (
         "SELECT * FROM bookings "
         "WHERE status = 'confirmed' AND ("
         f"(start_ts BETWEEN {now_ts} AND {in_24h} AND reminder_24_sent = FALSE) OR "
         f"(start_ts BETWEEN {now_ts} AND {in_3h} AND reminder_3_sent = FALSE) OR "
-        f"(start_ts <= {followup_threshold} AND followup_sent = FALSE)"
+        f"(start_ts BETWEEN {followup_window_start} AND {followup_threshold} AND followup_sent = FALSE)"
         ")"
     )
     bookings = await create_request(sql, is_multiple=True) or []
@@ -489,7 +490,7 @@ async def check_booking_reminders() -> None:
         if (
             not booking.get("followup_sent")
             and start_ts > 0
-            and now_ts - start_ts >= 6 * 24 * 3600
+            and 6 * 24 * 3600 <= now_ts - start_ts <= 7 * 24 * 3600
         ):
             text = (
                 "Спасибо, что были на занятии! Прошло 6 дней — самое время закрепить результат.\n"
