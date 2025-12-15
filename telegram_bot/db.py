@@ -330,6 +330,18 @@ async def ensure_bookings_table() -> None:
     )
     await create_request("CREATE INDEX IF NOT EXISTS bookings_user_id_idx ON bookings(user_id);", is_return=False)
     await create_request("CREATE INDEX IF NOT EXISTS bookings_start_ts_idx ON bookings(start_ts);", is_return=False)
+    await create_request(
+        "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS reminder_24_sent BOOLEAN NOT NULL DEFAULT FALSE;",
+        is_return=False,
+    )
+    await create_request(
+        "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS reminder_3_sent BOOLEAN NOT NULL DEFAULT FALSE;",
+        is_return=False,
+    )
+    await create_request(
+        "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS followup_sent BOOLEAN NOT NULL DEFAULT FALSE;",
+        is_return=False,
+    )
 
 
 def _escape_sql_text(value: str | None) -> str:
@@ -383,6 +395,109 @@ async def get_bookings_in_range(start_ts: float, end_ts: float) -> list:
         "ORDER BY start_ts ASC"
     )
     return await create_request(sql, is_multiple=True) or []
+
+
+def _format_booking_dt(ts: float) -> str:
+    try:
+        return datetime.fromtimestamp(float(ts), local_timezone).strftime("%d.%m.%Y %H:%M")
+    except Exception:
+        return "—"
+
+
+def _format_booking_services(services: list[dict] | None) -> str:
+    if not services:
+        return "—"
+    lines = []
+    for srv in services:
+        name = srv.get("name") or "Услуга"
+        duration = srv.get("duration_min") or srv.get("duration") or 0
+        try:
+            duration = int(duration)
+        except Exception:
+            duration = duration or 0
+        price = srv.get("price")
+        price_text = f" — {price} ₽" if price is not None else ""
+        duration_text = f" — {duration} мин" if duration else ""
+        lines.append(f"• {name}{duration_text}{price_text}")
+    return "\n".join(lines)
+
+
+async def _mark_booking_notifications(booking_id: int, **flags) -> None:
+    allowed = {"reminder_24_sent", "reminder_3_sent", "followup_sent"}
+    updates = [f"{k} = {'TRUE' if v else 'FALSE'}" for k, v in flags.items() if k in allowed]
+    if not updates:
+        return
+    sql = f"UPDATE bookings SET {', '.join(updates)} WHERE id = {int(booking_id)}";
+    await create_request(sql, is_return=False)
+
+
+async def check_booking_reminders() -> None:
+    now_ts = datetime.now().timestamp()
+    in_24h = now_ts + 24 * 3600
+    in_3h = now_ts + 3 * 3600
+    followup_threshold = now_ts - 6 * 24 * 3600
+
+    sql = (
+        "SELECT * FROM bookings "
+        "WHERE status = 'confirmed' AND ("
+        f"(start_ts BETWEEN {now_ts} AND {in_24h} AND reminder_24_sent = FALSE) OR "
+        f"(start_ts BETWEEN {now_ts} AND {in_3h} AND reminder_3_sent = FALSE) OR "
+        f"(start_ts <= {followup_threshold} AND followup_sent = FALSE)"
+        ")"
+    )
+    bookings = await create_request(sql, is_multiple=True) or []
+
+    preparation = (
+        "Важно: собака на занятии должна быть голодной. Приготовьте корм/лакомство, привычную амуницию и любимую игрушку."
+    )
+    followup_link = "https://t.me/DoggyLogy_bot/booking"
+
+    for booking in bookings:
+        start_ts = float(booking.get("start_ts") or 0)
+        time_to_start = start_ts - now_ts
+        services_text = _format_booking_services(booking.get("services"))
+        user_id = booking.get("user_id")
+        booking_id = booking.get("id")
+
+        if not user_id or not booking_id:
+            continue
+
+        if (
+            not booking.get("reminder_24_sent")
+            and time_to_start <= 24 * 3600
+            and time_to_start > 3 * 3600
+        ):
+            text = (
+                "⏰ Напоминание о занятии через 24 часа\n"
+                f"• Дата и время: {_format_booking_dt(start_ts)}\n"
+                f"• Услуги: {services_text}\n\n"
+                f"{preparation}"
+            )
+            await bot.send_message(chat_id=user_id, text=text)
+            await _mark_booking_notifications(booking_id, reminder_24_sent=True)
+
+        if not booking.get("reminder_3_sent") and 0 < time_to_start <= 3 * 3600:
+            text = (
+                "⏰ Напоминание: занятие через 3 часа\n"
+                f"• Дата и время: {_format_booking_dt(start_ts)}\n"
+                f"• Услуги: {services_text}\n\n"
+                f"{preparation}"
+            )
+            await bot.send_message(chat_id=user_id, text=text)
+            await _mark_booking_notifications(booking_id, reminder_3_sent=True)
+
+        if (
+            not booking.get("followup_sent")
+            and start_ts > 0
+            and now_ts - start_ts >= 6 * 24 * 3600
+        ):
+            text = (
+                "Спасибо, что были на занятии! Прошло 6 дней — самое время закрепить результат.\n"
+                f"Запишитесь на следующее занятие: {followup_link}"
+            )
+            await bot.send_message(chat_id=user_id, text=text)
+            await _mark_booking_notifications(booking_id, followup_sent=True)
+
 
 async def get_booking_by_id(booking_id: int) -> dict | None:
     return await create_request(f"SELECT * FROM bookings WHERE id = {int(booking_id)} LIMIT 1", is_multiple=False)
