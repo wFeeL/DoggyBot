@@ -289,7 +289,7 @@
 
         if (nextBtn) {
             nextBtn.addEventListener('click', () => {
-                patchState({ service_ids: Array.from(selected), start_ts: null });
+                patchState({ service_ids: Array.from(selected), start_ts: null, start_label: null });
                 window.location.href = '/booking/time';
             });
         }
@@ -318,14 +318,17 @@
         const nextBtn = document.getElementById('next-btn');
         const info = document.getElementById('info');
 
+        // Важно: toISOString() даёт дату в UTC и может смещать день.
+        // Для выбора даты используем локальную дату браузера (YYYY-MM-DD).
         const today = new Date();
-        const min = today.toISOString().slice(0, 10);
+        const min = today.toLocaleDateString('en-CA');
         if (dateInput) {
             dateInput.min = min;
             if (!dateInput.value) dateInput.value = min;
         }
 
         let selectedStartTs = state.start_ts ? Number(state.start_ts) : null;
+        let selectedStartLabel = state.start_label ? String(state.start_label) : null;
 
         async function loadSlots() {
             if (nextBtn) nextBtn.disabled = true;
@@ -346,8 +349,12 @@
                 return;
             }
 
+            const available = new Set();
+
             slots.forEach((sl) => {
                 const ts = Number(sl.start_ts);
+                available.add(ts);
+
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = `slot ${selectedStartTs === ts ? 'is-selected' : ''}`;
@@ -355,22 +362,43 @@
 
                 btn.addEventListener('click', () => {
                     selectedStartTs = ts;
-                    patchState({ start_ts: ts });
+                    selectedStartLabel = String(sl.label || '');
+                    patchState({ start_ts: ts, start_label: selectedStartLabel });
+
                     Array.from(slotsRoot.querySelectorAll('.slot')).forEach((b) => b.classList.remove('is-selected'));
                     btn.classList.add('is-selected');
+
                     if (nextBtn) nextBtn.disabled = false;
                 });
 
                 slotsRoot.appendChild(btn);
             });
 
-            if (selectedStartTs && nextBtn) nextBtn.disabled = false;
+            // Не даём пройти дальше, если выбранный ранее слот больше недоступен.
+            const hasSelected = selectedStartTs != null && Number.isFinite(selectedStartTs) && available.has(selectedStartTs);
+            if (!hasSelected) {
+                selectedStartTs = null;
+                selectedStartLabel = null;
+                patchState({ start_ts: null, start_label: null });
+            } else if (!selectedStartLabel) {
+                // Если лейбл не сохранён (старое состояние) — подтянем его из списка.
+                for (const sl of slots) {
+                    if (Number(sl.start_ts) == selectedStartTs) {
+                        selectedStartLabel = String(sl.label || '');
+                        patchState({ start_label: selectedStartLabel });
+                        break;
+                    }
+                }
+            }
+
+            if (nextBtn) nextBtn.disabled = !hasSelected;
         }
 
         if (dateInput) {
             dateInput.addEventListener('change', async () => {
                 selectedStartTs = null;
-                patchState({ start_ts: null });
+                selectedStartLabel = null;
+                patchState({ start_ts: null, start_label: null });
                 await loadSlots();
             });
         }
@@ -451,7 +479,8 @@
         const dtEl = document.getElementById('dt');
 
         if (submitBtn) submitBtn.textContent = isReschedule ? 'Подтвердить перенос' : 'Подтвердить запись';
-        if (dtEl) dtEl.textContent = formatDateTime(state.start_ts);
+        const dtLabel = state.start_label ? String(state.start_label) : formatDateTime(state.start_ts);
+        if (dtEl) dtEl.textContent = dtLabel;
 
         const data = await api('/api/booking/services');
         const services = Array.isArray(data && data.services) ? data.services : [];
@@ -469,7 +498,7 @@
                 </div>
                 <div class="confirm-row">
                     <div class="muted">Дата и время</div>
-                    <div><strong>${escapeHtml(formatDateTime(state.start_ts))}</strong></div>
+                    <div><strong>${escapeHtml(dtLabel)}</strong></div>
                 </div>
                 <div class="confirm-row">
                     <div class="muted">Услуги</div>
@@ -647,6 +676,7 @@
                         booking_id: Number(id),
                         service_ids: serviceIds,
                         start_ts: null,
+                        start_label: null,
                         comment: b.comment || '',
                         promo_code: b.promo_code || '',
                     });
@@ -664,7 +694,7 @@
             <div class="booking-list">
                 ${items
                     .map((b) => {
-                        const dtLabel = formatDateTime(b.start_ts);
+                        const dtLabel = b && b.start_label ? String(b.start_label) : formatDateTime(b.start_ts);
                         const services = Array.isArray(b.services) ? b.services : [];
                         const title = services.length ? services.map((s) => s.name).join(', ') : 'Услуга';
                         const price = b.total_price != null ? money(b.total_price) : '—';

@@ -377,6 +377,12 @@ def api_booking_list(telegram_id):
                     out[k] = float(out[k])
                 except Exception:
                     pass
+        # Готовый лейбл времени в таймзоне сервера/специалиста — чтобы UI везде показывал одинаково
+        try:
+            if out.get('start_ts') is not None:
+                out['start_label'] = _format_dt(float(out['start_ts']))
+        except Exception:
+            pass
         for k in ("services",):
             if k in out and isinstance(out[k], str):
                 try:

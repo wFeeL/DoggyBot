@@ -1,7 +1,12 @@
 window.onload = function() {
-    Telegram.WebApp.expand();
-    Telegram.WebApp.ready();
-    Telegram.WebApp.MainButton.hide();
+    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    if (!tg) {
+        console.warn('Telegram WebApp API not available');
+        return;
+    }
+    tg.expand();
+    tg.ready();
+    tg.MainButton.hide();
 
     console.log("Telegram Web App initialized");
     console.log("User data:", Telegram.WebApp.initDataUnsafe);
@@ -11,7 +16,7 @@ window.onload = function() {
 window.submitSurvey = submitSurvey;
 
 function parseSurveyToJson() {
-    const user_id = Telegram.WebApp.initDataUnsafe.user?.id;
+    const user_id = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
     const service_id = document.getElementById('service_id').value;
     const selected_option_text = document.getElementById('selected_option_text').value;
     const free_form = document.getElementById('free_form').value;
@@ -26,6 +31,8 @@ function parseSurveyToJson() {
 
 function submitSurvey() {
     const form = document.getElementById("survey_form");
+
+    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
     // Проверяем, выбран ли вариант
     const selectedOption = document.querySelector('input[name="selected_option"]:checked');
@@ -56,7 +63,7 @@ function submitSurvey() {
 
     if (form.checkValidity()) {
         const jsonData = parseSurveyToJson();
-        const initData = Telegram.WebApp.initData;
+        const initData = window.Telegram?.WebApp?.initData;
 
         console.log("Submitting data:", jsonData);
         console.log("Init data:", initData);

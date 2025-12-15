@@ -1,9 +1,15 @@
 window.onload = async function() {
-    Telegram.WebApp.expand();
-    Telegram.WebApp.MainButton.text = "Сохранить";
-    Telegram.WebApp.MainButton.show();
-    Telegram.WebApp.ready();
-    Telegram.WebApp.MainButton.onClick(submitForm);
+    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    if (!tg) {
+        console.warn('Telegram WebApp API not available');
+        // Страница анкеты рассчитана на Telegram Mini App.
+        return;
+    }
+    tg.expand();
+    tg.MainButton.text = "Сохранить";
+    tg.MainButton.show();
+    tg.ready();
+    tg.MainButton.onClick(submitForm);
 
     const userData = await loadUserData();
     fillForm(userData);
@@ -17,7 +23,7 @@ window.addPet = addPet;
 window.removePet = removePet;
 
 function setMaxDates() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('en-CA');
 
     document.querySelectorAll('input[type="date"]').forEach(input => {
         input.setAttribute('max', today);
@@ -25,7 +31,8 @@ function setMaxDates() {
 }
 
 async function loadUserData() {
-    const userId = window.Telegram.WebApp.initDataUnsafe.user?.id;
+    const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    if (!userId) return null;
 
     try {
         const response = await fetch(`/get_user_data/${userId}`);
@@ -107,8 +114,13 @@ function submitForm() {
     }
     const form = document.getElementById("form_body");
     if (form.checkValidity()) {
-        const jsonData = parseFormToJson(Telegram.WebApp.initDataUnsafe.user.id);
-        const initData = Telegram.WebApp.initData;
+        const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        if (!tg || !tg.initDataUnsafe?.user?.id) {
+            alert('Откройте анкету внутри Telegram.');
+            return;
+        }
+        const jsonData = parseFormToJson(tg.initDataUnsafe.user.id);
+        const initData = tg.initData;
 
         fetch('/webapp_data', {
             method: "POST",
@@ -125,7 +137,7 @@ function submitForm() {
             console.error("Ошибка запроса:", error);
             alert("Ошибка при отправке данных.");
         });
-        Telegram.WebApp.close();
+        (window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.close() : null);
     } else {
         form.reportValidity();
     }
