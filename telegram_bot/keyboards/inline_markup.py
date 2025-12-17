@@ -82,6 +82,7 @@ def get_back_menu_keyboard(media_group: tuple[int, int] = None) -> InlineKeyboar
 def get_about_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         get_recommend_button(),
+        get_booking_button(),
         get_menu_button()
     ])
 
@@ -256,13 +257,6 @@ def get_reminder_keyboard() -> InlineKeyboardMarkup:
 def get_reminder_add_complete_keyboard() -> InlineKeyboardMarkup:
     markup = InlineKeyboardMarkup(inline_keyboard=[
         get_create_task_button(), get_treatments_calendar_button(), get_menu_button()
-    ])
-    return markup
-
-
-def get_selection_keyboard() -> InlineKeyboardMarkup:
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        get_recommend_button(), get_menu_button()
     ])
     return markup
 
