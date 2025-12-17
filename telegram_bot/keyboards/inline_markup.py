@@ -54,7 +54,7 @@ def get_edit_task_button(page: int, text='✏️ Редактировать') ->
     return [InlineKeyboardButton(text=text, callback_data=f"task:edit:{page}")]
 
 def get_booking_button(text="Онлайн-запись к Валерии Поповой") -> list[InlineKeyboardButton]:
-    return [InlineKeyboardButton(text=text, web_app=WebAppInfo(url='https://t.me/DoggyLogy_bot/booking'))]
+    return [InlineKeyboardButton(text=text, web_app=WebAppInfo(url=f'{env.webapp_url}/booking'))]
 
 def get_delete_task_button(page: int, text='🗑️ Удалить') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data=f"task:delete:{page}")]
