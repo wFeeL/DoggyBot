@@ -161,3 +161,6 @@ def _make_relative_path(file_path: str) -> str:
     except ValueError:
         return str(path_obj)
 
+
+def convert_callback_to_json_data(callback_action: str, first_message_id: int | str, last_message_id: int | str):
+    return "{" + f"\"act\":\"{callback_action}\",\"first\":\"{first_message_id}\", \"last\":\"{last_message_id}\"" + "}"

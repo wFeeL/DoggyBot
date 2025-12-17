@@ -4,7 +4,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from telegram_bot import db, env, text_message
 from telegram_bot.env import PERIODS_TO_DAYS
-from telegram_bot.helper import CallbackMediaGroupClass
+from telegram_bot.helper import CallbackMediaGroupClass, convert_callback_to_json_data
 
 
 # BUTTONS
@@ -35,10 +35,6 @@ def get_admin_menu_button(text="🛡 Панель админа") -> list[InlineK
 def get_consultation_button(text="👩‍⚕️Памятки и контакты") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="consultation")]
 
-
-def get_instruction_button(text="⚙️Инструкция") -> list[InlineKeyboardButton]:
-    return [InlineKeyboardButton(text=text, callback_data="instruction")]
-
 def get_support_button(text="🔰Поддержка") -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data="support")]
 
@@ -57,6 +53,8 @@ def get_recommend_button(text='🐾 Порекомендовать пэт-бре
 def get_edit_task_button(page: int, text='✏️ Редактировать') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data=f"task:edit:{page}")]
 
+def get_booking_button(text="Онлайн-запись к Валерии Поповой") -> list[InlineKeyboardButton]:
+    return [InlineKeyboardButton(text=text, web_app=WebAppInfo(url='https://t.me/DoggyLogy_bot/booking'))]
 
 def get_delete_task_button(page: int, text='🗑️ Удалить') -> list[InlineKeyboardButton]:
     return [InlineKeyboardButton(text=text, callback_data=f"task:delete:{page}")]
@@ -88,16 +86,30 @@ def get_about_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
-def get_menu_keyboard() -> InlineKeyboardMarkup:
+def get_menu_keyboard(media_group: tuple[int, int] = None) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.add(
+    buttons = [
         *get_profile_button(),
-        *get_instruction_button(),
         *get_treatments_calendar_button(),
         *get_consultation_button(),
         *get_about_button(),
         *get_support_button()
-    )
+    ]
+
+    if media_group is None:
+        builder.add(*buttons)
+
+    else:
+        first_message_id = media_group[0]
+        last_message_id = first_message_id + media_group[1]
+        for button in buttons:
+            button.callback_data = convert_callback_to_json_data(
+                callback_action=str(button.callback_data),
+                first_message_id=first_message_id,
+                last_message_id=last_message_id
+            )
+            builder.add(button)
+
     builder.adjust(2, 1, 1)
     return builder.as_markup()
 

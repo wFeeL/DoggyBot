@@ -113,6 +113,13 @@ a {
     line-height: 1.45;
 }
 
+.hero-description {
+    font-size: 1.05rem;
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 6px 0 0
+}
+
 .meta {
     display: flex;
     flex-wrap: wrap;
