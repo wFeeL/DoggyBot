@@ -139,6 +139,14 @@ async def get_user_profile(
     return await create_request(sql_query, is_multiple=is_multiple)
 
 
+async def get_user_profiles_by_ids(user_ids: list[int]) -> list:
+    if not user_ids:
+        return []
+    ids = ",".join([str(int(x)) for x in user_ids])
+    sql_query = f"SELECT * FROM user_profile WHERE user_id IN ({ids})"
+    return await create_request(sql_query, is_multiple=True) or []
+
+
 async def get_pets(
         pet_id: int = None, user_id: int = None, approx_weight: int = None, birth_date: int = None,
         name: str = None, gender: int = None, type: str = None, breed: str = None, is_multiple: bool = False
@@ -344,8 +352,79 @@ async def ensure_bookings_table() -> None:
     )
 
 
+async def ensure_booking_settings_table() -> None:
+    await create_request(
+        """
+        CREATE TABLE IF NOT EXISTS booking_settings (
+            service_id INTEGER PRIMARY KEY,
+            allowed_dates JSONB NOT NULL DEFAULT '[]'::jsonb,
+            allowed_times JSONB NOT NULL DEFAULT '[]'::jsonb,
+            updated_at DOUBLE PRECISION NOT NULL
+        );
+        """,
+        is_return=False,
+    )
+
+
+async def ensure_custom_services_table() -> None:
+    await create_request(
+        """
+        CREATE TABLE IF NOT EXISTS custom_booking_services (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            price INTEGER NOT NULL DEFAULT 0,
+            duration_min INTEGER NOT NULL DEFAULT 0,
+            description TEXT
+        );
+        """,
+        is_return=False,
+    )
+
+
 def _escape_sql_text(value: str | None) -> str:
     return (value or "").replace("'", "''")
+
+
+async def upsert_booking_settings(service_id: int, allowed_dates: list[str] | None, allowed_times: list[str] | None) -> dict | None:
+    import json
+
+    dates_json = _escape_sql_text(json.dumps(list(allowed_dates or []), ensure_ascii=False))
+    times_json = _escape_sql_text(json.dumps(list(allowed_times or []), ensure_ascii=False))
+    updated_at = datetime.now().timestamp()
+
+    sql = (
+        "INSERT INTO booking_settings (service_id, allowed_dates, allowed_times, updated_at) "
+        f"VALUES ({int(service_id)}, '{dates_json}'::jsonb, '{times_json}'::jsonb, {float(updated_at)}) "
+        "ON CONFLICT (service_id) DO UPDATE SET "
+        "allowed_dates = EXCLUDED.allowed_dates, "
+        "allowed_times = EXCLUDED.allowed_times, "
+        "updated_at = EXCLUDED.updated_at "
+        "RETURNING *;"
+    )
+    return await create_request(sql, is_multiple=False)
+
+
+async def get_booking_settings(service_ids: list[int] | None = None) -> list:
+    condition = ""
+    if service_ids:
+        ids = ",".join([str(int(x)) for x in service_ids])
+        condition = f"WHERE service_id IN ({ids})"
+    sql = f"SELECT * FROM booking_settings {condition} ORDER BY service_id"
+    return await create_request(sql, is_multiple=True) or []
+
+
+async def get_custom_services() -> list:
+    sql = "SELECT * FROM custom_booking_services ORDER BY id"
+    return await create_request(sql, is_multiple=True) or []
+
+
+async def add_custom_service(name: str, price: int = 0, duration_min: int = 0, description: str | None = None) -> dict | None:
+    sql = (
+        "INSERT INTO custom_booking_services (name, price, duration_min, description) "
+        f"VALUES ('{_escape_sql_text(name)}', {int(price)}, {int(duration_min)}, '{_escape_sql_text(description)}') "
+        "RETURNING *;"
+    )
+    return await create_request(sql, is_multiple=False)
 
 
 async def add_booking(
@@ -393,6 +472,17 @@ async def get_bookings_in_range(start_ts: float, end_ts: float) -> list:
         "SELECT * FROM bookings "
         f"WHERE status = 'confirmed' AND start_ts < {float(end_ts)} AND end_ts > {float(start_ts)} "
         "ORDER BY start_ts ASC"
+    )
+    return await create_request(sql, is_multiple=True) or []
+
+
+async def get_upcoming_bookings(limit: int = 200) -> list:
+    now_ts = datetime.now().timestamp()
+    sql = (
+        "SELECT * FROM bookings "
+        f"WHERE status = 'confirmed' AND start_ts >= {float(now_ts)} "
+        "ORDER BY start_ts ASC "
+        f"LIMIT {int(limit)}"
     )
     return await create_request(sql, is_multiple=True) or []
 

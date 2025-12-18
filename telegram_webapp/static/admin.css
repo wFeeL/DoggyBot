@@ -1,0 +1,92 @@
+.admin-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.admin-block {
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    padding: 12px;
+    background: #f8f8f9;
+}
+
+.admin-block h3 {
+    margin-top: 0;
+    margin-bottom: 6px;
+}
+
+.admin-block .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.admin-block input,
+.admin-block textarea,
+.admin-block select {
+    border: 1px solid #d7d8db;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #fff;
+    font-size: 15px;
+}
+
+.admin-block textarea {
+    resize: vertical;
+}
+
+.booking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.booking-card {
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    padding: 12px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.booking-card h4 {
+    margin: 0 0 6px;
+}
+
+.booking-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 14px;
+}
+
+.badge-accent {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #3c38b0;
+    font-size: 12px;
+    margin-right: 6px;
+}
+
+.sheet-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+}
+
+.sheet-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.sheet-body .field input,
+.sheet-body .field textarea {
+    width: 100%;
+}

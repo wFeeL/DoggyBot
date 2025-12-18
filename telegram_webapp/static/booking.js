@@ -165,6 +165,21 @@
         mustBeInTelegram();
         await ensureUser();
 
+        const adminLink = document.getElementById('admin-link');
+        if (adminLink) {
+            try {
+                const data = await api('/api/admin/status', {
+                    method: 'POST',
+                    body: JSON.stringify({ initData: getInitData() }),
+                });
+                if (data && data.is_admin) {
+                    adminLink.classList.remove('is-hidden');
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+
         const startBtns = document.querySelectorAll('[data-start-booking]');
         startBtns.forEach((btn) => {
             btn.addEventListener('click', async () => {

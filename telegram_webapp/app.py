@@ -12,6 +12,8 @@ from telegram_bot import db
 from telegram_bot.helper import str_to_timestamp, get_user_stroke, get_pets_stroke
 from telegram_webapp.services_text import SERVICES, SURVEY_FORM_TEXT, BOOKING_PROFILE, BOOKING_SERVICES
 
+CUSTOM_SERVICE_OFFSET = 10000
+
 app = Flask(__name__, static_folder='static')
 load_dotenv()
 
@@ -33,6 +35,24 @@ def _tg_user_from_init_data(init_data: str) -> dict | None:
         return None
 
 
+def _admin_ids() -> list[int]:
+    try:
+        return [int(x) for x in json.loads(os.environ.get("ADMIN_TELEGRAM_ID", "[]"))]
+    except Exception:
+        return []
+
+
+def _admin_from_init_data(init_data: str) -> dict | None:
+    tg_user = _tg_user_from_init_data(init_data)
+    admins = _admin_ids()
+    try:
+        if tg_user and int(tg_user.get("id")) in admins:
+            return tg_user
+    except Exception:
+        return None
+    return None
+
+
 def _format_dt(ts: float) -> str:
     try:
         from telegram_bot.env import local_timezone
@@ -42,8 +62,33 @@ def _format_dt(ts: float) -> str:
         return datetime.fromtimestamp(float(ts)).strftime('%d.%m.%Y %H:%M')
 
 
-def _sum_services(service_ids: list[int]) -> tuple[list[dict], int, int]:
-    by_id = {int(s["id"]): s for s in BOOKING_SERVICES}
+def _get_all_services() -> list[dict]:
+    items = list(BOOKING_SERVICES)
+    try:
+        custom = asyncio.run(db.get_custom_services()) or []
+    except Exception as e:
+        logger.warning(f"get_custom_services failed: {e}")
+        custom = []
+    for srv in custom:
+        try:
+            items.append(
+                {
+                    "id": CUSTOM_SERVICE_OFFSET + int(srv.get("id")),
+                    "name": srv.get("name"),
+                    "price": int(srv.get("price") or 0),
+                    "duration_min": int(srv.get("duration_min") or 0),
+                    "description": srv.get("description"),
+                    "is_custom": True,
+                }
+            )
+        except Exception:
+            continue
+    return items
+
+
+def _sum_services(service_ids: list[int], services_registry: list[dict] | None = None) -> tuple[list[dict], int, int]:
+    registry = services_registry or _get_all_services()
+    by_id = {int(s["id"]): s for s in registry}
     chosen = []
     total_price = 0
     total_minutes = 0
@@ -75,8 +120,38 @@ def _work_bounds(date_str: str) -> tuple[float, float]:
     return start, end
 
 
+def _date_time_labels(ts: float) -> tuple[str, str]:
+    try:
+        from telegram_bot.env import local_timezone
+
+        dt = datetime.fromtimestamp(float(ts), local_timezone)
+    except Exception:
+        dt = datetime.fromtimestamp(float(ts))
+    return dt.strftime('%Y-%m-%d'), dt.strftime('%H:%M')
+
+
+def _to_list(value) -> list:
+    import json as _json
+
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return list(value)
+    if isinstance(value, str):
+        try:
+            parsed = _json.loads(value)
+            if isinstance(parsed, list):
+                return parsed
+        except Exception:
+            pass
+        return [x.strip() for x in value.split(',') if x.strip()]
+    return []
+
+
 try:
     asyncio.run(db.ensure_bookings_table())
+    asyncio.run(db.ensure_booking_settings_table())
+    asyncio.run(db.ensure_custom_services_table())
 except Exception as e:
     logger.warning(f"ensure_bookings_table failed: {e}")
 
@@ -199,7 +274,7 @@ def booking_profile_page():
     return render_template(
         "booking_profile.html",
         profile=BOOKING_PROFILE,
-        services=BOOKING_SERVICES,
+        services=_get_all_services(),
     )
 
 
@@ -231,6 +306,334 @@ def booking_success_page():
 @app.route("/client", methods=["GET"])
 def client_profile_page():
     return render_template("client_profile.html", profile=BOOKING_PROFILE)
+
+
+@app.route("/admin", methods=["GET"])
+def admin_page():
+    return render_template("admin.html", profile=BOOKING_PROFILE)
+
+
+@app.route("/api/admin/status", methods=["POST"])
+def api_admin_status():
+    payload = request.get_json(silent=True) or {}
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _admin_from_init_data(init_data)
+    return jsonify({"ok": True, "is_admin": bool(tg_user)})
+
+
+@app.route("/api/admin/bootstrap", methods=["POST"])
+def api_admin_bootstrap():
+    payload = request.get_json(silent=True) or {}
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _admin_from_init_data(init_data)
+    if not tg_user:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    services = _get_all_services()
+
+    try:
+        settings_raw = asyncio.run(db.get_booking_settings()) or []
+    except Exception as e:
+        logger.error(f"admin bootstrap settings failed: {e}")
+        settings_raw = []
+
+    settings = {}
+    for item in settings_raw:
+        sid = item.get("service_id")
+        if sid is None:
+            continue
+        try:
+            sid_int = int(sid)
+        except Exception:
+            continue
+        settings[sid_int] = {
+            "allowed_dates": _to_list(item.get("allowed_dates")),
+            "allowed_times": _to_list(item.get("allowed_times")),
+            "updated_at": item.get("updated_at"),
+        }
+
+    try:
+        bookings_raw = asyncio.run(db.get_upcoming_bookings(limit=300)) or []
+    except Exception as e:
+        logger.error(f"admin bootstrap bookings failed: {e}")
+        bookings_raw = []
+
+    profile_ids = list({b.get("user_id") for b in bookings_raw if b.get("user_id")})
+    try:
+        profiles = asyncio.run(db.get_user_profiles_by_ids(profile_ids)) or []
+    except Exception as e:
+        logger.warning(f"admin bootstrap profiles failed: {e}")
+        profiles = []
+    profiles_map = {}
+    for p in profiles:
+        try:
+            profiles_map[int(p.get("user_id"))] = p
+        except Exception:
+            continue
+
+    def _normalize_booking(b: dict) -> dict:
+        out = dict(b)
+        for k in ("start_ts", "end_ts", "created_at"):
+            if out.get(k) is not None:
+                try:
+                    out[k] = float(out[k])
+                except Exception:
+                    pass
+        if isinstance(out.get("services"), str):
+            try:
+                out["services"] = json.loads(out.get("services"))
+            except Exception:
+                out["services"] = []
+        uid = out.get("user_id")
+        try:
+            out["user_profile"] = profiles_map.get(int(uid))
+        except Exception:
+            out["user_profile"] = None
+        try:
+            if out.get("start_ts"):
+                out["start_label"] = _format_dt(float(out.get("start_ts")))
+        except Exception:
+            pass
+        return out
+
+    bookings = [_normalize_booking(b) for b in bookings_raw]
+
+    return jsonify(
+        {
+            "ok": True,
+            "admin": tg_user,
+            "services": services,
+            "settings": settings,
+            "bookings": bookings,
+        }
+    )
+
+
+@app.route("/api/admin/settings", methods=["POST"])
+def api_admin_settings():
+    payload = request.get_json(silent=True) or {}
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _admin_from_init_data(init_data)
+    if not tg_user:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    service_id = payload.get("service_id")
+    if service_id is None:
+        return jsonify({"ok": False, "error": "service_required"}), 400
+
+    def _clean_list(values):
+        if not values:
+            return []
+        if isinstance(values, str):
+            values = values.split(",")
+        return [str(v).strip() for v in values if str(v).strip()]
+
+    allowed_dates = _clean_list(payload.get("allowed_dates"))
+    allowed_times = _clean_list(payload.get("allowed_times"))
+
+    try:
+        updated = asyncio.run(
+            db.upsert_booking_settings(
+                service_id=int(service_id), allowed_dates=allowed_dates, allowed_times=allowed_times
+            )
+        )
+    except Exception as e:
+        logger.error(f"upsert_booking_settings failed: {e}")
+        return jsonify({"ok": False, "error": "server_error"}), 500
+
+    normalized = dict(updated) if updated else {}
+    normalized["allowed_dates"] = _to_list(normalized.get("allowed_dates"))
+    normalized["allowed_times"] = _to_list(normalized.get("allowed_times"))
+
+    return jsonify({"ok": True, "settings": normalized})
+
+
+@app.route("/api/admin/booking/<int:booking_id>/cancel", methods=["POST"])
+def api_admin_cancel_booking(booking_id: int):
+    payload = request.get_json(silent=True) or {}
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _admin_from_init_data(init_data)
+    if not tg_user:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    reason = (payload.get("reason") or "").strip()
+    if not reason:
+        return jsonify({"ok": False, "error": "reason_required"}), 400
+
+    try:
+        booking = asyncio.run(db.get_booking_by_id(booking_id))
+    except Exception as e:
+        logger.error(f"get_booking_by_id failed: {e}")
+        booking = None
+
+    if not booking:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+
+    user_id = booking.get("user_id")
+    cancelled = asyncio.run(db.cancel_booking(booking_id, user_id))
+    if not cancelled:
+        return jsonify({"ok": False, "error": "cancel_failed"}), 500
+
+    try:
+        token = os.environ.get("BOT_TOKEN")
+        if token and user_id:
+            text = (
+                "🚫 Ваша запись была отменена.\n"
+                f"🆔 Номер: {booking_id}\n"
+                f"🗓️ Дата/время: {_format_dt(float(booking.get('start_ts') or 0))}\n"
+                f"Причина: {reason or 'не указана'}\n\n"
+                "Приносим извинения за доставленные неудобства. Если нужно, мы поможем выбрать другое время."
+            )
+            requests.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={"chat_id": user_id, "text": text},
+                timeout=10,
+            )
+    except Exception as e:
+        logger.warning(f"cancel notification failed: {e}")
+
+    return jsonify({"ok": True, "booking": cancelled})
+
+
+@app.route("/api/admin/booking/<int:booking_id>/reschedule", methods=["POST"])
+def api_admin_reschedule_booking(booking_id: int):
+    payload = request.get_json(silent=True) or {}
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _admin_from_init_data(init_data)
+    if not tg_user:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    reason = (payload.get("reason") or "").strip()
+    start_ts = payload.get("start_ts")
+    try:
+        start_ts = float(start_ts)
+    except Exception:
+        return jsonify({"ok": False, "error": "start_ts_invalid"}), 400
+
+    try:
+        booking = asyncio.run(db.get_booking_by_id(booking_id))
+    except Exception as e:
+        logger.error(f"reschedule get_booking failed: {e}")
+        booking = None
+
+    if not booking:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+
+    services = booking.get("services") or []
+    if isinstance(services, str):
+        try:
+            services = json.loads(services)
+        except Exception:
+            services = []
+
+    total_minutes = 0
+    for s in services:
+        try:
+            total_minutes += int(s.get("duration_min") or 0)
+        except Exception:
+            continue
+    end_ts = start_ts + (int(total_minutes) * 60)
+
+    try:
+        date_str = _date_time_labels(start_ts)[0]
+        work_start, work_end = _work_bounds(date_str)
+        if start_ts < work_start or end_ts > work_end:
+            return jsonify({"ok": False, "error": "outside_working_hours"}), 409
+    except Exception:
+        pass
+
+    try:
+        conflicts = asyncio.run(db.get_bookings_in_range(start_ts, end_ts)) or []
+    except Exception:
+        conflicts = []
+    for b in conflicts:
+        try:
+            if int(b.get("id")) == int(booking_id):
+                continue
+        except Exception:
+            continue
+        return jsonify({"ok": False, "error": "slot_unavailable"}), 409
+
+    try:
+        updated = asyncio.run(
+            db.reschedule_booking(
+                booking_id=booking_id,
+                user_id=booking.get("user_id"),
+                start_ts=start_ts,
+                end_ts=end_ts,
+                services=services,
+                total_price=booking.get("total_price"),
+                comment=booking.get("comment"),
+                promo_code=booking.get("promo_code"),
+            )
+        )
+    except Exception as e:
+        logger.error(f"admin reschedule failed: {e}")
+        return jsonify({"ok": False, "error": "server_error"}), 500
+
+    try:
+        token = os.environ.get("BOT_TOKEN")
+        user_id = booking.get("user_id")
+        if token and user_id:
+            old_dt = _format_dt(float(booking.get("start_ts") or 0))
+            new_dt = _format_dt(start_ts)
+            text = (
+                "⏰ Ваша запись изменена.\n"
+                f"Было: {old_dt}\n"
+                f"Стало: {new_dt}\n"
+                f"Причина: {reason or 'уточнений нет'}\n\n"
+                "Приносим извинения за возможные неудобства."
+            )
+            requests.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={"chat_id": user_id, "text": text},
+                timeout=10,
+            )
+    except Exception as e:
+        logger.warning(f"reschedule notify failed: {e}")
+
+    return jsonify({"ok": True, "booking": updated})
+
+
+@app.route("/api/admin/service", methods=["POST"])
+def api_admin_add_service():
+    payload = request.get_json(silent=True) or {}
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _admin_from_init_data(init_data)
+    if not tg_user:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    service = payload.get("service") or {}
+    name = (service.get("name") or "").strip()
+    if not name:
+        return jsonify({"ok": False, "error": "name_required"}), 400
+
+    try:
+        price = int(service.get("price") or 0)
+        duration_min = int(service.get("duration_min") or 0)
+    except Exception:
+        return jsonify({"ok": False, "error": "invalid_numbers"}), 400
+
+    description = (service.get("description") or "").strip() or None
+
+    try:
+        created = asyncio.run(
+            db.add_custom_service(name=name, price=price, duration_min=duration_min, description=description)
+        )
+    except Exception as e:
+        logger.error(f"add_custom_service failed: {e}")
+        return jsonify({"ok": False, "error": "server_error"}), 500
+
+    new_service = {
+        "id": CUSTOM_SERVICE_OFFSET + int(created.get("id")),
+        "name": name,
+        "price": price,
+        "duration_min": duration_min,
+        "description": description,
+        "is_custom": True,
+    }
+
+    return jsonify({"ok": True, "service": new_service})
 
 
 @app.route("/api/auth/ensure_user", methods=["POST"])
@@ -300,7 +703,7 @@ def api_profile_details(telegram_id):
 
 @app.route("/api/booking/services", methods=["GET"])
 def api_booking_services():
-    return jsonify({"ok": True, "services": BOOKING_SERVICES})
+    return jsonify({"ok": True, "services": _get_all_services()})
 
 
 @app.route("/api/booking/slots", methods=["GET"])
@@ -339,6 +742,28 @@ def api_booking_slots():
             continue
 
     step = 15 * 60
+    try:
+        settings = asyncio.run(db.get_booking_settings(service_ids)) or []
+    except Exception as e:
+        logger.warning(f"get_booking_settings failed: {e}")
+        settings = []
+
+    settings_map = {int(s.get("service_id")): s for s in settings if s.get("service_id") is not None}
+
+    def _slot_allowed(ts_val: float) -> bool:
+        date_label, time_label = _date_time_labels(ts_val)
+        for sid in service_ids:
+            cfg = settings_map.get(int(sid))
+            if not cfg:
+                continue
+            allowed_dates = _to_list(cfg.get("allowed_dates"))
+            allowed_times = _to_list(cfg.get("allowed_times"))
+            if allowed_dates and date_label not in allowed_dates:
+                return False
+            if allowed_times and time_label not in allowed_times:
+                return False
+        return True
+
     slots = []
     start = int(work_start)
     end_limit = int(work_end - duration_sec)
@@ -352,6 +777,8 @@ def api_booking_slots():
                 is_free = False
                 break
         if not is_free:
+            continue
+        if not _slot_allowed(s):
             continue
         slots.append({"start_ts": float(s), "label": _format_dt(s)})
 

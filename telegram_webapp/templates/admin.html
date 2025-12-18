@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='booking.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}" />
+    <title>Админ-панель</title>
+</head>
+<body data-page="admin-panel">
+    <div class="container">
+        <div class="topbar">
+            <div class="brand">
+                <div class="brand-title">🐾 DoggyLogy</div>
+            </div>
+            <a class="pill" href="/booking">↩️ Онлайн-запись</a>
+        </div>
+
+        <div class="stack" id="admin-root">
+            <div class="card" id="admin-guard">
+                <h2>Проверяем доступ…</h2>
+                <p class="muted">Подождите пару секунд. Если кнопка не появилась, у вас нет прав администратора.</p>
+            </div>
+
+            <div class="card is-hidden" id="admin-panels">
+                <div class="section-title">
+                    <h2>⚙️ Настройки записей</h2>
+                </div>
+                <div class="admin-grid">
+                    <div class="admin-block">
+                        <h3>Доступные даты и время</h3>
+                        <p class="muted">Оставьте поля пустыми, чтобы разрешить все рабочие слоты. Значения задаются через запятую.</p>
+                        <label class="field">
+                            <span>Услуга</span>
+                            <select id="settings-service"></select>
+                        </label>
+                        <label class="field">
+                            <span>Актуальные даты (YYYY-MM-DD)</span>
+                            <input type="text" id="settings-dates" placeholder="2024-08-01, 2024-08-02" />
+                        </label>
+                        <label class="field">
+                            <span>Актуальное время (HH:MM)</span>
+                            <input type="text" id="settings-times" placeholder="10:00, 14:30, 19:00" />
+                        </label>
+                        <button class="btn btn-primary" type="button" id="settings-save">💾 Сохранить</button>
+                        <div class="muted" id="settings-status"></div>
+                    </div>
+
+                    <div class="admin-block">
+                        <h3>Добавить услугу</h3>
+                        <p class="muted">Новые услуги сразу появятся в списке онлайн-записи и будут учитывать заданные доступные слоты.</p>
+                        <label class="field">
+                            <span>Название</span>
+                            <input type="text" id="service-name" placeholder="Групповое занятие" />
+                        </label>
+                        <label class="field">
+                            <span>Стоимость, ₽</span>
+                            <input type="number" id="service-price" placeholder="4500" />
+                        </label>
+                        <label class="field">
+                            <span>Длительность, мин</span>
+                            <input type="number" id="service-duration" placeholder="60" />
+                        </label>
+                        <label class="field">
+                            <span>Описание</span>
+                            <textarea id="service-description" rows="3" placeholder="Краткое описание услуги"></textarea>
+                        </label>
+                        <button class="btn" type="button" id="service-add">➕ Добавить</button>
+                        <div class="muted" id="service-status"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card is-hidden" id="bookings-card">
+                <div class="section-title">
+                    <h2>📅 Будущие записи</h2>
+                </div>
+                <div id="bookings-list" class="booking-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="booking-modal" class="modal" aria-hidden="true">
+        <div class="sheet" role="dialog" aria-modal="true">
+            <div class="sheet-header">
+                <h3 id="modal-title">Запись</h3>
+                <button class="btn" type="button" data-close>Закрыть</button>
+            </div>
+            <div class="sheet-body" id="modal-body"></div>
+            <div class="sheet-actions">
+                <button class="btn" type="button" id="modal-cancel">🚫 Отменить</button>
+                <button class="btn btn-primary" type="button" id="modal-reschedule">🔁 Перенести</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='admin.js') }}"></script>
+</body>
+</html>

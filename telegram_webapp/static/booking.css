@@ -649,3 +649,6 @@ code {
         scroll-behavior: auto !important;
     }
 }
+
+.is-hidden { display: none !important; }
+
