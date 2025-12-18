@@ -165,6 +165,23 @@
         mustBeInTelegram();
         await ensureUser();
 
+        // Show admin link for administrators
+        const adminLink = document.getElementById('admin-link');
+        if (adminLink) {
+            try {
+                const initData = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) || '';
+                const me = await api('/api/admin/me', {
+                    method: 'POST',
+                    body: JSON.stringify({ initData }),
+                });
+                if (me && me.is_admin) {
+                    adminLink.style.display = 'inline-flex';
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+
         const startBtns = document.querySelectorAll('[data-start-booking]');
         startBtns.forEach((btn) => {
             btn.addEventListener('click', async () => {
@@ -313,19 +330,62 @@
             return;
         }
 
-        const dateInput = document.getElementById('date');
+        const dateSelect = document.getElementById('date-select');
+        const dateInput = document.getElementById('date'); // fallback
+        const noDatesEl = document.getElementById('no-dates');
         const slotsRoot = document.getElementById('slots-root');
         const nextBtn = document.getElementById('next-btn');
         const info = document.getElementById('info');
 
-        // Важно: toISOString() даёт дату в UTC и может смещать день.
-        // Для выбора даты используем локальную дату браузера (YYYY-MM-DD).
-        const today = new Date();
-        const min = today.toLocaleDateString('en-CA');
-        if (dateInput) {
-            dateInput.min = min;
-            if (!dateInput.value) dateInput.value = min;
+        function formatDateRu(yyyyMmDd) {
+            const m = String(yyyyMmDd || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (!m) return yyyyMmDd;
+            return `${m[3]}.${m[2]}.${m[1]}`;
         }
+
+        function dateFromStartLabel(lbl) {
+            const m = String(lbl || '').match(/(\d{2})\.(\d{2})\.(\d{4})/);
+            if (!m) return '';
+            return `${m[3]}-${m[2]}-${m[1]}`;
+        }
+
+        // Берём даты только из админского расписания
+        const ids = state.service_ids.map((x) => Number(x)).join(',');
+        let availableDates = [];
+        try {
+            const d = await api(`/api/booking/available_dates?service_ids=${encodeURIComponent(ids)}`);
+            availableDates = Array.isArray(d && d.dates) ? d.dates : [];
+        } catch (e) {
+            availableDates = [];
+        }
+
+        if (dateSelect) {
+            dateSelect.innerHTML = '';
+            availableDates.forEach((ds) => {
+                const opt = document.createElement('option');
+                opt.value = ds;
+                opt.textContent = formatDateRu(ds);
+                dateSelect.appendChild(opt);
+            });
+        }
+
+        // Если нет доступных дат — показываем сообщение и блокируем переход
+        if (!availableDates.length) {
+            if (noDatesEl) noDatesEl.style.display = 'block';
+            if (slotsRoot) slotsRoot.innerHTML = '';
+            if (nextBtn) nextBtn.disabled = true;
+            if (dateSelect) dateSelect.disabled = true;
+            return;
+        } else {
+            if (noDatesEl) noDatesEl.style.display = 'none';
+            if (dateSelect) dateSelect.disabled = false;
+        }
+
+        // Предвыбор даты
+        const preferredDate = (state.start_label ? dateFromStartLabel(state.start_label) : '') || (dateInput ? dateInput.value : '');
+        const initialDate = availableDates.includes(preferredDate) ? preferredDate : availableDates[0];
+        if (dateSelect) dateSelect.value = initialDate;
+        if (dateInput) dateInput.value = initialDate;
 
         let selectedStartTs = state.start_ts ? Number(state.start_ts) : null;
         let selectedStartLabel = state.start_label ? String(state.start_label) : null;
@@ -334,8 +394,7 @@
             if (nextBtn) nextBtn.disabled = true;
             if (slotsRoot) slotsRoot.innerHTML = '<div class="skeleton">Загружаем свободное время…</div>';
 
-            const date = dateInput ? dateInput.value : min;
-            const ids = state.service_ids.map((x) => Number(x)).join(',');
+            const date = (dateSelect && dateSelect.value) ? dateSelect.value : (dateInput ? dateInput.value : '');
             const data = await api(`/api/booking/slots?date=${encodeURIComponent(date)}&service_ids=${encodeURIComponent(ids)}`);
             const slots = Array.isArray(data && data.slots) ? data.slots : [];
 
@@ -394,8 +453,9 @@
             if (nextBtn) nextBtn.disabled = !hasSelected;
         }
 
-        if (dateInput) {
-            dateInput.addEventListener('change', async () => {
+        const dateControl = dateSelect || dateInput;
+        if (dateControl) {
+            dateControl.addEventListener('change', async () => {
                 selectedStartTs = null;
                 selectedStartLabel = null;
                 patchState({ start_ts: null, start_label: null });

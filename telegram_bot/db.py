@@ -8,9 +8,7 @@ from typing import Any
 import psycopg2
 
 from telegram_bot.env import bot, local_timezone, pg_dsn
-from telegram_bot.handler import message
 from telegram_bot.helper import get_dict_fetch, timestamp_to_str
-from telegram_bot.keyboards import inline_markup
 
 # Включаем логирование
 import logging
@@ -268,7 +266,7 @@ async def delete_reminder(id: int):
 
 async def is_user_have_form(user_id: int) -> bool:
     user = await get_user_profile(user_id=user_id)
-    return user['full_name'] is not None
+    return bool(user and user.get('full_name'))
 
 
 async def add_reminder(
@@ -295,6 +293,14 @@ async def update_reminder(task_id: int, treatment_id: int = None, medicament_id:
 
 
 async def check_reminders():
+    # Важно: webapp импортирует telegram_bot.db, но ему не нужны aiogram-хендлеры.
+    # Поэтому подтягиваем их только в той функции, где они реально используются.
+    from telegram_bot.handler import message
+    from telegram_bot.keyboards import inline_markup
+
+    if bot is None:
+        return
+
     tasks = await get_reminders(value=int(True), is_multiple=True)
     now_timestamp = datetime.now().timestamp()
     for task in tasks:
@@ -340,6 +346,41 @@ async def ensure_bookings_table() -> None:
     )
     await create_request(
         "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS followup_sent BOOLEAN NOT NULL DEFAULT FALSE;",
+        is_return=False,
+    )
+
+    # --- Admin config tables ---
+    await create_request(
+        """
+        CREATE TABLE IF NOT EXISTS booking_services_custom (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            duration_min INTEGER NOT NULL,
+            price INTEGER NOT NULL,
+            created_at DOUBLE PRECISION NOT NULL
+        );
+        """,
+        is_return=False,
+    )
+    await create_request(
+        "CREATE INDEX IF NOT EXISTS booking_services_custom_id_idx ON booking_services_custom(id);",
+        is_return=False,
+    )
+    await create_request(
+        """
+        CREATE TABLE IF NOT EXISTS booking_service_availability (
+            service_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            slots JSONB NOT NULL,
+            updated_at DOUBLE PRECISION NOT NULL,
+            PRIMARY KEY (service_id, date)
+        );
+        """,
+        is_return=False,
+    )
+    await create_request(
+        "CREATE INDEX IF NOT EXISTS booking_service_availability_date_idx ON booking_service_availability(date);",
         is_return=False,
     )
 
@@ -395,6 +436,139 @@ async def get_bookings_in_range(start_ts: float, end_ts: float) -> list:
         "ORDER BY start_ts ASC"
     )
     return await create_request(sql, is_multiple=True) or []
+
+
+# --- Booking services (custom) & availability (admin-configured) ---
+
+
+async def get_custom_booking_services() -> list:
+    sql = "SELECT * FROM booking_services_custom ORDER BY id ASC"
+    return await create_request(sql, is_multiple=True) or []
+
+
+async def get_custom_services_max_id() -> int:
+    row = await create_request("SELECT MAX(id) AS max_id FROM booking_services_custom", is_multiple=False)
+    try:
+        return int(row.get('max_id') or 0) if row else 0
+    except Exception:
+        return 0
+
+
+async def add_custom_booking_service(
+        service_id: int,
+        name: str,
+        duration_min: int,
+        price: int,
+        description: str | None = None,
+) -> dict | None:
+    created_at = datetime.now().timestamp()
+    name = _escape_sql_text(name)
+    description = _escape_sql_text(description)
+    sql = (
+        "INSERT INTO booking_services_custom (id, name, description, duration_min, price, created_at) "
+        f"VALUES ({int(service_id)}, '{name}', '{description}', {int(duration_min)}, {int(price)}, {float(created_at)}) "
+        "RETURNING *;"
+    )
+    return await create_request(sql, is_multiple=False)
+
+
+async def get_service_availability(service_id: int, date: str) -> dict | None:
+    date = _escape_sql_text(date)
+    sql = (
+        "SELECT * FROM booking_service_availability "
+        f"WHERE service_id = {int(service_id)} AND date = '{date}' LIMIT 1"
+    )
+    return await create_request(sql, is_multiple=False)
+
+
+async def upsert_service_availability(service_id: int, date: str, slots: list[str]) -> dict | None:
+    import json
+
+    date = _escape_sql_text(date)
+    slots_json = _escape_sql_text(json.dumps(slots, ensure_ascii=False))
+    updated_at = datetime.now().timestamp()
+
+    sql = (
+        "INSERT INTO booking_service_availability (service_id, date, slots, updated_at) "
+        f"VALUES ({int(service_id)}, '{date}', '{slots_json}'::jsonb, {float(updated_at)}) "
+        "ON CONFLICT (service_id, date) DO UPDATE SET slots = EXCLUDED.slots, updated_at = EXCLUDED.updated_at "
+        "RETURNING *;"
+    )
+    return await create_request(sql, is_multiple=False)
+
+
+async def delete_service_availability(service_id: int, date: str) -> None:
+    date = _escape_sql_text(date)
+    await create_request(
+        f"DELETE FROM booking_service_availability WHERE service_id = {int(service_id)} AND date = '{date}'",
+        is_return=False,
+    )
+
+
+async def list_availability_dates(service_id: int) -> list[str]:
+    sql = (
+        "SELECT date FROM booking_service_availability "
+        f"WHERE service_id = {int(service_id)} ORDER BY date ASC"
+    )
+    rows = await create_request(sql, is_multiple=True) or []
+    out: list[str] = []
+    for r in rows:
+        d = r.get('date')
+        if isinstance(d, str):
+            out.append(d)
+    return out
+
+
+# --- Admin bookings helpers ---
+
+
+async def get_upcoming_bookings_all(limit: int = 500) -> list:
+    now_ts = datetime.now().timestamp()
+    sql = (
+        "SELECT * FROM bookings "
+        f"WHERE status = 'confirmed' AND start_ts >= {float(now_ts)} "
+        "ORDER BY start_ts ASC "
+        f"LIMIT {int(limit)}"
+    )
+    return await create_request(sql, is_multiple=True) or []
+
+
+async def cancel_booking_admin(booking_id: int) -> dict | None:
+    sql = (
+        "UPDATE bookings SET status = 'cancelled' "
+        f"WHERE id = {int(booking_id)} RETURNING *;"
+    )
+    return await create_request(sql, is_multiple=False)
+
+
+async def reschedule_booking_admin(
+        booking_id: int,
+        start_ts: float,
+        end_ts: float,
+        services: list[dict] | None = None,
+        total_price: int | None = None,
+        comment: str | None = None,
+        promo_code: str | None = None,
+) -> dict | None:
+    import json
+
+    updates = [f"start_ts = {float(start_ts)}", f"end_ts = {float(end_ts)}", "status = 'confirmed'"]
+    if services is not None:
+        services_json = _escape_sql_text(json.dumps(services, ensure_ascii=False))
+        updates.append(f"services = '{services_json}'::jsonb")
+    if total_price is not None:
+        updates.append(f"total_price = {int(total_price)}")
+    if comment is not None:
+        updates.append(f"comment = '{_escape_sql_text(comment)}'")
+    if promo_code is not None:
+        updates.append(f"promo_code = '{_escape_sql_text(promo_code)}'")
+
+    sql = (
+        "UPDATE bookings SET "
+        + ", ".join(updates)
+        + f" WHERE id = {int(booking_id)} RETURNING *;"
+    )
+    return await create_request(sql, is_multiple=False)
 
 
 def _format_booking_dt(ts: float) -> str:
