@@ -46,6 +46,19 @@ a {
     padding: 14px 0;
 }
 
+/* Чтобы кнопки в шапке не вылезали за рамки Mini App (без горизонтального скролла) */
+.topbar-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+    min-width: 0;
+}
+
+.topbar-actions .pill {
+    max-width: 100%;
+}
+
 .brand {
     display: flex;
     align-items: center;
@@ -317,6 +330,14 @@ a {
     border: 1px solid var(--border);
     font-size: 1rem;
     outline: none;
+    box-sizing: border-box;
+}
+
+/* iOS Safari иногда даёт date-input больше контейнера */
+input[type="date"],
+select,
+input {
+    max-width: 100%;
 }
 
 .date-input {
@@ -324,8 +345,8 @@ a {
 }
 
 .input:focus {
-    border-color: rgba(102, 126, 234, 0.65);
-    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+    border-color: rgba(102, 126, 234, 0.75);
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.18);
 }
 
 .bottom-bar {
@@ -652,6 +673,11 @@ code {
 
 /* --- Admin availability UI --- */
 
+#availability-content .field,
+#availability-content .input {
+    min-width: 0;
+}
+
 .chips {
     display: flex;
     flex-wrap: wrap;
@@ -674,8 +700,10 @@ code {
 }
 
 .chip.is-active {
-    border-color: rgba(102,126,234,0.55);
-    box-shadow: 0 10px 18px rgba(102,126,234,0.14);
+    border-color: rgba(102,126,234,0.65);
+    background: linear-gradient(135deg, rgba(112,136,243,0.92) 0%, rgba(123,91,209,0.92) 100%);
+    color: #fff;
+    box-shadow: 0 12px 22px rgba(102,126,234,0.22);
 }
 
 .time-grid {

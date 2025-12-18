@@ -103,6 +103,47 @@ def _work_bounds(date_str: str) -> tuple[float, float]:
     return start, end
 
 
+# --- Booking availability defaults ---
+
+# Период между доступными стартами записи (мин)
+BOOKING_STEP_MIN = 30
+# Окно записи: показываем только ближайший месяц
+BOOKING_HORIZON_DAYS = 30
+
+
+def _default_slot_hhmm() -> list[str]:
+    """Дефолтные стартовые времена записи.
+
+    По умолчанию каждый день полностью доступен с 10:00 до 21:00,
+    шаг между стартами — 30 минут.
+    """
+    out: list[str] = []
+    for h in range(10, 21):
+        for m in range(0, 60, BOOKING_STEP_MIN):
+            # последний старт: 20:30 (рабочий день до 21:00)
+            if h == 20 and m > 30:
+                continue
+            if h == 21:
+                continue
+            out.append(f"{h:02d}:{m:02d}")
+    return out
+
+
+def _is_date_in_booking_window(date_str: str) -> bool:
+    """True if date_str is within [today, today+BOOKING_HORIZON_DAYS] in local TZ."""
+    try:
+        from telegram_bot.env import local_timezone
+        req = datetime.strptime(date_str, '%Y-%m-%d').date()
+        base = datetime.now(local_timezone).date()
+    except Exception:
+        try:
+            req = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except Exception:
+            return False
+        base = datetime.now().date()
+    return base <= req <= (base + timedelta(days=int(BOOKING_HORIZON_DAYS)))
+
+
 _BOOKINGS_READY = False
 
 
@@ -532,11 +573,27 @@ def _parse_time_hhmm(value: str) -> tuple[int, int] | None:
 def _allowed_hhmm_for_services(date_str: str, service_ids: list[int]) -> list[str]:
     """Intersection of allowed HH:MM for all selected services.
 
-    Правило: если хотя бы по одной выбранной услуге на дату нет расписания —
-    возвращаем пустой список (пользователь не должен видеть «любой слот»).
+    Правило:
+    - если администратор *не настраивал* дату — используем дефолт (10:00–21:00, шаг 30 мин)
+    - если администратор *закрыл* дату (слоты = []) — времени нет
     """
 
     if not date_str or not service_ids:
+        return []
+
+    # Ограничиваем окно записи: только ближайшие BOOKING_HORIZON_DAYS (включая сегодня)
+    try:
+        from telegram_bot.env import local_timezone
+        req_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        base = datetime.now(local_timezone).date()
+    except Exception:
+        try:
+            req_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except Exception:
+            return []
+        base = datetime.now().date()
+
+    if req_date < base or req_date > (base + timedelta(days=int(BOOKING_HORIZON_DAYS))):
         return []
 
     date_safe = date_str.replace("'", "''")
@@ -551,12 +608,12 @@ def _allowed_hhmm_for_services(date_str: str, service_ids: list[int]) -> list[st
     except Exception:
         rows = []
 
-    # Расписание должно быть для каждой услуги
-    if len(rows) < len(service_ids):
-        return []
-
-    sets: list[set[str]] = []
+    by_id: dict[int, list[str] | None] = {}
     for r in rows:
+        try:
+            sid = int(r.get('service_id'))
+        except Exception:
+            continue
         s = r.get("slots")
         if isinstance(s, str):
             try:
@@ -565,9 +622,23 @@ def _allowed_hhmm_for_services(date_str: str, service_ids: list[int]) -> list[st
                 s = []
         if not isinstance(s, list):
             s = []
+        by_id[sid] = [str(x) for x in s]
+
+    sets: list[set[str]] = []
+    default_slots = _default_slot_hhmm()
+    for sid in service_ids:
+        # если запись есть в таблице — используем её (в том числе пустой список = закрыто)
+        if int(sid) in by_id:
+            raw = by_id.get(int(sid)) or []
+            if not raw:
+                return []
+            src = raw
+        else:
+            # нет настройки — дефолтный полностью свободный день
+            src = default_slots
 
         norm: set[str] = set()
-        for x in s:
+        for x in src:
             t = _parse_time_hhmm(str(x))
             if not t:
                 continue
@@ -774,6 +845,8 @@ def api_admin_availability_get():
     date_str = (payload.get("date") or "").strip()
     if not date_str:
         return jsonify({"ok": False, "error": "date_required"}), 400
+    if not _is_date_in_booking_window(date_str):
+        return jsonify({"ok": False, "error": "date_out_of_range"}), 400
 
     row = None
     try:
@@ -781,8 +854,13 @@ def api_admin_availability_get():
     except Exception as e:
         logger.error(f"availability get failed: {e}")
 
-    slots = []
-    if row:
+    slots: list[str] = []
+    is_default = False
+    if row is None:
+        # дефолт: полностью свободный день
+        slots = _default_slot_hhmm()
+        is_default = True
+    else:
         s = row.get("slots")
         if isinstance(s, str):
             try:
@@ -792,7 +870,7 @@ def api_admin_availability_get():
         if isinstance(s, list):
             slots = [f"{hh:02d}:{mm:02d}" for (hh, mm) in filter(None, (_parse_time_hhmm(str(x)) for x in s))]
 
-    return jsonify({"ok": True, "service_id": service_id, "date": date_str, "slots": sorted(set(slots))})
+    return jsonify({"ok": True, "service_id": service_id, "date": date_str, "slots": sorted(set(slots)), "is_default": is_default})
 
 
 @app.route("/api/admin/availability/dates", methods=["POST"])
@@ -813,7 +891,16 @@ def api_admin_availability_dates():
         logger.error(f"availability dates failed: {e}")
         dates = []
 
-    return jsonify({"ok": True, "service_id": service_id, "dates": sorted([str(d) for d in dates if isinstance(d, str)])})
+    # Возвращаем только даты в ближайшем окне, чтобы не перегружать UI
+    try:
+        from telegram_bot.env import local_timezone
+        base = datetime.now(local_timezone).date()
+    except Exception:
+        base = datetime.now().date()
+    min_d = base.strftime('%Y-%m-%d')
+    max_d = (base + timedelta(days=int(BOOKING_HORIZON_DAYS))).strftime('%Y-%m-%d')
+    cleaned = sorted([str(d) for d in dates if isinstance(d, str) and min_d <= str(d) <= max_d])
+    return jsonify({"ok": True, "service_id": service_id, "dates": cleaned})
 
 
 @app.route("/api/admin/availability/set", methods=["POST"])
@@ -830,6 +917,10 @@ def api_admin_availability_set():
     date_str = (payload.get("date") or "").strip()
     if not date_str:
         return jsonify({"ok": False, "error": "date_required"}), 400
+    if not _is_date_in_booking_window(date_str):
+        return jsonify({"ok": False, "error": "date_out_of_range"}), 400
+    if not _is_date_in_booking_window(date_str):
+        return jsonify({"ok": False, "error": "date_out_of_range"}), 400
 
     slots_in = payload.get("slots")
     if not isinstance(slots_in, list):
@@ -841,16 +932,20 @@ def api_admin_availability_set():
         if not t:
             continue
         hh, mm = t
+        # фиксируем шаг записи: 30 минут
+        if int(mm) % int(BOOKING_STEP_MIN) != 0:
+            continue
         slots.append(f"{hh:02d}:{mm:02d}")
     slots = sorted(set(slots))
 
-    # пустой список трактуем как удаление даты
+    # Пустой список = админ закрыл день по этой услуге
     if not slots:
         try:
-            asyncio.run(db.delete_service_availability(service_id=service_id, date=date_str))
-        except Exception:
-            pass
-        return jsonify({"ok": True, "service_id": service_id, "date": date_str, "slots": []})
+            row = asyncio.run(db.upsert_service_availability(service_id=service_id, date=date_str, slots=[]))
+        except Exception as e:
+            logger.error(f"availability set (close day) failed: {e}")
+            return jsonify({"ok": False, "error": "server_error"}), 500
+        return jsonify({"ok": True, "availability": dict(row) if row else None, "slots": []})
 
     try:
         row = asyncio.run(db.upsert_service_availability(service_id=service_id, date=date_str, slots=slots))
@@ -875,14 +970,21 @@ def api_admin_availability_delete():
     date_str = (payload.get("date") or "").strip()
     if not date_str:
         return jsonify({"ok": False, "error": "date_required"}), 400
+    if not _is_date_in_booking_window(date_str):
+        return jsonify({"ok": False, "error": "date_out_of_range"}), 400
+    if not _is_date_in_booking_window(date_str):
+        return jsonify({"ok": False, "error": "date_out_of_range"}), 400
+    if not _is_date_in_booking_window(date_str):
+        return jsonify({"ok": False, "error": "date_out_of_range"}), 400
 
+    # «Удалить дату» = закрыть день (слоты = [])
     try:
-        asyncio.run(db.delete_service_availability(service_id=service_id, date=date_str))
+        asyncio.run(db.upsert_service_availability(service_id=service_id, date=date_str, slots=[]))
     except Exception as e:
-        logger.error(f"availability delete failed: {e}")
+        logger.error(f"availability delete (close day) failed: {e}")
         return jsonify({"ok": False, "error": "server_error"}), 500
 
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "date": date_str, "service_id": service_id})
 
 
 @app.route("/api/auth/ensure_user", methods=["POST"])
@@ -957,9 +1059,11 @@ def api_booking_services():
 
 @app.route("/api/booking/available_dates", methods=["GET"])
 def api_booking_available_dates():
-    """Dates that are enabled by admin for selected services.
+    """Available dates for selected services (rolling window).
 
-    Возвращаем пересечение дат, где настроено расписание по каждой выбранной услуге.
+    По умолчанию каждый день в ближайший месяц доступен целиком (10:00–21:00, шаг 30 минут).
+    Если админ настроил конкретный день — применяем его расписание.
+    Если админ закрыл день (слоты = []) — день недоступен.
     """
 
     service_ids_raw = (request.args.get("service_ids") or "").strip()
@@ -972,30 +1076,20 @@ def api_booking_available_dates():
     if not chosen:
         return jsonify({"ok": False, "error": "services_required"}), 400
 
-    # Intersection of configured dates
-    sets: list[set[str]] = []
-    for sid in service_ids:
-        try:
-            dates = asyncio.run(db.list_availability_dates(int(sid))) or []
-        except Exception:
-            dates = []
-        sets.append(set([str(d) for d in dates if isinstance(d, str)]))
-
-    if not sets:
-        return jsonify({"ok": True, "dates": []})
-
-    inter = set.intersection(*sets)
-
-    # Leave only today+ in local timezone
     try:
         from telegram_bot.env import local_timezone
 
-        today = datetime.now(local_timezone).strftime('%Y-%m-%d')
+        base = datetime.now(local_timezone).date()
     except Exception:
-        today = datetime.now().strftime('%Y-%m-%d')
+        base = datetime.now().date()
 
-    dates_sorted = sorted([d for d in inter if d >= today])
-    return jsonify({"ok": True, "dates": dates_sorted})
+    out: list[str] = []
+    for i in range(0, int(BOOKING_HORIZON_DAYS) + 1):
+        d = (base + timedelta(days=i)).strftime('%Y-%m-%d')
+        if _allowed_hhmm_for_services(d, service_ids):
+            out.append(d)
+
+    return jsonify({"ok": True, "dates": out})
 
 
 @app.route("/api/booking/slots", methods=["GET"])
@@ -1005,6 +1099,8 @@ def api_booking_slots():
 
     if not date_str:
         return jsonify({"ok": False, "error": "date_required"}), 400
+    if not _is_date_in_booking_window(date_str):
+        return jsonify({"ok": False, "error": "date_out_of_range"}), 400
 
     try:
         service_ids = [int(x) for x in service_ids_raw.split(",") if x.strip().isdigit()]
@@ -1033,11 +1129,10 @@ def api_booking_slots():
         except Exception:
             continue
 
-    step = 15 * 60
     slots = []
 
-    # Строго: пользователи видят только те старты, которые выбрал администратор.
-    # Если расписание не настроено хотя бы по одной выбранной услуге — слотов нет.
+    # Пользователи видят только разрешённые старты. Если админ не настраивал дату —
+    # используется дефолт (10:00–21:00, шаг 30 минут). Если день закрыт — слотов нет.
     candidates = _allowed_start_ts_for_services(date_str, service_ids)
 
     end_limit = int(work_end - duration_sec)
