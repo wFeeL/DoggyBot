@@ -87,20 +87,20 @@
                 <div class="stack" style="gap:10px">
                     <label class="field">
                         <span class="muted">Название</span>
-                        <input id="new-service-name" class="input" type="text" placeholder="Например: Консультация" />
+                        <input id="new-service-name" type="text" placeholder="Например: Консультация" />
                     </label>
                     <label class="field">
                         <span class="muted">Описание (необязательно)</span>
-                        <input id="new-service-desc" class="input" type="text" placeholder="Коротко о сути услуги" />
+                        <input id="new-service-desc" type="text" placeholder="Коротко о сути услуги" />
                     </label>
                     <div style="display:flex;gap:10px">
                         <label class="field" style="flex:1">
                             <span class="muted">Длительность (мин)</span>
-                            <input id="new-service-duration" class="input" type="number" min="15" step="5" value="60" />
+                            <input id="new-service-duration" type="number" min="15" step="5" value="60" />
                         </label>
                         <label class="field" style="flex:1">
                             <span class="muted">Цена (₽)</span>
-                            <input id="new-service-price" class="input" type="number" min="0" step="50" value="0" />
+                            <input id="new-service-price" type="number" min="0" step="50" value="0" />
                         </label>
                     </div>
                     <button class="btn btn-primary" type="button" id="add-service-btn">Добавить услугу</button>
@@ -119,11 +119,11 @@
             <div class="stack" id="booking-edit-block" style="gap:10px;margin-top:12px;display:none">
                 <label class="field">
                     <span class="muted">Новая дата</span>
-                    <input id="edit-date" class="input" type="date" />
+                    <input id="edit-date" type="date" />
                 </label>
                 <label class="field">
                     <span class="muted">Новое время</span>
-                    <select id="edit-time" class="input"></select>
+                    <select id="edit-time"></select>
                 </label>
                 <div>
                     <div class="muted" style="margin-bottom:6px">Услуги</div>
@@ -147,7 +147,7 @@
             <p class="muted">Пользователю придёт сообщение с причиной. Пожалуйста, будьте вежливы и извинитесь за неудобства.</p>
             <label class="field" style="margin-top:10px">
                 <span class="muted">Текст причины</span>
-                <input id="cancel-reason" class="input" type="text" placeholder="Например: форс-мажор по расписанию" />
+                <input id="cancel-reason" type="text" placeholder="Например: форс-мажор по расписанию" />
             </label>
             <div class="sheet-actions" style="margin-top:14px">
                 <button class="btn btn-primary" type="button" id="confirm-cancel">Отменить запись</button>

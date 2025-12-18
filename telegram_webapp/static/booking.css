@@ -649,3 +649,61 @@ code {
         scroll-behavior: auto !important;
     }
 }
+
+/* --- Admin availability UI --- */
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.chip {
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.72);
+    padding: 8px 10px;
+    border-radius: 999px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(0,0,0,0.10);
+}
+
+.chip.is-active {
+    border-color: rgba(102,126,234,0.55);
+    box-shadow: 0 10px 18px rgba(102,126,234,0.14);
+}
+
+.time-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+@media (max-width: 520px) {
+    .time-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.time-btn {
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.72);
+    padding: 10px 10px;
+    border-radius: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.time-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(0,0,0,0.10);
+}
+
+.time-btn.is-on {
+    border-color: rgba(102,126,234,0.55);
+    box-shadow: 0 10px 18px rgba(102,126,234,0.14);
+}

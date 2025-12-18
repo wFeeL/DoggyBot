@@ -40,14 +40,14 @@
     function showModal(id) {
         const m = document.getElementById(id);
         if (!m) return;
-        m.classList.add('is-open');
+        m.classList.add('open');
         m.setAttribute('aria-hidden', 'false');
     }
 
     function hideModal(id) {
         const m = document.getElementById(id);
         if (!m) return;
-        m.classList.remove('is-open');
+        m.classList.remove('open');
         m.setAttribute('aria-hidden', 'true');
     }
 
@@ -68,12 +68,17 @@
     function buildTimeFallback(selectEl) {
         // запасной вариант (если /api/booking/slots недоступен)
         selectEl.innerHTML = '';
-        buildDefaultTimes().forEach((v) => {
-            const opt = document.createElement('option');
-            opt.value = v;
-            opt.textContent = v;
-            selectEl.appendChild(opt);
-        });
+        const pad = (n) => String(n).padStart(2, '0');
+        for (let h = 10; h <= 21; h++) {
+            for (let m = 0; m < 60; m += 15) {
+                if (h === 21 && m > 0) continue;
+                const v = `${pad(h)}:${pad(m)}`;
+                const opt = document.createElement('option');
+                opt.value = v;
+                opt.textContent = v;
+                selectEl.appendChild(opt);
+            }
+        }
     }
 
     async function refreshEditTimes(preferTime) {
@@ -138,46 +143,15 @@
 
     function pad2(n) { return String(n).padStart(2, '0'); }
 
-    const BOOKING_STEP_MIN = 30;
-    const WORK_START_H = 10;
-    const WORK_END_H = 21;
-    const MAX_QUICK_DATES = 20;
-    const BOOKING_HORIZON_DAYS = 30;
-
     function buildDefaultTimes() {
-        // дефолтный шаг между записями: 30 минут
         const times = [];
-        for (let h = WORK_START_H; h <= 20; h++) {
-            for (let m = 0; m < 60; m += BOOKING_STEP_MIN) {
-                // последний старт: 20:30 (WORK_END_H=21)
-                if (h === 20 && m > 30) continue;
+        for (let h = 10; h <= 20; h++) {
+            for (let m = 0; m < 60; m += 15) {
                 times.push(`${pad2(h)}:${pad2(m)}`);
             }
         }
+        // 20:45 already included; 21:00 start usually не нужен (упирается в конец рабочего дня)
         return times;
-    }
-
-    function formatDDMMYYYY(isoDate) {
-        // isoDate: YYYY-MM-DD
-        const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(isoDate || ''));
-        if (!m) return String(isoDate || '');
-        return `${m[3]}-${m[2]}-${m[1]}`;
-    }
-
-    function todayISO() {
-        const d = new Date();
-        const yyyy = d.getFullYear();
-        const mm = pad2(d.getMonth() + 1);
-        const dd = pad2(d.getDate());
-        return `${yyyy}-${mm}-${dd}`;
-    }
-
-    function addDaysISO(isoDate, days) {
-        const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(isoDate || ''));
-        if (!m) return isoDate;
-        const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-        d.setDate(d.getDate() + Number(days || 0));
-        return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
     }
 
     async function loadServicesCatalog() {
@@ -226,20 +200,15 @@
         });
     }
 
-    function renderDatesChips(_dates, activeDate) {
+    function renderDatesChips(dates, activeDate) {
         const root = document.getElementById('avail-dates-chips');
         if (!root) return;
         root.innerHTML = '';
-
-        const base = todayISO();
-        const list = [];
-        for (let i = 0; i < MAX_QUICK_DATES; i++) list.push(addDaysISO(base, i));
-
-        list.forEach((d) => {
+        (dates || []).slice(0, 14).forEach((d) => {
             const chip = document.createElement('button');
             chip.type = 'button';
             chip.className = `chip ${d === activeDate ? 'is-active' : ''}`;
-            chip.textContent = formatDDMMYYYY(d);
+            chip.textContent = d;
             chip.addEventListener('click', () => {
                 const dateEl = document.getElementById('avail-date');
                 if (dateEl) {
@@ -249,6 +218,24 @@
             });
             root.appendChild(chip);
         });
+        if (!dates || !dates.length) {
+            const span = document.createElement('div');
+            span.className = 'muted';
+            span.textContent = 'Пока нет настроенных дат';
+            root.appendChild(span);
+        }
+    }
+
+    async function loadAvailabilityDates(serviceId) {
+        try {
+            const data = await api('/api/admin/availability/dates', {
+                method: 'POST',
+                body: JSON.stringify({ initData: INIT_DATA, service_id: Number(serviceId) }),
+            });
+            return Array.isArray(data && data.dates) ? data.dates : [];
+        } catch (e) {
+            return [];
+        }
     }
 
     async function loadAvailability() {
@@ -265,8 +252,9 @@
             return;
         }
 
-        // Быстрые даты: показываем ближайшие 20 дней, чтобы не перегружать UI
-        renderDatesChips(null, date);
+        // chips (configured dates)
+        const dates = await loadAvailabilityDates(serviceId);
+        renderDatesChips(dates, date);
 
         // load selected slots
         AVAIL_SELECTED.clear();
@@ -307,7 +295,8 @@
                 body: JSON.stringify({ initData: INIT_DATA, service_id: serviceId, date, slots }),
             });
             setAvailStatus('✅ Сохранено', false);
-            renderDatesChips(null, date);
+            const dates = await loadAvailabilityDates(serviceId);
+            renderDatesChips(dates, date);
         } catch (e) {
             setAvailStatus('Ошибка сохранения', true);
         }
@@ -331,8 +320,9 @@
             });
             AVAIL_SELECTED.clear();
             renderTimeGrid();
-            setAvailStatus('Дата закрыта для записи', false);
-            renderDatesChips(null, date);
+            setAvailStatus('Дата удалена', false);
+            const dates = await loadAvailabilityDates(serviceId);
+            renderDatesChips(dates, date);
         } catch (e) {
             setAvailStatus('Ошибка удаления', true);
         }
@@ -693,7 +683,6 @@
             if (dEl) {
                 const today = new Date().toLocaleDateString('en-CA');
                 dEl.min = today;
-                dEl.max = addDaysISO(todayISO(), BOOKING_HORIZON_DAYS);
                 if (!dEl.value) dEl.value = today;
             }
 

@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 from datetime import datetime
 from urllib.parse import parse_qs
 
@@ -9,6 +10,7 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
 from telegram_bot import db
+from telegram_bot.env import admins_telegram_id
 from telegram_bot.helper import str_to_timestamp, get_user_stroke, get_pets_stroke
 from telegram_webapp.services_text import SERVICES, SURVEY_FORM_TEXT, BOOKING_PROFILE, BOOKING_SERVICES
 
@@ -33,6 +35,32 @@ def _tg_user_from_init_data(init_data: str) -> dict | None:
         return None
 
 
+def _is_admin(init_data: str) -> bool:
+    tg_user = _tg_user_from_init_data(init_data)
+    if not tg_user or not tg_user.get("id"):
+        return False
+    try:
+        uid = int(tg_user["id"])
+    except Exception:
+        return False
+    return uid in (admins_telegram_id or [])
+
+
+def _send_bot_message(chat_id: int, text: str) -> bool:
+    """Отправка сообщения пользователю от бота (без aiogram, через HTTP API)."""
+
+    token = (os.getenv("BOT_TOKEN") or "").strip()
+    if not token:
+        return False
+    try:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {"chat_id": int(chat_id), "text": text, "parse_mode": "HTML"}
+        r = requests.post(url, json=payload, timeout=10)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
 def _format_dt(ts: float) -> str:
     try:
         from telegram_bot.env import local_timezone
@@ -43,7 +71,7 @@ def _format_dt(ts: float) -> str:
 
 
 def _sum_services(service_ids: list[int]) -> tuple[list[dict], int, int]:
-    by_id = {int(s["id"]): s for s in BOOKING_SERVICES}
+    by_id = {int(s["id"]): s for s in _get_all_services()}
     chosen = []
     total_price = 0
     total_minutes = 0
@@ -75,10 +103,67 @@ def _work_bounds(date_str: str) -> tuple[float, float]:
     return start, end
 
 
-try:
-    asyncio.run(db.ensure_bookings_table())
-except Exception as e:
-    logger.warning(f"ensure_bookings_table failed: {e}")
+_BOOKINGS_READY = False
+
+
+def _ensure_bookings_ready() -> None:
+    """Создаём таблицы для онлайн-записи лениво.
+
+    На уровне импорта вызывать asyncio.run() не стоит — Flask reloader
+    может инициализировать модуль несколько раз.
+    """
+
+    global _BOOKINGS_READY
+    if _BOOKINGS_READY:
+        return
+    try:
+        asyncio.run(db.ensure_bookings_table())
+        _BOOKINGS_READY = True
+    except Exception as e:
+        logger.warning(f"ensure_bookings_table failed: {e}")
+
+
+@app.before_request
+def _before_any_request():
+    _ensure_bookings_ready()
+
+
+_SERVICES_CACHE: dict[str, object] = {"ts": 0.0, "services": BOOKING_SERVICES}
+
+
+def _get_all_services(force: bool = False) -> list[dict]:
+    """Базовые + кастомные услуги из админки.
+
+    Чтобы не дёргать БД на каждый запрос — держим лёгкий кэш.
+    """
+    now = datetime.now().timestamp()
+    if (not force) and (now - float(_SERVICES_CACHE.get("ts") or 0) < 10):
+        return list(_SERVICES_CACHE.get("services") or BOOKING_SERVICES)
+
+    services = list(BOOKING_SERVICES)
+    try:
+        custom = asyncio.run(db.get_custom_booking_services()) or []
+        # psycopg2 -> dict already
+        services.extend([dict(x) for x in custom])
+    except Exception:
+        pass
+
+    # гарантируем уникальность по id
+    seen = set()
+    uniq: list[dict] = []
+    for s in services:
+        try:
+            sid = int(s.get("id"))
+        except Exception:
+            continue
+        if sid in seen:
+            continue
+        seen.add(sid)
+        uniq.append(s)
+
+    _SERVICES_CACHE["ts"] = now
+    _SERVICES_CACHE["services"] = uniq
+    return uniq
 
 
 @app.route("/", methods=['GET'])
@@ -199,7 +284,7 @@ def booking_profile_page():
     return render_template(
         "booking_profile.html",
         profile=BOOKING_PROFILE,
-        services=BOOKING_SERVICES,
+        services=_get_all_services(),
     )
 
 
@@ -231,6 +316,573 @@ def booking_success_page():
 @app.route("/client", methods=["GET"])
 def client_profile_page():
     return render_template("client_profile.html", profile=BOOKING_PROFILE)
+
+
+# --- Admin panel ---
+
+
+@app.route("/admin", methods=["GET"])
+def admin_panel_page():
+    return render_template("admin_panel.html", profile=BOOKING_PROFILE)
+
+
+@app.route("/api/admin/me", methods=["POST"])
+def api_admin_me():
+    payload = request.get_json(silent=True) or {}
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _tg_user_from_init_data(init_data) or {}
+    uid = tg_user.get("id")
+    try:
+        uid = int(uid) if uid is not None else None
+    except Exception:
+        uid = None
+    return jsonify({"ok": True, "is_admin": bool(uid and uid in (admins_telegram_id or [])), "user_id": uid})
+
+
+def _admin_or_403() -> tuple[bool, dict | None]:
+    payload = request.get_json(silent=True) or {}
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _tg_user_from_init_data(init_data)
+    if not tg_user or not tg_user.get("id"):
+        return False, None
+    try:
+        uid = int(tg_user["id"])
+    except Exception:
+        return False, None
+    if uid not in (admins_telegram_id or []):
+        return False, None
+    return True, tg_user
+
+
+@app.route("/api/admin/bookings/upcoming", methods=["POST"])
+def api_admin_bookings_upcoming():
+    ok, _tg_user = _admin_or_403()
+    if not ok:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    try:
+        bookings = asyncio.run(db.get_upcoming_bookings_all(limit=500)) or []
+    except Exception as e:
+        logger.error(f"admin bookings failed: {e}")
+        bookings = []
+
+    out = []
+    for b in bookings:
+        b = dict(b)
+        user_id = b.get("user_id")
+        full_name = ""
+        try:
+            prof = asyncio.run(db.get_user_profile(user_id=int(user_id)))
+            full_name = (prof or {}).get("full_name") or ""
+        except Exception:
+            full_name = ""
+
+        services = b.get("services") or []
+        primary = ""
+        try:
+            if isinstance(services, list) and services:
+                primary = services[0].get("name") or ""
+        except Exception:
+            primary = ""
+
+        out.append(
+            {
+                "id": b.get("id"),
+                "user_id": user_id,
+                "user_name": full_name,
+                "start_ts": b.get("start_ts"),
+                "start_label": _format_dt(float(b.get("start_ts") or 0)),
+                "total_price": b.get("total_price"),
+                "primary_service": primary,
+                "services": services,
+                "services_summary": ", ".join([
+                    (s.get("name") or "Услуга") for s in services if isinstance(s, dict)
+                ]),
+            }
+        )
+
+    return jsonify({"ok": True, "bookings": out})
+
+
+@app.route("/api/admin/booking/details", methods=["POST"])
+def api_admin_booking_details():
+    ok, _ = _admin_or_403()
+    if not ok:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    booking_id = payload.get("booking_id")
+    try:
+        booking_id = int(booking_id)
+    except Exception:
+        return jsonify({"ok": False, "error": "booking_id_required"}), 400
+
+    booking = asyncio.run(db.get_booking_by_id(booking_id))
+    if not booking:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+
+    booking = dict(booking)
+    user_profile = None
+    try:
+        user_profile = asyncio.run(db.get_user_profile(user_id=int(booking.get("user_id"))))
+    except Exception:
+        user_profile = None
+
+    services_catalog = _get_all_services()
+    selected_ids = []
+    try:
+        for s in (booking.get("services") or []):
+            sid = s.get("id")
+            if sid is not None:
+                selected_ids.append(int(sid))
+    except Exception:
+        selected_ids = []
+
+    # start date/time for edit form (Moscow TZ)
+    from telegram_bot.env import local_timezone
+    try:
+        _dt = datetime.fromtimestamp(float(booking.get("start_ts") or 0), local_timezone)
+        start_date = _dt.strftime("%Y-%m-%d")
+        start_time = _dt.strftime("%H:%M")
+    except Exception:
+        start_date = ""
+        start_time = ""
+
+    return jsonify(
+        {
+            "ok": True,
+            "booking": booking,
+            "user": user_profile,
+            "services_catalog": services_catalog,
+            "selected_service_ids": selected_ids,
+            "start_label": _format_dt(float(booking.get("start_ts") or 0)),
+            "end_label": _format_dt(float(booking.get("end_ts") or 0)),
+            "start_date": start_date,
+            "start_time": start_time,
+        }
+    )
+
+
+@app.route("/api/admin/booking/cancel", methods=["POST"])
+def api_admin_booking_cancel():
+    ok, _ = _admin_or_403()
+    if not ok:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    booking_id = payload.get("booking_id")
+    reason = (payload.get("reason") or "").strip()
+    if not reason:
+        return jsonify({"ok": False, "error": "reason_required"}), 400
+    try:
+        booking_id = int(booking_id)
+    except Exception:
+        return jsonify({"ok": False, "error": "booking_id_required"}), 400
+
+    booking = asyncio.run(db.get_booking_by_id(booking_id))
+    if not booking:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+
+    cancelled = asyncio.run(db.cancel_booking_admin(booking_id))
+    if not cancelled:
+        return jsonify({"ok": False, "error": "update_failed"}), 500
+
+    cancelled = dict(cancelled)
+    user_id = cancelled.get("user_id")
+    dt_label = _format_dt(float(cancelled.get("start_ts") or 0))
+
+    services = cancelled.get("services") or []
+    if isinstance(services, str):
+        try:
+            services = json.loads(services)
+        except Exception:
+            services = []
+    services = services if isinstance(services, list) else []
+    services_lines = "\n".join([f"• {(s.get('name') or 'Услуга')}" for s in services if isinstance(s, dict)]) or "—"
+
+    msg = (
+        "❌ <b>Запись отменена</b>\n\n"
+        f"👩‍⚕️ <b>Специалист:</b> {BOOKING_PROFILE.get('specialist')}\n"
+        f"🕒 <b>Дата/время:</b> {dt_label}\n"
+        f"🧾 <b>Услуги:</b>\n{services_lines}\n\n"
+        f"<b>Причина:</b> {reason}\n\n"
+        "Приносим извинения за доставленные неудобства 🙏"
+    )
+    try:
+        if user_id is not None:
+            _send_bot_message(int(user_id), msg)
+    except Exception:
+        pass
+
+    return jsonify({"ok": True, "booking": cancelled})
+
+
+def _parse_time_hhmm(value: str) -> tuple[int, int] | None:
+    """Parse time in HH:MM."""
+    m = re.match(r"^(\d{2}):(\d{2})$", value or "")
+    if not m:
+        return None
+    hh = int(m.group(1))
+    mm = int(m.group(2))
+    if hh < 0 or hh > 23 or mm < 0 or mm > 59:
+        return None
+    return hh, mm
+
+
+def _allowed_hhmm_for_services(date_str: str, service_ids: list[int]) -> list[str]:
+    """Intersection of allowed HH:MM for all selected services.
+
+    Правило: если хотя бы по одной выбранной услуге на дату нет расписания —
+    возвращаем пустой список (пользователь не должен видеть «любой слот»).
+    """
+
+    if not date_str or not service_ids:
+        return []
+
+    date_safe = date_str.replace("'", "''")
+    ids_sql = ",".join(str(int(x)) for x in service_ids)
+    try:
+        rows = asyncio.run(
+            db.create_request(
+                f"SELECT service_id, slots FROM booking_service_availability WHERE date = '{date_safe}' AND service_id IN ({ids_sql}) ORDER BY service_id",
+                is_multiple=True,
+            )
+        ) or []
+    except Exception:
+        rows = []
+
+    # Расписание должно быть для каждой услуги
+    if len(rows) < len(service_ids):
+        return []
+
+    sets: list[set[str]] = []
+    for r in rows:
+        s = r.get("slots")
+        if isinstance(s, str):
+            try:
+                s = json.loads(s)
+            except Exception:
+                s = []
+        if not isinstance(s, list):
+            s = []
+
+        norm: set[str] = set()
+        for x in s:
+            t = _parse_time_hhmm(str(x))
+            if not t:
+                continue
+            hh, mm = t
+            norm.add(f"{hh:02d}:{mm:02d}")
+        sets.append(norm)
+
+    if not sets:
+        return []
+    inter = set.intersection(*sets)
+    return sorted(inter)
+
+
+def _allowed_start_ts_for_services(date_str: str, service_ids: list[int]) -> list[int]:
+    """Allowed start timestamps (seconds) for a given date and services."""
+    from telegram_bot.env import local_timezone
+
+    allowed = _allowed_hhmm_for_services(date_str, service_ids)
+    if not allowed:
+        return []
+
+    try:
+        base = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=local_timezone)
+    except Exception:
+        return []
+
+    out: list[int] = []
+    for hhmm in allowed:
+        t = _parse_time_hhmm(hhmm)
+        if not t:
+            continue
+        hh, mm = t
+        ts = int(base.replace(hour=hh, minute=mm, second=0, microsecond=0).timestamp())
+        out.append(ts)
+    return sorted(set(out))
+
+
+@app.route("/api/admin/booking/update", methods=["POST"])
+def api_admin_booking_update():
+    ok, _ = _admin_or_403()
+    if not ok:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    booking_id = payload.get("booking_id")
+    date_str = (payload.get("date") or "").strip()
+    time_str = (payload.get("time") or "").strip()
+    service_ids = payload.get("service_ids") or []
+
+    try:
+        booking_id = int(booking_id)
+    except Exception:
+        return jsonify({"ok": False, "error": "booking_id_required"}), 400
+
+    if not date_str:
+        return jsonify({"ok": False, "error": "date_required"}), 400
+    hhmm = _parse_time_hhmm(time_str)
+    if not hhmm:
+        return jsonify({"ok": False, "error": "time_required"}), 400
+
+    try:
+        service_ids = [int(x) for x in service_ids]
+    except Exception:
+        service_ids = []
+
+    chosen, total_price, total_minutes = _sum_services(service_ids)
+    if not chosen:
+        return jsonify({"ok": False, "error": "services_required"}), 400
+
+    # Build start/end in Moscow TZ to keep consistency
+    from telegram_bot.env import local_timezone
+
+    hh, mm = hhmm
+    try:
+        base = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=local_timezone)
+    except Exception:
+        return jsonify({"ok": False, "error": "date_invalid"}), 400
+
+    start_ts = base.replace(hour=hh, minute=mm, second=0, microsecond=0).timestamp()
+    end_ts = start_ts + max(15, int(total_minutes)) * 60
+
+    work_start, work_end = _work_bounds(date_str)
+    if start_ts < work_start or end_ts > work_end:
+        return jsonify({"ok": False, "error": "outside_work_hours"}), 400
+
+    # Валидация по расписанию (строго): админ не может поставить время,
+    # которое не выбрано в доступности услуги(услуг) на эту дату.
+    allowed = set(_allowed_start_ts_for_services(date_str, service_ids))
+    if int(start_ts) not in allowed:
+        return jsonify({"ok": False, "error": "slot_not_allowed"}), 409
+
+    old = asyncio.run(db.get_booking_by_id(booking_id))
+    if not old:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+
+    # Conflict check (exclude current booking)
+    conflicts = asyncio.run(db.get_bookings_in_range(start_ts, end_ts)) or []
+    for c in conflicts:
+        try:
+            if int(c.get("id")) == int(booking_id):
+                continue
+        except Exception:
+            pass
+        return jsonify({"ok": False, "error": "slot_busy"}), 409
+
+    updated = asyncio.run(
+        db.reschedule_booking_admin(
+            booking_id=booking_id,
+            start_ts=start_ts,
+            end_ts=end_ts,
+            services=chosen,
+            total_price=total_price,
+        )
+    )
+    if not updated:
+        return jsonify({"ok": False, "error": "update_failed"}), 500
+
+    updated = dict(updated)
+
+    # Notify user
+    try:
+        user_id = int(updated.get("user_id"))
+        old_dt = _format_dt(float(old.get("start_ts") or 0))
+        new_dt = _format_dt(float(updated.get("start_ts") or 0))
+        services_text = ", ".join([s.get("name") or "Услуга" for s in (updated.get("services") or [])])
+        msg = (
+            "🔔 Ваша запись обновлена\n"
+            f"Было: <b>{old_dt}</b>\n"
+            f"Стало: <b>{new_dt}</b>\n"
+            f"Услуги: {services_text}\n\n"
+            "Извините за неудобства, если они возникли 🙏"
+        )
+        _send_bot_message(user_id, msg)
+    except Exception:
+        pass
+
+    return jsonify({"ok": True, "booking": updated})
+
+
+@app.route("/api/admin/services/add", methods=["POST"])
+def api_admin_services_add():
+    ok, _ = _admin_or_403()
+    if not ok:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    description = (payload.get("description") or "").strip()
+    duration_min = payload.get("duration_min")
+    price = payload.get("price")
+
+    if not name:
+        return jsonify({"ok": False, "error": "name_required"}), 400
+    try:
+        duration_min = int(duration_min)
+        price = int(price)
+    except Exception:
+        return jsonify({"ok": False, "error": "invalid_numbers"}), 400
+    if duration_min < 15:
+        return jsonify({"ok": False, "error": "duration_too_small"}), 400
+    if price < 0:
+        return jsonify({"ok": False, "error": "price_invalid"}), 400
+
+    base_max = 0
+    try:
+        base_max = max(int(s.get("id")) for s in BOOKING_SERVICES)
+    except Exception:
+        base_max = 0
+    custom_max = 0
+    try:
+        custom_max = asyncio.run(db.get_custom_services_max_id())
+    except Exception:
+        custom_max = 0
+
+    new_id = max(base_max, custom_max) + 1
+    created = asyncio.run(
+        db.add_custom_booking_service(
+            service_id=new_id,
+            name=name,
+            duration_min=duration_min,
+            price=price,
+            description=description,
+        )
+    )
+    if not created:
+        return jsonify({"ok": False, "error": "create_failed"}), 500
+
+    # refresh cache
+    _get_all_services(force=True)
+    return jsonify({"ok": True, "service": dict(created)})
+
+
+@app.route("/api/admin/availability/get", methods=["POST"])
+def api_admin_availability_get():
+    ok, _ = _admin_or_403()
+    if not ok:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        service_id = int(payload.get("service_id"))
+    except Exception:
+        return jsonify({"ok": False, "error": "service_id_required"}), 400
+    date_str = (payload.get("date") or "").strip()
+    if not date_str:
+        return jsonify({"ok": False, "error": "date_required"}), 400
+
+    row = None
+    try:
+        row = asyncio.run(db.get_service_availability(service_id=service_id, date=date_str))
+    except Exception as e:
+        logger.error(f"availability get failed: {e}")
+
+    slots = []
+    if row:
+        s = row.get("slots")
+        if isinstance(s, str):
+            try:
+                s = json.loads(s)
+            except Exception:
+                s = []
+        if isinstance(s, list):
+            slots = [f"{hh:02d}:{mm:02d}" for (hh, mm) in filter(None, (_parse_time_hhmm(str(x)) for x in s))]
+
+    return jsonify({"ok": True, "service_id": service_id, "date": date_str, "slots": sorted(set(slots))})
+
+
+@app.route("/api/admin/availability/dates", methods=["POST"])
+def api_admin_availability_dates():
+    ok, _ = _admin_or_403()
+    if not ok:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        service_id = int(payload.get("service_id"))
+    except Exception:
+        return jsonify({"ok": False, "error": "service_id_required"}), 400
+
+    try:
+        dates = asyncio.run(db.list_availability_dates(service_id=service_id)) or []
+    except Exception as e:
+        logger.error(f"availability dates failed: {e}")
+        dates = []
+
+    return jsonify({"ok": True, "service_id": service_id, "dates": sorted([str(d) for d in dates if isinstance(d, str)])})
+
+
+@app.route("/api/admin/availability/set", methods=["POST"])
+def api_admin_availability_set():
+    ok, _ = _admin_or_403()
+    if not ok:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        service_id = int(payload.get("service_id"))
+    except Exception:
+        return jsonify({"ok": False, "error": "service_id_required"}), 400
+    date_str = (payload.get("date") or "").strip()
+    if not date_str:
+        return jsonify({"ok": False, "error": "date_required"}), 400
+
+    slots_in = payload.get("slots")
+    if not isinstance(slots_in, list):
+        slots_in = []
+
+    slots: list[str] = []
+    for x in slots_in:
+        t = _parse_time_hhmm(str(x))
+        if not t:
+            continue
+        hh, mm = t
+        slots.append(f"{hh:02d}:{mm:02d}")
+    slots = sorted(set(slots))
+
+    # пустой список трактуем как удаление даты
+    if not slots:
+        try:
+            asyncio.run(db.delete_service_availability(service_id=service_id, date=date_str))
+        except Exception:
+            pass
+        return jsonify({"ok": True, "service_id": service_id, "date": date_str, "slots": []})
+
+    try:
+        row = asyncio.run(db.upsert_service_availability(service_id=service_id, date=date_str, slots=slots))
+    except Exception as e:
+        logger.error(f"availability set failed: {e}")
+        return jsonify({"ok": False, "error": "server_error"}), 500
+
+    return jsonify({"ok": True, "availability": dict(row) if row else None, "slots": slots})
+
+
+@app.route("/api/admin/availability/delete", methods=["POST"])
+def api_admin_availability_delete():
+    ok, _ = _admin_or_403()
+    if not ok:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        service_id = int(payload.get("service_id"))
+    except Exception:
+        return jsonify({"ok": False, "error": "service_id_required"}), 400
+    date_str = (payload.get("date") or "").strip()
+    if not date_str:
+        return jsonify({"ok": False, "error": "date_required"}), 400
+
+    try:
+        asyncio.run(db.delete_service_availability(service_id=service_id, date=date_str))
+    except Exception as e:
+        logger.error(f"availability delete failed: {e}")
+        return jsonify({"ok": False, "error": "server_error"}), 500
+
+    return jsonify({"ok": True})
 
 
 @app.route("/api/auth/ensure_user", methods=["POST"])
@@ -300,7 +952,50 @@ def api_profile_details(telegram_id):
 
 @app.route("/api/booking/services", methods=["GET"])
 def api_booking_services():
-    return jsonify({"ok": True, "services": BOOKING_SERVICES})
+    return jsonify({"ok": True, "services": _get_all_services()})
+
+
+@app.route("/api/booking/available_dates", methods=["GET"])
+def api_booking_available_dates():
+    """Dates that are enabled by admin for selected services.
+
+    Возвращаем пересечение дат, где настроено расписание по каждой выбранной услуге.
+    """
+
+    service_ids_raw = (request.args.get("service_ids") or "").strip()
+    try:
+        service_ids = [int(x) for x in service_ids_raw.split(",") if x.strip().isdigit()]
+    except Exception:
+        service_ids = []
+
+    chosen, _, _ = _sum_services(service_ids)
+    if not chosen:
+        return jsonify({"ok": False, "error": "services_required"}), 400
+
+    # Intersection of configured dates
+    sets: list[set[str]] = []
+    for sid in service_ids:
+        try:
+            dates = asyncio.run(db.list_availability_dates(int(sid))) or []
+        except Exception:
+            dates = []
+        sets.append(set([str(d) for d in dates if isinstance(d, str)]))
+
+    if not sets:
+        return jsonify({"ok": True, "dates": []})
+
+    inter = set.intersection(*sets)
+
+    # Leave only today+ in local timezone
+    try:
+        from telegram_bot.env import local_timezone
+
+        today = datetime.now(local_timezone).strftime('%Y-%m-%d')
+    except Exception:
+        today = datetime.now().strftime('%Y-%m-%d')
+
+    dates_sorted = sorted([d for d in inter if d >= today])
+    return jsonify({"ok": True, "dates": dates_sorted})
 
 
 @app.route("/api/booking/slots", methods=["GET"])
@@ -340,10 +1035,16 @@ def api_booking_slots():
 
     step = 15 * 60
     slots = []
-    start = int(work_start)
+
+    # Строго: пользователи видят только те старты, которые выбрал администратор.
+    # Если расписание не настроено хотя бы по одной выбранной услуге — слотов нет.
+    candidates = _allowed_start_ts_for_services(date_str, service_ids)
+
     end_limit = int(work_end - duration_sec)
-    for s in range(start, end_limit + 1, step):
+    for s in sorted(set(int(x) for x in candidates)):
         if s < now_ts:
+            continue
+        if s < int(work_start) or s > end_limit:
             continue
         e = s + duration_sec
         is_free = True
@@ -353,7 +1054,15 @@ def api_booking_slots():
                 break
         if not is_free:
             continue
-        slots.append({"start_ts": float(s), "label": _format_dt(s)})
+        try:
+            # Время в таймзоне специалиста (МСК по умолчанию)
+            from telegram_bot.env import local_timezone
+
+            hhmm = datetime.fromtimestamp(float(s), local_timezone).strftime('%H:%M')
+        except Exception:
+            hhmm = ''
+
+        slots.append({"start_ts": float(s), "label": _format_dt(s), "time": hhmm})
 
     return jsonify({"ok": True, "slots": slots, "duration_min": total_minutes})
 
@@ -445,6 +1154,11 @@ def api_booking_create():
     if start_ts < work_start or end_ts > work_end:
         return jsonify({"ok": False, "error": "outside_working_hours"}), 409
 
+    # Строгое расписание: старт должен быть разрешён админом для всех выбранных услуг.
+    allowed = set(_allowed_start_ts_for_services(date_str, [int(x) for x in service_ids if str(x).isdigit()]))
+    if int(start_ts) not in allowed:
+        return jsonify({"ok": False, "error": "slot_not_allowed"}), 409
+
     try:
         conflicts = asyncio.run(db.get_bookings_in_range(start_ts, end_ts)) or []
     except Exception:
@@ -492,7 +1206,7 @@ def api_booking_create():
             f"🐾 <b>Питомцы:</b>\n{pets_text}"
         )
 
-        admin_ids = json.loads(os.environ.get("ADMIN_TELEGRAM_ID", "[]"))
+        admin_ids = admins_telegram_id
         token = os.environ.get("BOT_TOKEN")
         if token and admin_ids:
             for admin_id in admin_ids:
@@ -576,7 +1290,7 @@ def api_booking_cancel():
             f"👤 <b>Пользователь:</b> @{tg_user.get('username') or '—'}"
         )
 
-        admin_ids = json.loads(os.environ.get("ADMIN_TELEGRAM_ID", "[]"))
+        admin_ids = admins_telegram_id
         token = os.environ.get("BOT_TOKEN")
         if token and admin_ids:
             for admin_id in admin_ids:
@@ -660,6 +1374,12 @@ def api_booking_reschedule():
     if start_ts < work_start or end_ts > work_end:
         return jsonify({"ok": False, "error": "outside_working_hours"}), 409
 
+    # Строгое расписание: перенос возможен только на слоты,
+    # которые разрешены админом для всех выбранных услуг.
+    allowed = set(_allowed_start_ts_for_services(date_str, [int(x) for x in service_ids if str(x).isdigit()]))
+    if int(start_ts) not in allowed:
+        return jsonify({"ok": False, "error": "slot_not_allowed"}), 409
+
     try:
         conflicts = asyncio.run(db.get_bookings_in_range(start_ts, end_ts)) or []
     except Exception:
@@ -704,7 +1424,7 @@ def api_booking_reschedule():
             f"👤 <b>Пользователь:</b> @{tg_user.get('username') or '—'}"
         )
 
-        admin_ids = json.loads(os.environ.get("ADMIN_TELEGRAM_ID", "[]"))
+        admin_ids = admins_telegram_id
         token = os.environ.get("BOT_TOKEN")
         if token and admin_ids:
             for admin_id in admin_ids:
@@ -876,12 +1596,10 @@ async def handle_survey_data():
             return jsonify({"ok": False, "error": "BOT_TOKEN not configured"})
 
         # Получаем список администраторов
-        try:
-            admin_ids = list(json.loads(os.environ['ADMIN_TELEGRAM_ID']))
-            logger.info(f"Отправка администраторам: {admin_ids}")
-        except Exception as e:
-            logger.error(f"Ошибка парсинга ADMIN_TELEGRAM_ID: {e}")
-            return jsonify({"ok": False, "error": "Ошибка в конфигурации администраторов"})
+        admin_ids = admins_telegram_id
+        logger.info(f"Отправка администраторам: {admin_ids}")
+        if not admin_ids:
+            return jsonify({"ok": False, "error": "Администраторы не настроены"})
 
         # Отправляем сообщение всем администраторам
         success_count = 0
