@@ -173,7 +173,7 @@
     const BOOKING_STEP_MIN = 30;
     const WORK_START_H = 10;
     const WORK_END_H = 21;
-    const MAX_QUICK_DATES = 20;
+    const MAX_QUICK_DATES = 12;
     const BOOKING_HORIZON_DAYS = 30;
 
     function buildDefaultTimes() {
@@ -193,7 +193,8 @@
         // isoDate: YYYY-MM-DD
         const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(isoDate || ''));
         if (!m) return String(isoDate || '');
-        return `${m[3]}-${m[2]}-${m[1]}`;
+        // DD.MM.YYYY
+        return `${m[3]}.${m[2]}.${m[1]}`;
     }
 
     function todayISO() {
