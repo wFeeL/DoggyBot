@@ -596,6 +596,32 @@ def _format_booking_services(services: list[dict] | None) -> str:
     return "\n".join(lines)
 
 
+def _format_booking_services_inline(services: list[dict] | None) -> str:
+    """Список услуг в одну строку (для единообразных уведомлений)."""
+    if not services:
+        return "—"
+    names: list[str] = []
+    for srv in services:
+        if not isinstance(srv, dict):
+            continue
+        name = (srv.get("name") or "").strip() or "Услуга"
+        names.append(name)
+    return ", ".join(names) if names else "—"
+
+
+def _format_booking_message(title: str, lines: list[str], tail: str | None = None) -> str:
+    """Единый формат сообщений об онлайн-записях.
+
+    title: строка уже с эмодзи и HTML-тегами (<b>..</b>)
+    lines: строки вида "• <b>Лейбл</b>: значение"
+    """
+    body = "\n".join([l for l in lines if l]).strip()
+    msg = f"{title}\n{body}" if body else title
+    if tail:
+        msg = f"{msg}\n\n{tail.strip()}"
+    return msg
+
+
 async def _mark_booking_notifications(booking_id: int, **flags) -> None:
     allowed = {"reminder_24_sent", "reminder_3_sent", "followup_sent"}
     updates = [f"{k} = {'TRUE' if v else 'FALSE'}" for k, v in flags.items() if k in allowed]
@@ -630,7 +656,7 @@ async def check_booking_reminders() -> None:
     for booking in bookings:
         start_ts = float(booking.get("start_ts") or 0)
         time_to_start = start_ts - now_ts
-        services_text = _format_booking_services(booking.get("services"))
+        services_text = _format_booking_services_inline(booking.get("services"))
         user_id = booking.get("user_id")
         booking_id = booking.get("id")
 
@@ -638,24 +664,29 @@ async def check_booking_reminders() -> None:
             continue
 
         if (
-                not booking.get("reminder_24_sent")
-                and 24 * 3600 >= time_to_start > 3 * 3600
+            not booking.get("reminder_24_sent")
+            and time_to_start <= 24 * 3600
+            and time_to_start > 3 * 3600
         ):
-            text = (
-                "⏰ <b>Напоминание о занятии через 24 часа<b>\n"
-                f"• <b>Дата и время</b>: {_format_booking_dt(start_ts)}\n"
-                f"• <b>Услуги</b>: {services_text}\n\n"
-                f"{preparation}"
+            text = _format_booking_message(
+                "⏰ <b>Напоминание о занятии через 24 часа</b>",
+                [
+                    f"• <b>Дата и время</b>: {_format_booking_dt(start_ts)}",
+                    f"• <b>Услуги</b>: {services_text}",
+                ],
+                tail=preparation,
             )
             await bot.send_message(chat_id=user_id, text=text)
             await _mark_booking_notifications(booking_id, reminder_24_sent=True)
 
         if not booking.get("reminder_3_sent") and 0 < time_to_start <= 3 * 3600:
-            text = (
-                "⏰ <b>Напоминание: занятие через 3 часа</b>\n"
-                f"• <b>Дата и время</b>: {_format_booking_dt(start_ts)}\n"
-                f"• <b>Услуги</b>: {services_text}\n\n"
-                f"{preparation}"
+            text = _format_booking_message(
+                "⏰ <b>Напоминание: занятие через 3 часа</b>",
+                [
+                    f"• <b>Дата и время</b>: {_format_booking_dt(start_ts)}",
+                    f"• <b>Услуги</b>: {services_text}",
+                ],
+                tail=preparation,
             )
             await bot.send_message(chat_id=user_id, text=text)
             await _mark_booking_notifications(booking_id, reminder_3_sent=True)
@@ -665,9 +696,12 @@ async def check_booking_reminders() -> None:
             and start_ts > 0
             and 6 * 24 * 3600 <= now_ts - start_ts <= 7 * 24 * 3600
         ):
-            text = (
-                "Спасибо, что были на занятии! Прошло 6 дней — самое время закрепить результат.\n"
-                f"Запишитесь на следующее занятие: {followup_link}"
+            text = _format_booking_message(
+                "✅ <b>Спасибо, что были на занятии!</b>",
+                [
+                    "• <b>Прошло 6 дней</b>: самое время закрепить результат",
+                    f"• <b>Записаться снова</b>: {followup_link}",
+                ],
             )
             await bot.send_message(chat_id=user_id, text=text)
             await _mark_booking_notifications(booking_id, followup_sent=True)

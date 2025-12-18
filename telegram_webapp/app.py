@@ -70,6 +70,43 @@ def _format_dt(ts: float) -> str:
         return datetime.fromtimestamp(float(ts)).strftime('%d.%m.%Y %H:%M')
 
 
+def _fmt_services_inline(services) -> str:
+    """Услуги в одну строку (без лишних переносов), для bullet-формата."""
+    if not services:
+        return "—"
+
+    if isinstance(services, str):
+        try:
+            services = json.loads(services)
+        except Exception:
+            services = []
+
+    if isinstance(services, list):
+        names: list[str] = []
+        for s in services:
+            if isinstance(s, dict):
+                name = (s.get("name") or "").strip()
+                if name:
+                    names.append(name)
+        return ", ".join(names) if names else "—"
+
+    return "—"
+
+
+def _fmt_booking_message(title: str, lines: list[str], tail: str | None = None) -> str:
+    """Единый формат сообщений об онлайн-записях.
+
+    title: строка уже с эмодзи и HTML-тегами (<b>..</b>)
+    lines: строки вида "• <b>Лейбл</b>: значение"
+    """
+
+    body = "\n".join(lines).strip()
+    msg = f"{title}\n{body}" if body else title
+    if tail:
+        msg = f"{msg}\n\n{tail.strip()}"
+    return msg
+
+
 def _sum_services(service_ids: list[int]) -> tuple[list[dict], int, int]:
     by_id = {int(s["id"]): s for s in _get_all_services()}
     chosen = []
@@ -532,22 +569,17 @@ def api_admin_booking_cancel():
     user_id = cancelled.get("user_id")
     dt_label = _format_dt(float(cancelled.get("start_ts") or 0))
 
-    services = cancelled.get("services") or []
-    if isinstance(services, str):
-        try:
-            services = json.loads(services)
-        except Exception:
-            services = []
-    services = services if isinstance(services, list) else []
-    services_lines = "\n".join([f"• {(s.get('name') or 'Услуга')}" for s in services if isinstance(s, dict)]) or "—"
+    services_text = _fmt_services_inline(cancelled.get("services"))
 
-    msg = (
-        "❌ <b>Запись отменена</b>\n\n"
-        f"👩‍⚕️ <b>Специалист:</b> {BOOKING_PROFILE.get('specialist')}\n"
-        f"🕒 <b>Дата/время:</b> {dt_label}\n"
-        f"🧾 <b>Услуги:</b>\n{services_lines}\n\n"
-        f"<b>Причина:</b> {reason}\n\n"
-        "Приносим извинения за доставленные неудобства 🙏"
+    msg = _fmt_booking_message(
+        "❌ <b>Запись отменена</b>",
+        [
+            f"• <b>Специалист</b>: {BOOKING_PROFILE.get('specialist')}",
+            f"• <b>Дата и время</b>: {dt_label}",
+            f"• <b>Услуги</b>: {services_text}",
+            f"• <b>Причина</b>: {reason}",
+        ],
+        tail="Приносим извинения за доставленные неудобства 🙏",
     )
     try:
         if user_id is not None:
@@ -763,13 +795,15 @@ def api_admin_booking_update():
         user_id = int(updated.get("user_id"))
         old_dt = _format_dt(float(old.get("start_ts") or 0))
         new_dt = _format_dt(float(updated.get("start_ts") or 0))
-        services_text = ", ".join([s.get("name") or "Услуга" for s in (updated.get("services") or [])])
-        msg = (
-            "🔔 Ваша запись обновлена\n"
-            f"Было: <b>{old_dt}</b>\n"
-            f"Стало: <b>{new_dt}</b>\n"
-            f"Услуги: {services_text}\n\n"
-            "Извините за неудобства, если они возникли 🙏"
+        services_text = _fmt_services_inline(updated.get("services"))
+        msg = _fmt_booking_message(
+            "🔔 <b>Запись обновлена</b>",
+            [
+                f"• <b>Было</b>: {old_dt}",
+                f"• <b>Стало</b>: {new_dt}",
+                f"• <b>Услуги</b>: {services_text}",
+            ],
+            tail="Приносим извинения за доставленные неудобства 🙏",
         )
         _send_bot_message(user_id, msg)
     except Exception:
