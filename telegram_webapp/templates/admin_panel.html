@@ -47,7 +47,8 @@
                     </label>
                     <label class="field">
                         <span class="muted">Дата</span>
-                        <input id="avail-date" type="date" class="input" />
+                        <!-- iOS date input sometimes overflows in Telegram WebView; use select for стабильной вёрстки -->
+                        <select id="avail-date" class="input"></select>
                     </label>
 
                     <div>

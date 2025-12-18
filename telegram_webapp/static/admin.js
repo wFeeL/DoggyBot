@@ -37,11 +37,39 @@
             .replace(/'/g, '&#039;');
     }
 
+    // --- scroll lock for iOS/WebView ---
+    let _scrollLockY = 0;
+
+    function lockBodyScroll() {
+        // If already locked - do nothing
+        if (document.body.classList.contains('modal-open')) return;
+        _scrollLockY = window.scrollY || window.pageYOffset || 0;
+        document.body.classList.add('modal-open');
+        // position:fixed is the most reliable way to prevent background scroll on iOS
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${_scrollLockY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.width = '100%';
+    }
+
+    function unlockBodyScroll() {
+        if (!document.body.classList.contains('modal-open')) return;
+        document.body.classList.remove('modal-open');
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.width = '';
+        window.scrollTo(0, _scrollLockY);
+    }
+
     function showModal(id) {
         const m = document.getElementById(id);
         if (!m) return;
         m.classList.add('is-open');
         m.setAttribute('aria-hidden', 'false');
+        lockBodyScroll();
     }
 
     function hideModal(id) {
@@ -49,6 +77,10 @@
         if (!m) return;
         m.classList.remove('is-open');
         m.setAttribute('aria-hidden', 'true');
+        // unlock only when all modals are closed
+        if (!document.querySelector('.modal.is-open')) {
+            unlockBodyScroll();
+        }
     }
 
     function wireCloseButtons() {
@@ -178,6 +210,25 @@
         const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
         d.setDate(d.getDate() + Number(days || 0));
         return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    }
+
+    function populateAvailDateSelect(selectEl, activeDate) {
+        if (!selectEl) return;
+        selectEl.innerHTML = '';
+
+        const base = todayISO();
+        const list = [];
+        for (let i = 0; i < BOOKING_HORIZON_DAYS; i++) list.push(addDaysISO(base, i));
+
+        list.forEach((d) => {
+            const opt = document.createElement('option');
+            opt.value = d; // ISO
+            opt.textContent = formatDDMMYYYY(d);
+            selectEl.appendChild(opt);
+        });
+
+        const v = activeDate || selectEl.value || base;
+        selectEl.value = v;
     }
 
     async function loadServicesCatalog() {
@@ -691,10 +742,7 @@
 
             const dEl = document.getElementById('avail-date');
             if (dEl) {
-                const today = new Date().toLocaleDateString('en-CA');
-                dEl.min = today;
-                dEl.max = addDaysISO(todayISO(), BOOKING_HORIZON_DAYS);
-                if (!dEl.value) dEl.value = today;
+                populateAvailDateSelect(dEl, todayISO());
             }
 
             renderTimeGrid();

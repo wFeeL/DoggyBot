@@ -623,7 +623,7 @@ async def check_booking_reminders() -> None:
     bookings = await create_request(sql, is_multiple=True) or []
 
     preparation = (
-        "Важно: собака на занятии должна быть голодной. Приготовьте корм/лакомство, привычную амуницию и любимую игрушку."
+        "<b>Важно</b>: собака на занятии должна быть голодной. Приготовьте корм/лакомство, привычную амуницию и любимую игрушку."
     )
     followup_link = "https://t.me/DoggyLogy_bot/booking"
 
@@ -638,14 +638,13 @@ async def check_booking_reminders() -> None:
             continue
 
         if (
-            not booking.get("reminder_24_sent")
-            and time_to_start <= 24 * 3600
-            and time_to_start > 3 * 3600
+                not booking.get("reminder_24_sent")
+                and 24 * 3600 >= time_to_start > 3 * 3600
         ):
             text = (
-                "⏰ Напоминание о занятии через 24 часа\n"
-                f"• Дата и время: {_format_booking_dt(start_ts)}\n"
-                f"• Услуги: {services_text}\n\n"
+                "⏰ <b>Напоминание о занятии через 24 часа<b>\n"
+                f"• <b>Дата и время</b>: {_format_booking_dt(start_ts)}\n"
+                f"• <b>Услуги</b>: {services_text}\n\n"
                 f"{preparation}"
             )
             await bot.send_message(chat_id=user_id, text=text)
@@ -653,9 +652,9 @@ async def check_booking_reminders() -> None:
 
         if not booking.get("reminder_3_sent") and 0 < time_to_start <= 3 * 3600:
             text = (
-                "⏰ Напоминание: занятие через 3 часа\n"
-                f"• Дата и время: {_format_booking_dt(start_ts)}\n"
-                f"• Услуги: {services_text}\n\n"
+                "⏰ <b>Напоминание: занятие через 3 часа</b>\n"
+                f"• <b>Дата и время</b>: {_format_booking_dt(start_ts)}\n"
+                f"• <b>Услуги</b>: {services_text}\n\n"
                 f"{preparation}"
             )
             await bot.send_message(chat_id=user_id, text=text)

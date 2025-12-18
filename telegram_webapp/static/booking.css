@@ -446,6 +446,12 @@ input {
     display: flex;
 }
 
+/* prevent background scrolling when modal is open (Telegram/iOS) */
+body.modal-open {
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
 .sheet {
     width: 100%;
     max-width: 680px;
@@ -453,6 +459,10 @@ input {
     border-radius: 22px;
     padding: 18px;
     box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+    /* allow scrolling inside sheet instead of the page behind it */
+    max-height: calc(100vh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .sheet h3 {
@@ -678,10 +688,19 @@ code {
     min-width: 0;
 }
 
-.chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+/* Make quick dates look consistent on different devices (no odd single column) */
+#availability-content .chips {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+@media (max-width: 420px) {
+    #availability-content .chips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 720px) {
+    #availability-content .chips { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 .chip {
@@ -692,6 +711,26 @@ code {
     font-size: 0.95rem;
     cursor: pointer;
     transition: transform .15s ease, box-shadow .15s ease;
+}
+
+#availability-content .chip {
+    width: 100%;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* iOS date inputs sometimes overflow their container */
+#availability-content .field {
+    overflow: hidden;
+}
+
+#availability-content input[type="date"] {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .chip:hover {
