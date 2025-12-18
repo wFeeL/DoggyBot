@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='booking.css') }}" />
+    <title>Админ-панель — DoggyLogy</title>
+</head>
+<body data-page="admin-panel">
+    <div id="tg-required" class="tg-required" style="display:none">
+        Эта страница работает в Telegram Mini App.
+    </div>
+
+    <div class="container">
+        <div class="topbar">
+            <div class="brand">
+                <div class="brand-title">🐾 DoggyLogy</div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center">
+                <a class="pill" href="/booking">← Запись</a>
+                <a class="pill" href="/client">👤 Профиль</a>
+            </div>
+        </div>
+
+        <div class="stack">
+            <div class="card" id="admin-guard" style="display:none">
+                <div class="section-title">
+                    <h2>⛔ Доступ запрещён</h2>
+                </div>
+                <p class="muted">Эта страница доступна только администраторам.</p>
+            </div>
+
+            <div class="card" id="availability-content" style="display:none">
+                <div class="section-title">
+                    <h2>🗓️ Доступные даты и время</h2>
+                </div>
+                <p class="muted">
+                    Здесь вы выбираете, какие <b>даты</b> и <b>стартовые времена</b> доступны для записи на конкретную услугу.
+                    Пользователи увидят <b>только выбранные</b> варианты.
+                </p>
+
+                <div class="stack" style="gap:10px;margin-top:10px">
+                    <label class="field">
+                        <span class="muted">Услуга</span>
+                        <select id="avail-service" class="input"></select>
+                    </label>
+                    <label class="field">
+                        <span class="muted">Дата</span>
+                        <input id="avail-date" type="date" class="input" />
+                    </label>
+
+                    <div>
+                        <div class="muted" style="margin-bottom:8px">Быстрые даты</div>
+                        <div id="avail-dates-chips" class="chips"></div>
+                    </div>
+
+                    <div>
+                        <div class="muted" style="margin-bottom:8px">Доступные старты (нажмите, чтобы включить/выключить)</div>
+                        <div id="avail-grid" class="time-grid"></div>
+                    </div>
+
+                    <div class="sheet-actions" style="margin-top:8px">
+                        <button class="btn" type="button" id="avail-select-all">Выбрать всё</button>
+                        <button class="btn" type="button" id="avail-clear">Очистить</button>
+                        <button class="btn" type="button" id="avail-delete">Удалить дату</button>
+                        <button class="btn btn-primary" type="button" id="avail-save">💾 Сохранить</button>
+                    </div>
+
+                    <div id="avail-status" class="muted" style="display:none"></div>
+                </div>
+            </div>
+
+            <div class="card" id="admin-content" style="display:none">
+                <div class="section-title">
+                    <h2>📋 Будущие записи</h2>
+                    <button class="pill" type="button" id="refresh-bookings">Обновить</button>
+                </div>
+                <div id="bookings-root" class="service-list" style="margin-top:12px"></div>
+                <div id="bookings-empty" class="muted" style="display:none;margin-top:10px">Будущих записей нет.</div>
+            </div>
+
+            <div class="card" id="services-content" style="display:none">
+                <div class="section-title">
+                    <h2>➕ Добавить услугу</h2>
+                </div>
+                <div class="stack" style="gap:10px">
+                    <label class="field">
+                        <span class="muted">Название</span>
+                        <input id="new-service-name" class="input" type="text" placeholder="Например: Консультация" />
+                    </label>
+                    <label class="field">
+                        <span class="muted">Описание (необязательно)</span>
+                        <input id="new-service-desc" class="input" type="text" placeholder="Коротко о сути услуги" />
+                    </label>
+                    <div style="display:flex;gap:10px">
+                        <label class="field" style="flex:1">
+                            <span class="muted">Длительность (мин)</span>
+                            <input id="new-service-duration" class="input" type="number" min="15" step="5" value="60" />
+                        </label>
+                        <label class="field" style="flex:1">
+                            <span class="muted">Цена (₽)</span>
+                            <input id="new-service-price" class="input" type="number" min="0" step="50" value="0" />
+                        </label>
+                    </div>
+                    <button class="btn btn-primary" type="button" id="add-service-btn">Добавить услугу</button>
+                    <div id="add-service-status" class="muted" style="display:none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking details modal -->
+    <div id="booking-modal" class="modal" aria-hidden="true">
+        <div class="sheet" role="dialog" aria-modal="true">
+            <h3 id="booking-modal-title">Запись</h3>
+            <div id="booking-modal-body" class="muted" style="margin-top:10px"></div>
+
+            <div class="stack" id="booking-edit-block" style="gap:10px;margin-top:12px;display:none">
+                <label class="field">
+                    <span class="muted">Новая дата</span>
+                    <input id="edit-date" class="input" type="date" />
+                </label>
+                <label class="field">
+                    <span class="muted">Новое время</span>
+                    <select id="edit-time" class="input"></select>
+                </label>
+                <div>
+                    <div class="muted" style="margin-bottom:6px">Услуги</div>
+                    <div id="edit-services" class="service-list"></div>
+                </div>
+            </div>
+
+            <div class="sheet-actions" style="margin-top:14px">
+                <button class="btn" type="button" id="toggle-edit">✏️ Редактировать</button>
+                <button class="btn" type="button" id="cancel-booking">❌ Отменить</button>
+                <button class="btn btn-primary" type="button" id="save-booking" style="display:none">💾 Сохранить</button>
+                <button class="btn" type="button" data-close>Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cancel reason modal -->
+    <div id="cancel-modal" class="modal" aria-hidden="true">
+        <div class="sheet" role="dialog" aria-modal="true">
+            <h3>Причина отмены</h3>
+            <p class="muted">Пользователю придёт сообщение с причиной. Пожалуйста, будьте вежливы и извинитесь за неудобства.</p>
+            <label class="field" style="margin-top:10px">
+                <span class="muted">Текст причины</span>
+                <input id="cancel-reason" class="input" type="text" placeholder="Например: форс-мажор по расписанию" />
+            </label>
+            <div class="sheet-actions" style="margin-top:14px">
+                <button class="btn btn-primary" type="button" id="confirm-cancel">Отменить запись</button>
+                <button class="btn" type="button" data-close>Назад</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='admin.js') }}"></script>
+</body>
+</html>
