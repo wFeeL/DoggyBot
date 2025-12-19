@@ -174,7 +174,7 @@ async def handle_consultation(callback: CallbackQuery, callback_data: str = None
 
     elif callback_data[1] == 'zoo':
         media_group = await get_media_group(path=f"{img_path}/consultations/zoo/",
-                                            first_message_text=text_message.CONSULTATION_ZOO, photos_end=5)
+                                            first_message_text=text_message.CONSULTATION_ZOO, photos_end=6)
         media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
         media_group_id, media_group_len = media_group[0].message_id, len(media_group)
         markup = inline_markup.get_back_consultation_keyboard(media_group=(media_group_id, media_group_len), pet='dog')
