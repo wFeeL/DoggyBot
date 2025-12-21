@@ -266,8 +266,34 @@ def get_admin_menu_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="📝 Анкеты", callback_data="admin:forms:1")],
         [InlineKeyboardButton(text="👥 Пользователи", callback_data="admin:users:1")],
         [InlineKeyboardButton(text="👮‍ Администраторы", callback_data="admin:admins:1")],
+        [InlineKeyboardButton(text="📣 Рассылка", callback_data="admin:broadcast")],
         [InlineKeyboardButton(text="🔎 Поиск анкеты", callback_data="admin:search")],
         get_menu_button()])
+
+
+def get_broadcast_cancel_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="broadcast:cancel")],
+    ])
+
+
+def get_broadcast_photos_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="➡️ Далее", callback_data="broadcast:photos_done"),
+            InlineKeyboardButton(text="⏭ Пропустить", callback_data="broadcast:skip_photos"),
+        ],
+        [InlineKeyboardButton(text="❌ Отмена", callback_data="broadcast:cancel")],
+    ])
+
+
+def get_broadcast_confirm_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Отправить", callback_data="broadcast:send"),
+            InlineKeyboardButton(text="❌ Отмена", callback_data="broadcast:cancel"),
+        ]
+    ])
 
 
 def get_back_admin_menu_keyboard() -> InlineKeyboardMarkup:

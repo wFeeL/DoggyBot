@@ -11,7 +11,7 @@ from telegram_bot.handler import message
 from telegram_bot.helper import get_media_group, get_photo_id, is_valid_json
 from telegram_bot.keyboards import inline_markup
 from telegram_bot.keyboards.inline_markup import get_consultation_keyboard
-from telegram_bot.states import treatment_calendar, edit_task
+from telegram_bot.states import treatment_calendar, edit_task, broadcast
 
 router = Router()
 
@@ -93,19 +93,36 @@ async def handle_form_request(callback: CallbackQuery) -> None:
 
 
 @router.callback_query(lambda call: call.data.startswith('admin:'))
-async def handle_admin_users(callback: CallbackQuery) -> None:
+async def handle_admin_users(callback: CallbackQuery, state: FSMContext) -> None:
+    # защита: админские разделы доступны только пользователям уровня 2
+    user = await db.get_users(user_id=callback.from_user.id)
+    if user is None:
+        await db.add_user(callback.from_user.id, callback.from_user.username, callback.from_user.first_name, callback.from_user.last_name)
+        user = await db.get_users(user_id=callback.from_user.id)
+    if not user or user.get("level") != 2:
+        return
+
     await callback.message.delete()
     callback_data = callback.data.split(":")
     page = int(callback_data[2]) if len(callback_data) > 2 else 1
     if callback_data[1] == 'users':
-        await callback.message.answer(text=text_message.USERS_TEXT,
-                                      reply_markup=await inline_markup.get_users_keyboard(page=page))
+        await callback.message.answer(
+            text=text_message.USERS_TEXT,
+            reply_markup=await inline_markup.get_users_keyboard(page=page)
+        )
     elif callback_data[1] == 'admins':
-        await callback.message.answer(text=text_message.ADMINS_TEXT,
-                                      reply_markup=await inline_markup.get_users_keyboard(page=page, is_admin=True))
+        await callback.message.answer(
+            text=text_message.ADMINS_TEXT,
+            reply_markup=await inline_markup.get_users_keyboard(page=page, is_admin=True)
+        )
     elif callback_data[1] == 'forms':
-        await callback.message.answer(text=text_message.LIST_OF_FORMS,
-                                      reply_markup=await inline_markup.get_users_keyboard(page=page, is_have_forms=True))
+        await callback.message.answer(
+            text=text_message.LIST_OF_FORMS,
+            reply_markup=await inline_markup.get_users_keyboard(page=page, is_have_forms=True)
+        )
+    elif callback_data[1] == 'broadcast':
+        # запуск FSM рассылки
+        await broadcast.start_broadcast(callback.message, state)
 
 
 @router.callback_query(lambda call: call.data.startswith('choose_'))
@@ -174,7 +191,7 @@ async def handle_consultation(callback: CallbackQuery, callback_data: str = None
 
     elif callback_data[1] == 'zoo':
         media_group = await get_media_group(path=f"{img_path}/consultations/zoo/",
-                                            first_message_text=text_message.CONSULTATION_ZOO, photos_end=6)
+                                            first_message_text=text_message.CONSULTATION_ZOO, photos_end=5)
         media_group = await bot.send_media_group(chat_id=callback.message.chat.id, media=media_group)
         media_group_id, media_group_len = media_group[0].message_id, len(media_group)
         markup = inline_markup.get_back_consultation_keyboard(media_group=(media_group_id, media_group_len), pet='dog')
