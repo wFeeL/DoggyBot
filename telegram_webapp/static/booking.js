@@ -497,6 +497,30 @@
         const promo = document.getElementById('promo');
         const nextBtn = document.getElementById('next-btn');
 
+        // Contextual placeholder based on selected service type
+        try {
+            const data = await api('/api/booking/services');
+            const services = Array.isArray(data && data.services) ? data.services : [];
+            const byId = new Map(services.map((s) => [Number(s.id), s]));
+            const chosen = (state.service_ids || []).map((id) => byId.get(Number(id))).filter(Boolean);
+            const names = chosen.map((s) => String(s.name || '').toLowerCase());
+
+            let ph = 'Например: питомец боится воды, важна бережная адаптация';
+            if (names.some((n) => n.includes('заводчик'))) {
+                ph = 'Укажите адрес, где находится щенок, которого хочется посмотреть';
+            } else if (names.some((n) => n.includes('онлайн') || n.includes('online'))) {
+                ph = 'Укажите через какую платформу удобно созвониться и над чем хочется поработать';
+            } else if (names.some((n) => n.includes('выезд'))) {
+                ph = 'Укажите адрес и над чем хочется поработать';
+            }
+
+            if (comment && !String(comment.value || '').trim()) {
+                comment.placeholder = ph;
+            }
+        } catch (e) {
+            // ignore
+        }
+
         if (comment) comment.value = state.comment || '';
         if (promo) promo.value = state.promo_code || '';
 
