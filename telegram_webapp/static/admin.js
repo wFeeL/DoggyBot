@@ -12,9 +12,12 @@
     }
 
     async function api(url, options) {
+        const initData = tg ? (tg.initData || '') : '';
+        const baseHeaders = { 'Content-Type': 'application/json' };
+        if (initData) baseHeaders['X-Tg-Init-Data'] = initData;
         const res = await fetch(url, Object.assign(
             {
-                headers: Object.assign({ 'Content-Type': 'application/json' }, (options && options.headers) || {}),
+                headers: Object.assign(baseHeaders, (options && options.headers) || {}),
             },
             options || {}
         ));

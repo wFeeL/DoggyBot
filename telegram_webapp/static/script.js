@@ -35,7 +35,10 @@ async function loadUserData() {
     if (!userId) return null;
 
     try {
-        const response = await fetch(`/get_user_data/${userId}`);
+        const initData = window.Telegram?.WebApp?.initData || '';
+        const response = await fetch(`/get_user_data/${userId}`, {
+            headers: initData ? { 'X-Tg-Init-Data': initData } : {},
+        });
         return await response.json()
     } catch (error) {
         console.error("Ошибка загрузки данных:", error);
@@ -125,7 +128,8 @@ function submitForm() {
         fetch('/webapp_data', {
             method: "POST",
             headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                ...(initData ? { 'X-Tg-Init-Data': initData } : {})
             },
             body: JSON.stringify({
                 initData: initData,

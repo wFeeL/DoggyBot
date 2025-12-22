@@ -17,6 +17,17 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
+def _escape_sql_text(value: str | None) -> str:
+    """Минимальное экранирование текста для SQL.
+
+    В проекте много SQL собирается через f-строки. Самое безопасное —
+    параметризованные запросы, но как минимальный фикс экранируем
+    одиночные кавычки, чтобы не ломались запросы на реальных данных.
+    """
+
+    return (value or "").replace("'", "''")
+
+
 def generate_promocode():
     return "DL" + ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(6))
 
@@ -34,10 +45,15 @@ def create_condition(args: dict, exception=None) -> str | None:
         exception = []
     if not list(args.values()) == [None] * len(args):
         args_list = list(filter(lambda elem: args[elem] is not None, args))
-        condition = 'WHERE ' + ' AND '.join(list(map(
-            lambda elem: f"{elem} = '{args[elem]}'" if elem not in exception else "'{%s}' <@ %s" % (args[elem], elem),
-            args_list))
-        )
+        def _fmt(elem: str) -> str:
+            val = args[elem]
+            if elem in exception:
+                return "'{%s}' <@ %s" % (val, elem)
+            if isinstance(val, str):
+                return f"{elem} = '{_escape_sql_text(val)}'"
+            return f"{elem} = {val}"
+
+        condition = 'WHERE ' + ' AND '.join([_fmt(elem) for elem in args_list])
         return condition
     return ''
 
@@ -50,36 +66,55 @@ def create_connection():
             "keepalives_idle": 30,
             "keepalives_interval": 5,
             "keepalives_count": 5,
+            "connect_timeout": 5,
         }
         connection = psycopg2.connect(str(pg_dsn), **keepalive_kwargs)
         return connection
 
     except psycopg2.Error as error:
-        print(f"Error with connection to database {error}")
+        logger.exception(f"Error with connection to database: {error}")
         return None
 
 
 # Return database data from sql request
-async def create_request(sql_query: str, is_return: bool = True, is_multiple: bool = True) -> list[dict[Any, Any]] | \
-                                                                                              dict[Any, Any] | None:
+async def create_request(
+        sql_query: str,
+        params: tuple | list | dict | None = None,
+        is_return: bool = True,
+        is_multiple: bool = True,
+) -> list[dict[Any, Any]] | dict[Any, Any] | None:
     conn = create_connection()
+    if conn is None:
+        logger.error("DB connection is None; query skipped")
+        return None
+
     try:
         with conn:
             with conn.cursor() as cur:
-                cur.execute(sql_query)
-                if is_return:
-                    if is_multiple:
-                        return get_dict_fetch(cur, cur.fetchall())
-                    else:
-                        row = cur.fetchone()
-                        if row is None:
-                            return None
-                        return get_dict_fetch(cur, [row])[0]
+                if params is None:
+                    cur.execute(sql_query)
                 else:
-                    conn.commit()
-    except Exception as e:
-        print(f"Error fetching sql request data from database: {e}")
-    return None
+                    cur.execute(sql_query, params)
+
+                if not is_return:
+                    # conn context manager will commit/rollback appropriately
+                    return None
+
+                if is_multiple:
+                    return get_dict_fetch(cur, cur.fetchall())
+
+                row = cur.fetchone()
+                if row is None:
+                    return None
+                return get_dict_fetch(cur, [row])[0]
+    except Exception:
+        logger.exception("Error fetching sql request data from database")
+        return None
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 async def get_users(
@@ -119,8 +154,10 @@ async def get_medicament(
 
 
 async def add_user(user_id: int, username: str, name: str, last_name: str | None):
+    username = _escape_sql_text(username or '')
+    full_name = _escape_sql_text((name + ' ' + (last_name or '')).rstrip(' '))
     await create_request(
-        f"INSERT INTO users (user_id, username, full_name, promocode) VALUES ('{user_id}', '{username}', '{(name + ' ' + (last_name or '')).rstrip(' ')}', '{generate_promocode()}')",
+        f"INSERT INTO users (user_id, username, full_name, promocode) VALUES ('{user_id}', '{username}', '{full_name}', '{generate_promocode()}')",
         is_return=False)
 
     await create_request(f"INSERT INTO user_profile (user_id) VALUES ('{user_id}')", is_return=False)
@@ -161,6 +198,10 @@ async def get_reminders(
 
 async def add_pet(user_id: int | str, approx_weight: int | float, name: str, birth_date: int | float, gender: str,
                   pet_type: str, pet_breed: str):
+    name = _escape_sql_text(name)
+    gender = _escape_sql_text(gender)
+    pet_type = _escape_sql_text(pet_type)
+    pet_breed = _escape_sql_text(pet_breed)
     await create_request(
         f"INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed) VALUES ('{user_id}', {approx_weight}, '{name}', '{birth_date}', '{gender}', '{pet_type}', '{pet_breed}')",
         is_return=False)
@@ -174,7 +215,7 @@ async def update_user_profile(user_id: int | str, **kwargs):
     result = []
     for key, value in kwargs.items():
         if isinstance(value, str):
-            result.append(f"{key} = '{value}'")
+            result.append(f"{key} = '{_escape_sql_text(value)}'")
         else:
             result.append(f"{key} = {value}")
     updations = ', '.join(result)
@@ -185,7 +226,7 @@ async def update_user(user_id: int, **kwargs):
     result = []
     for key, value in kwargs.items():
         if isinstance(value, str):
-            result.append(f"{key} = '{value}'")
+            result.append(f"{key} = '{_escape_sql_text(value)}'")
         else:
             result.append(f"{key} = {value}")
     updations = ', '.join(result)
@@ -383,10 +424,6 @@ async def ensure_bookings_table() -> None:
         "CREATE INDEX IF NOT EXISTS booking_service_availability_date_idx ON booking_service_availability(date);",
         is_return=False,
     )
-
-
-def _escape_sql_text(value: str | None) -> str:
-    return (value or "").replace("'", "''")
 
 
 async def add_booking(
