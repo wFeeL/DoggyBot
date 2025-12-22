@@ -65,46 +65,14 @@ def _format_dt(ts: float) -> str:
     try:
         from telegram_bot.env import local_timezone
 
-        return datetime.fromtimestamp(float(ts), local_timezone).strftime('%d.%m.%Y %H:%M')
+        dt = datetime.fromtimestamp(float(ts), local_timezone)
+        wd = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'][dt.weekday()]
+        # 23.12.2025 (вт) 10:00
+        return dt.strftime('%d.%m.%Y') + f" ({wd}) " + dt.strftime('%H:%M')
     except Exception:
-        return datetime.fromtimestamp(float(ts)).strftime('%d.%m.%Y %H:%M')
-
-
-def _fmt_services_inline(services) -> str:
-    """Услуги в одну строку (без лишних переносов), для bullet-формата."""
-    if not services:
-        return "—"
-
-    if isinstance(services, str):
-        try:
-            services = json.loads(services)
-        except Exception:
-            services = []
-
-    if isinstance(services, list):
-        names: list[str] = []
-        for s in services:
-            if isinstance(s, dict):
-                name = (s.get("name") or "").strip()
-                if name:
-                    names.append(name)
-        return ", ".join(names) if names else "—"
-
-    return "—"
-
-
-def _fmt_booking_message(title: str, lines: list[str], tail: str | None = None) -> str:
-    """Единый формат сообщений об онлайн-записях.
-
-    title: строка уже с эмодзи и HTML-тегами (<b>..</b>)
-    lines: строки вида "• <b>Лейбл</b>: значение"
-    """
-
-    body = "\n".join(lines).strip()
-    msg = f"{title}\n{body}" if body else title
-    if tail:
-        msg = f"{msg}\n\n{tail.strip()}"
-    return msg
+        dt = datetime.fromtimestamp(float(ts))
+        wd = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'][dt.weekday()]
+        return dt.strftime('%d.%m.%Y') + f" ({wd}) " + dt.strftime('%H:%M')
 
 
 def _sum_services(service_ids: list[int]) -> tuple[list[dict], int, int]:
@@ -146,6 +114,9 @@ def _work_bounds(date_str: str) -> tuple[float, float]:
 BOOKING_STEP_MIN = 30
 # Окно записи: показываем только ближайший месяц
 BOOKING_HORIZON_DAYS = 30
+
+# Внешняя запись (не из бота) по умолчанию занимает 60 минут и блокирует слот.
+EXTERNAL_BOOKING_DURATION_MIN = 60
 
 
 def _default_slot_hhmm() -> list[str]:
@@ -450,10 +421,19 @@ def api_admin_bookings_upcoming():
         user_id = b.get("user_id")
         full_name = ""
         try:
-            prof = asyncio.run(db.get_user_profile(user_id=int(user_id)))
-            full_name = (prof or {}).get("full_name") or ""
+            uid_int = int(user_id) if user_id is not None else 0
         except Exception:
-            full_name = ""
+            uid_int = 0
+
+        # Внешняя запись (без пользователя)
+        if uid_int == 0:
+            full_name = "Внешняя запись"
+        else:
+            try:
+                prof = asyncio.run(db.get_user_profile(user_id=uid_int))
+                full_name = (prof or {}).get("full_name") or ""
+            except Exception:
+                full_name = ""
 
         services = b.get("services") or []
         primary = ""
@@ -476,6 +456,7 @@ def api_admin_bookings_upcoming():
                 "services_summary": ", ".join([
                     (s.get("name") or "Услуга") for s in services if isinstance(s, dict)
                 ]),
+                "comment": b.get("comment") or "",
             }
         )
 
@@ -502,9 +483,14 @@ def api_admin_booking_details():
     booking = dict(booking)
     user_profile = None
     try:
-        user_profile = asyncio.run(db.get_user_profile(user_id=int(booking.get("user_id"))))
+        uid = int(booking.get("user_id") or 0)
     except Exception:
-        user_profile = None
+        uid = 0
+    if uid != 0:
+        try:
+            user_profile = asyncio.run(db.get_user_profile(user_id=uid))
+        except Exception:
+            user_profile = None
 
     services_catalog = _get_all_services()
     selected_ids = []
@@ -531,6 +517,7 @@ def api_admin_booking_details():
             "ok": True,
             "booking": booking,
             "user": user_profile,
+            "is_external": bool(uid == 0),
             "services_catalog": services_catalog,
             "selected_service_ids": selected_ids,
             "start_label": _format_dt(float(booking.get("start_ts") or 0)),
@@ -539,6 +526,73 @@ def api_admin_booking_details():
             "start_time": start_time,
         }
     )
+
+
+@app.route("/api/admin/booking/create_external", methods=["POST"])
+def api_admin_booking_create_external():
+    """Создать запись, которая добавлена администратором вручную (без пользователя)."""
+
+    ok, _ = _admin_or_403()
+    if not ok:
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    date_str = (payload.get("date") or "").strip()
+    time_str = (payload.get("time") or "").strip()
+    comment = (payload.get("comment") or "").strip()
+
+    if not date_str or not time_str:
+        return jsonify({"ok": False, "error": "date_time_required"}), 400
+    if not _is_date_in_booking_window(date_str):
+        return jsonify({"ok": False, "error": "outside_booking_window"}), 400
+    if time_str not in set(_default_slot_hhmm()):
+        return jsonify({"ok": False, "error": "invalid_time"}), 400
+
+    # parse start in local TZ
+    from telegram_bot.env import local_timezone
+    try:
+        dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M").replace(tzinfo=local_timezone)
+        start_ts = dt.timestamp()
+    except Exception:
+        return jsonify({"ok": False, "error": "invalid_datetime"}), 400
+
+    end_ts = start_ts + int(EXTERNAL_BOOKING_DURATION_MIN) * 60
+
+    # keep within working day
+    day_start, day_end = _day_bounds(date_str)
+    if start_ts < day_start or end_ts > day_end:
+        return jsonify({"ok": False, "error": "outside_work_hours"}), 400
+
+    # conflict check
+    conflicts = asyncio.run(db.get_bookings_in_range(start_ts, end_ts)) or []
+    if conflicts:
+        return jsonify({"ok": False, "error": "slot_busy"}), 409
+
+    services = [
+        {
+            "id": -1,
+            "name": "Внешняя запись",
+            "duration_min": int(EXTERNAL_BOOKING_DURATION_MIN),
+            "price": 0,
+        }
+    ]
+
+    created = asyncio.run(
+        db.add_booking(
+            user_id=0,
+            start_ts=start_ts,
+            end_ts=end_ts,
+            services=services,
+            total_price=0,
+            specialist=str(BOOKING_PROFILE.get("specialist") or ""),
+            comment=comment,
+            promo_code=None,
+        )
+    )
+
+    if not created:
+        return jsonify({"ok": False, "error": "create_failed"}), 500
+    return jsonify({"ok": True, "booking": created})
 
 
 @app.route("/api/admin/booking/cancel", methods=["POST"])
@@ -569,25 +623,105 @@ def api_admin_booking_cancel():
     user_id = cancelled.get("user_id")
     dt_label = _format_dt(float(cancelled.get("start_ts") or 0))
 
-    services_text = _fmt_services_inline(cancelled.get("services"))
+    services = cancelled.get("services") or []
+    if isinstance(services, str):
+        try:
+            services = json.loads(services)
+        except Exception:
+            services = []
+    services = services if isinstance(services, list) else []
+    services_lines = "\n".join([f"• {(s.get('name') or 'Услуга')}" for s in services if isinstance(s, dict)]) or "—"
 
-    msg = _fmt_booking_message(
-        "❌ <b>Запись отменена</b>",
-        [
-            f"• <b>Специалист</b>: {BOOKING_PROFILE.get('specialist')}",
-            f"• <b>Дата и время</b>: {dt_label}",
-            f"• <b>Услуги</b>: {services_text}",
-            f"• <b>Причина</b>: {reason}",
-        ],
-        tail="Приносим извинения за доставленные неудобства 🙏",
+    msg = (
+        "❌ <b>Запись отменена</b>\n\n"
+        f"👩‍⚕️ <b>Специалист:</b> {BOOKING_PROFILE.get('specialist')}\n"
+        f"🕒 <b>Дата/время:</b> {dt_label}\n"
+        f"🧾 <b>Услуги:</b>\n{services_lines}\n\n"
+        f"<b>Причина:</b> {reason}\n\n"
+        "Приносим извинения за доставленные неудобства 🙏"
     )
+    # У внешних записей user_id == 0 — уведомлять некого
     try:
-        if user_id is not None:
+        if user_id is not None and int(user_id) != 0:
             _send_bot_message(int(user_id), msg)
     except Exception:
         pass
 
     return jsonify({"ok": True, "booking": cancelled})
+
+
+@app.route('/api/admin/booking/create_external', methods=['POST'])
+def api_admin_booking_create_external():
+    ok, _ = _admin_or_403()
+    if not ok:
+        return jsonify({'ok': False, 'error': 'forbidden'}), 403
+
+    payload = request.get_json(silent=True) or {}
+    date_str = (payload.get('date') or '').strip()
+    time_str = (payload.get('time') or '').strip()
+    comment = (payload.get('comment') or '').strip()
+
+    if not date_str or not time_str:
+        return jsonify({'ok': False, 'error': 'date_time_required'}), 400
+    if not _is_date_in_booking_window(date_str):
+        return jsonify({'ok': False, 'error': 'date_out_of_window'}), 400
+
+    # Validate time format + step
+    if not re.match(r'^\d{2}:\d{2}$', time_str):
+        return jsonify({'ok': False, 'error': 'bad_time'}), 400
+    try:
+        hh, mm = [int(x) for x in time_str.split(':', 1)]
+    except Exception:
+        return jsonify({'ok': False, 'error': 'bad_time'}), 400
+    if hh < 0 or hh > 23 or mm < 0 or mm > 59:
+        return jsonify({'ok': False, 'error': 'bad_time'}), 400
+    if mm % int(BOOKING_STEP_MIN) != 0:
+        return jsonify({'ok': False, 'error': 'bad_step'}), 400
+    # working hours: starts between 10:00 and 20:30
+    if hh < 10 or hh > 20 or (hh == 20 and mm > 30):
+        return jsonify({'ok': False, 'error': 'out_of_work_hours'}), 400
+
+    from telegram_bot.env import local_timezone
+    try:
+        dt_local = datetime.strptime(f'{date_str} {time_str}', '%Y-%m-%d %H:%M')
+        dt_local = dt_local.replace(tzinfo=local_timezone)
+        start_ts = dt_local.timestamp()
+    except Exception:
+        return jsonify({'ok': False, 'error': 'bad_datetime'}), 400
+
+    # По умолчанию внешний слот занимает 60 минут
+    external_minutes = int(os.getenv('EXTERNAL_BOOKING_MINUTES', '60') or 60)
+    end_ts = start_ts + external_minutes * 60
+
+    # Conflicts
+    conflicts = asyncio.run(db.get_bookings_in_range(start_ts, end_ts)) or []
+    if conflicts:
+        return jsonify({'ok': False, 'error': 'slot_busy'}), 409
+
+    external_service = {
+        'id': -1,
+        'name': 'Внешняя запись',
+        'duration_min': external_minutes,
+        'price': 0,
+        'description': 'Запись добавлена администратором вне бота',
+    }
+
+    created = asyncio.run(
+        db.add_booking(
+            user_id=0,
+            start_ts=start_ts,
+            end_ts=end_ts,
+            services=[external_service],
+            total_price=0,
+            specialist=str(BOOKING_PROFILE.get('specialist') or ''),
+            comment=comment,
+            promo_code='',
+        )
+    )
+    if not created:
+        return jsonify({'ok': False, 'error': 'create_failed'}), 500
+
+    return jsonify({'ok': True, 'booking': created})
 
 
 def _parse_time_hhmm(value: str) -> tuple[int, int] | None:
@@ -792,18 +926,19 @@ def api_admin_booking_update():
 
     # Notify user
     try:
-        user_id = int(updated.get("user_id"))
+        user_id = int(updated.get("user_id") or 0)
+        # У внешних записей user_id == 0 — уведомлять некого
+        if user_id == 0:
+            raise RuntimeError("external_booking")
         old_dt = _format_dt(float(old.get("start_ts") or 0))
         new_dt = _format_dt(float(updated.get("start_ts") or 0))
-        services_text = _fmt_services_inline(updated.get("services"))
-        msg = _fmt_booking_message(
-            "🔔 <b>Запись обновлена</b>",
-            [
-                f"• <b>Было</b>: {old_dt}",
-                f"• <b>Стало</b>: {new_dt}",
-                f"• <b>Услуги</b>: {services_text}",
-            ],
-            tail="Приносим извинения за доставленные неудобства 🙏",
+        services_text = ", ".join([s.get("name") or "Услуга" for s in (updated.get("services") or [])])
+        msg = (
+            "🔔 Ваша запись обновлена\n"
+            f"Было: <b>{old_dt}</b>\n"
+            f"Стало: <b>{new_dt}</b>\n"
+            f"Услуги: {services_text}\n\n"
+            "Извините за неудобства, если они возникли 🙏"
         )
         _send_bot_message(user_id, msg)
     except Exception:

@@ -75,7 +75,10 @@
             <div class="card" id="admin-content" style="display:none">
                 <div class="section-title">
                     <h2>📋 Будущие записи</h2>
-                    <button class="pill" type="button" id="refresh-bookings">Обновить</button>
+                    <div style="display:flex;gap:10px;align-items:center">
+                        <button class="pill" type="button" id="create-external-booking">➕ Внешняя запись</button>
+                        <button class="pill" type="button" id="refresh-bookings">Обновить</button>
+                    </div>
                 </div>
                 <div id="bookings-root" class="service-list" style="margin-top:12px"></div>
                 <div id="bookings-empty" class="muted" style="display:none;margin-top:10px">Будущих записей нет.</div>
@@ -137,6 +140,35 @@
                 <button class="btn" type="button" id="cancel-booking">❌ Отменить</button>
                 <button class="btn btn-primary" type="button" id="save-booking" style="display:none">💾 Сохранить</button>
                 <button class="btn" type="button" data-close>Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- External booking modal (manual) -->
+    <div id="external-booking-modal" class="modal" aria-hidden="true">
+        <div class="sheet" role="dialog" aria-modal="true">
+            <h3>➕ Внешняя запись</h3>
+            <p class="muted">Запись добавляется администратором вручную и <b>не привязана к пользователю</b>. Она будет отображаться в списке будущих записей и блокировать выбранное время.</p>
+
+            <div class="stack" style="gap:10px;margin-top:12px">
+                <label class="field">
+                    <span class="muted">Дата</span>
+                    <select id="external-date" class="input"></select>
+                </label>
+                <label class="field">
+                    <span class="muted">Время</span>
+                    <select id="external-time" class="input"></select>
+                </label>
+                <label class="field">
+                    <span class="muted">Комментарий (необязательно)</span>
+                    <textarea id="external-comment" class="input" rows="3" placeholder="Например: запись из Instagram / звонок / договорённость"></textarea>
+                </label>
+                <div id="external-status" class="muted" style="display:none"></div>
+            </div>
+
+            <div class="sheet-actions" style="margin-top:14px">
+                <button class="btn btn-primary" type="button" id="external-create">Создать</button>
+                <button class="btn" type="button" data-close>Отмена</button>
             </div>
         </div>
     </div>
