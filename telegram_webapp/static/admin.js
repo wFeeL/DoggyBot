@@ -12,9 +12,12 @@
     }
 
     async function api(url, options) {
+        const initData = tg ? (tg.initData || '') : '';
+        const baseHeaders = { 'Content-Type': 'application/json' };
+        if (initData) baseHeaders['X-Tg-Init-Data'] = initData;
         const res = await fetch(url, Object.assign(
             {
-                headers: Object.assign({ 'Content-Type': 'application/json' }, (options && options.headers) || {}),
+                headers: Object.assign(baseHeaders, (options && options.headers) || {}),
             },
             options || {}
         ));
@@ -37,11 +40,39 @@
             .replace(/'/g, '&#039;');
     }
 
+    // --- scroll lock for iOS/WebView ---
+    let _scrollLockY = 0;
+
+    function lockBodyScroll() {
+        // If already locked - do nothing
+        if (document.body.classList.contains('modal-open')) return;
+        _scrollLockY = window.scrollY || window.pageYOffset || 0;
+        document.body.classList.add('modal-open');
+        // position:fixed is the most reliable way to prevent background scroll on iOS
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${_scrollLockY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.width = '100%';
+    }
+
+    function unlockBodyScroll() {
+        if (!document.body.classList.contains('modal-open')) return;
+        document.body.classList.remove('modal-open');
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.width = '';
+        window.scrollTo(0, _scrollLockY);
+    }
+
     function showModal(id) {
         const m = document.getElementById(id);
         if (!m) return;
         m.classList.add('is-open');
         m.setAttribute('aria-hidden', 'false');
+        lockBodyScroll();
     }
 
     function hideModal(id) {
@@ -49,6 +80,10 @@
         if (!m) return;
         m.classList.remove('is-open');
         m.setAttribute('aria-hidden', 'true');
+        // unlock only when all modals are closed
+        if (!document.querySelector('.modal.is-open')) {
+            unlockBodyScroll();
+        }
     }
 
     function wireCloseButtons() {
@@ -141,7 +176,6 @@
     const BOOKING_STEP_MIN = 30;
     const WORK_START_H = 10;
     const WORK_END_H = 21;
-    // Ограничиваем быстрые даты, чтобы не перегружать интерфейс
     const MAX_QUICK_DATES = 12;
     const BOOKING_HORIZON_DAYS = 30;
 
@@ -158,21 +192,27 @@
         return times;
     }
 
-    function _weekdayRuShortByISO(isoDate) {
+    function formatDDMMYYYY(isoDate) {
+        // isoDate: YYYY-MM-DD
+        const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(isoDate || ''));
+        if (!m) return String(isoDate || '');
+        // DD.MM.YYYY
+        return `${m[3]}.${m[2]}.${m[1]}`;
+    }
+
+    function weekdayShort(isoDate) {
+        // isoDate: YYYY-MM-DD
         const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(isoDate || ''));
         if (!m) return '';
+        // JS getDay(): 0=Sun..6=Sat
         const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
         const map = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
         return map[d.getDay()] || '';
     }
 
-    function formatQuickDateLabel(isoDate) {
-        // isoDate: YYYY-MM-DD -> DD.MM.YYYY (вт)
-        const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(isoDate || ''));
-        if (!m) return String(isoDate || '');
-        const wd = _weekdayRuShortByISO(isoDate);
-        const base = `${m[3]}.${m[2]}.${m[1]}`;
-        return wd ? `${base} (${wd})` : base;
+    function formatDateWithWeekday(isoDate) {
+        const wd = weekdayShort(isoDate);
+        return wd ? `${formatDDMMYYYY(isoDate)} (${wd})` : formatDDMMYYYY(isoDate);
     }
 
     function todayISO() {
@@ -189,6 +229,82 @@
         const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
         d.setDate(d.getDate() + Number(days || 0));
         return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    }
+
+    function populateAvailDateSelect(selectEl, activeDate) {
+        if (!selectEl) return;
+        selectEl.innerHTML = '';
+
+        const base = todayISO();
+        const list = [];
+        for (let i = 0; i < BOOKING_HORIZON_DAYS; i++) list.push(addDaysISO(base, i));
+
+        list.forEach((d) => {
+            const opt = document.createElement('option');
+            opt.value = d; // ISO
+            opt.textContent = formatDateWithWeekday(d);
+            selectEl.appendChild(opt);
+        });
+
+        const v = activeDate || selectEl.value || base;
+        selectEl.value = v;
+    }
+
+    function setExternalStatus(text, isError) {
+        const el = document.getElementById('external-status');
+        if (!el) return;
+        el.style.display = text ? 'block' : 'none';
+        el.textContent = text || '';
+        if (isError) {
+            el.style.color = 'var(--danger, #d93f3f)';
+        } else {
+            el.style.color = '';
+        }
+    }
+
+    function openExternalBookingModal() {
+        const dEl = document.getElementById('external-date');
+        const tEl = document.getElementById('external-time');
+        const cEl = document.getElementById('external-comment');
+        if (dEl) populateAvailDateSelect(dEl, todayISO());
+        if (tEl) {
+            tEl.innerHTML = '';
+            buildDefaultTimes().forEach((v) => {
+                const opt = document.createElement('option');
+                opt.value = v;
+                opt.textContent = v;
+                tEl.appendChild(opt);
+            });
+        }
+        if (cEl) cEl.value = '';
+        setExternalStatus('', false);
+        showModal('external-booking-modal');
+    }
+
+    async function createExternalBooking() {
+        const dEl = document.getElementById('external-date');
+        const tEl = document.getElementById('external-time');
+        const cEl = document.getElementById('external-comment');
+        if (!dEl || !tEl) return;
+        const date = String(dEl.value || '').trim();
+        const time = String(tEl.value || '').trim();
+        const comment = String((cEl && cEl.value) || '').trim();
+        if (!date || !time) {
+            setExternalStatus('Выберите дату и время', true);
+            return;
+        }
+        setExternalStatus('Создаём запись...', false);
+        try {
+            await api('/api/admin/booking/create_external', {
+                method: 'POST',
+                body: JSON.stringify({ initData: INIT_DATA, date, time, comment }),
+            });
+            hideModal('external-booking-modal');
+            await loadBookings();
+        } catch (e) {
+            // api() уже бросает Error с message
+            setExternalStatus((e && e.message) ? e.message : 'Ошибка создания записи', true);
+        }
     }
 
     async function loadServicesCatalog() {
@@ -250,7 +366,7 @@
             const chip = document.createElement('button');
             chip.type = 'button';
             chip.className = `chip ${d === activeDate ? 'is-active' : ''}`;
-            chip.textContent = formatQuickDateLabel(d);
+            chip.textContent = formatDDMMYYYY(d);
             chip.addEventListener('click', () => {
                 const dateEl = document.getElementById('avail-date');
                 if (dateEl) {
@@ -390,6 +506,7 @@
                 const name = escapeHtml(b.user_name || 'Пользователь');
                 const dt = escapeHtml(b.start_label || '—');
                 const price = b.total_price != null ? `${Number(b.total_price)} ₽` : '';
+                const comment = escapeHtml(b.comment || '');
                 item.innerHTML = `
                     <div class="service-title">
                         <strong>#${b.id} • ${name}</strong>
@@ -398,6 +515,7 @@
                     <div class="service-sub">
                         <span>🗓️ ${dt}</span>
                         ${b.services_summary ? `<span>• ${escapeHtml(b.services_summary)}</span>` : ''}
+                        ${comment ? `<span>• 💬 ${comment}</span>` : ''}
                     </div>
                 `;
                 item.addEventListener('click', () => openBooking(b.id));
@@ -429,22 +547,27 @@
         const services = Array.isArray(data && data.services_catalog) ? data.services_catalog : [];
         const selectedIds = new Set((data && data.selected_service_ids) || []);
 
-        const userName = escapeHtml((user && user.full_name) || (user && user.username) || '—');
+        const isExternal = Boolean(data && data.is_external);
+        const userName = escapeHtml((user && user.full_name) || (user && user.username) || (isExternal ? 'Внешняя запись' : '—'));
         const phone = escapeHtml((user && user.phone_number) || '—');
         const dt = escapeHtml((data && data.start_label) || '—');
         const comment = escapeHtml((b && b.comment) || '');
         const promo = escapeHtml((b && b.promo_code) || '');
         const total = b && b.total_price != null ? `${Number(b.total_price)} ₽` : '—';
 
-        const servicesText = services
+        let servicesText = services
             .filter((s) => selectedIds.has(Number(s.id)))
             .map((s) => s.name)
             .join(', ');
+        // Внешняя запись хранит услуги вне каталога — берём из самой записи
+        if (!servicesText && b && Array.isArray(b.services)) {
+            servicesText = b.services.map((s) => (s && s.name) || '').filter(Boolean).join(', ');
+        }
 
         if (body) {
             body.innerHTML = `
-                <div><strong>Пользователь:</strong> ${userName}</div>
-                <div><strong>Телефон:</strong> ${phone}</div>
+                <div><strong>${isExternal ? 'Тип:' : 'Пользователь:'}</strong> ${userName}</div>
+                ${isExternal ? '' : `<div><strong>Телефон:</strong> ${phone}</div>`}
                 <div><strong>Дата и время:</strong> ${dt}</div>
                 <div><strong>Услуги:</strong> ${escapeHtml(servicesText || '—')}</div>
                 <div><strong>Итого:</strong> ${escapeHtml(total)}</div>
@@ -463,7 +586,11 @@
 
         if (editBlock) editBlock.style.display = 'none';
         if (saveBtn) saveBtn.style.display = 'none';
-        if (toggleBtn) toggleBtn.textContent = '✏️ Редактировать';
+        if (toggleBtn) {
+            toggleBtn.textContent = '✏️ Редактировать';
+            // Для внешних записей пока отключаем редактирование услуг (чтобы не путать)
+            toggleBtn.style.display = isExternal ? 'none' : '';
+        }
 
         if (editDate && data && data.start_date) editDate.value = data.start_date;
         // варианты времени берём из /api/booking/slots (учитывает занятость и доступность)
@@ -475,6 +602,11 @@
 
         if (editServices) {
             editServices.innerHTML = '';
+            // скрываем выбор услуг для внешних записей
+            try {
+                if (isExternal && editServices.parentElement) editServices.parentElement.style.display = 'none';
+                else if (editServices.parentElement) editServices.parentElement.style.display = '';
+            } catch (e) {}
             services.forEach((s) => {
                 const sid = Number(s.id);
                 const row = document.createElement('label');
@@ -497,6 +629,73 @@
             editServices.querySelectorAll('input[type="checkbox"]').forEach((ch) => {
                 ch.addEventListener('change', () => refreshEditTimes());
             });
+        }
+    }
+
+    // --- External booking (manual) ---
+
+    function setExternalStatus(text, isError) {
+        const el = document.getElementById('external-status');
+        if (!el) return;
+        el.style.display = text ? 'block' : 'none';
+        el.textContent = text || '';
+        el.classList.toggle('error', Boolean(isError));
+    }
+
+    function populateExternalDateSelect() {
+        const el = document.getElementById('external-date');
+        if (!el) return;
+        el.innerHTML = '';
+        const base = todayISO();
+        for (let i = 0; i < BOOKING_HORIZON_DAYS; i++) {
+            const d = addDaysISO(base, i);
+            const opt = document.createElement('option');
+            opt.value = d;
+            opt.textContent = formatDateWithWeekday(d);
+            el.appendChild(opt);
+        }
+        el.value = base;
+    }
+
+    function populateExternalTimeSelect() {
+        const el = document.getElementById('external-time');
+        if (!el) return;
+        el.innerHTML = '';
+        buildDefaultTimes().forEach((t) => {
+            const opt = document.createElement('option');
+            opt.value = t;
+            opt.textContent = t;
+            el.appendChild(opt);
+        });
+    }
+
+    async function createExternalBooking() {
+        const dateEl = document.getElementById('external-date');
+        const timeEl = document.getElementById('external-time');
+        const commentEl = document.getElementById('external-comment');
+        if (!dateEl || !timeEl) return;
+
+        const date = String(dateEl.value || '').trim();
+        const time = String(timeEl.value || '').trim();
+        const comment = String((commentEl && commentEl.value) || '').trim();
+
+        setExternalStatus('', false);
+        if (!date || !time) {
+            setExternalStatus('Выберите дату и время', true);
+            return;
+        }
+
+        try {
+            await api('/api/admin/booking/create_external', {
+                method: 'POST',
+                body: JSON.stringify({ initData: INIT_DATA, date, time, comment }),
+            });
+            hideModal('external-booking-modal');
+            if (commentEl) commentEl.value = '';
+            await loadBookings();
+        } catch (e) {
+            const msg = (e && e.message) ? String(e.message) : '';
+            setExternalStatus(msg.includes('slot_busy') ? 'Это время уже занято' : 'Не удалось создать запись', true);
         }
     }
 
@@ -610,6 +809,11 @@
         const refresh = document.getElementById('refresh-bookings');
         if (refresh) refresh.addEventListener('click', loadBookings);
 
+        const createExternal = document.getElementById('create-external-booking');
+        if (createExternal) createExternal.addEventListener('click', openExternalBookingModal);
+        const externalCreateBtn = document.getElementById('external-create');
+        if (externalCreateBtn) externalCreateBtn.addEventListener('click', createExternalBooking);
+
         const toggleEdit = document.getElementById('toggle-edit');
         const editBlock = document.getElementById('booking-edit-block');
         const saveBtn = document.getElementById('save-booking');
@@ -702,10 +906,7 @@
 
             const dEl = document.getElementById('avail-date');
             if (dEl) {
-                const today = new Date().toLocaleDateString('en-CA');
-                dEl.min = today;
-                dEl.max = addDaysISO(todayISO(), BOOKING_HORIZON_DAYS);
-                if (!dEl.value) dEl.value = today;
+                populateAvailDateSelect(dEl, todayISO());
             }
 
             renderTimeGrid();
