@@ -1,10 +1,7 @@
 import asyncio
-import hashlib
-import hmac
 import json
 import os
 import re
-import time
 from datetime import datetime, timedelta
 from urllib.parse import parse_qs
 
@@ -38,87 +35,8 @@ def _tg_user_from_init_data(init_data: str) -> dict | None:
         return None
 
 
-def _get_init_data_from_request(payload: dict | None = None) -> str:
-    """Extract initData from request.
-
-    Supports:
-    - Header: X-Tg-Init-Data
-    - JSON body: {initData: "..."}
-    - Query param: ?initData=...
-    """
-
-    init_data = (
-        (request.headers.get("X-Tg-Init-Data") or "").strip()
-        or (request.headers.get("X-Telegram-Init-Data") or "").strip()
-    )
-    if not init_data and payload:
-        init_data = str(payload.get("initData") or payload.get("init_data") or "").strip()
-    if not init_data:
-        init_data = str(request.args.get("initData") or request.args.get("init_data") or "").strip()
-    return init_data
-
-
-def _validate_init_data(init_data: str) -> dict | None:
-    """Validate Telegram Mini App initData and return tg_user.
-
-    Uses algorithm from official docs (WebAppData + bot token HMAC).
-    Also checks auth_date freshness (default 24h, configurable via INITDATA_MAX_AGE).
-    """
-
-    init_data = (init_data or "").strip()
-    if not init_data:
-        return None
-
-    bot_token = (os.getenv("BOT_TOKEN") or "").strip()
-    if not bot_token:
-        return None
-
-    try:
-        parsed = parse_qs(init_data, keep_blank_values=True)
-        hash_recv = parsed.get("hash", [None])[0]
-        if not hash_recv:
-            return None
-
-        # Build data_check_string excluding the hash.
-        pairs: list[str] = []
-        for k in sorted(parsed.keys()):
-            if k == "hash":
-                continue
-            v = parsed.get(k, [""])[0]
-            pairs.append(f"{k}={v}")
-        data_check_string = "\n".join(pairs)
-
-        # secret_key = HMAC_SHA256(bot_token, key='WebAppData')
-        secret_key = hmac.new(b"WebAppData", bot_token.encode("utf-8"), hashlib.sha256).digest()
-        calc_hash = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
-
-        if not hmac.compare_digest(str(hash_recv), str(calc_hash)):
-            return None
-
-        # Freshness check
-        max_age = int(os.getenv("INITDATA_MAX_AGE", "86400"))  # 24h
-        auth_date_raw = parsed.get("auth_date", [None])[0]
-        if auth_date_raw and str(auth_date_raw).isdigit():
-            auth_date = int(auth_date_raw)
-            now = int(time.time())
-            if auth_date > now + 60:
-                return None
-            if now - auth_date > max_age:
-                return None
-
-        user_raw = parsed.get("user", [None])[0]
-        if not user_raw:
-            return None
-        tg_user = json.loads(user_raw)
-        if not isinstance(tg_user, dict) or not tg_user.get("id"):
-            return None
-        return tg_user
-    except Exception:
-        return None
-
-
 def _is_admin(init_data: str) -> bool:
-    tg_user = _validate_init_data(init_data)
+    tg_user = _tg_user_from_init_data(init_data)
     if not tg_user or not tg_user.get("id"):
         return False
     try:
@@ -377,25 +295,6 @@ def survey():
 def get_user_data(telegram_id):
     logger.info(f"GET /get_user_data/{telegram_id}")
     try:
-        init_data = _get_init_data_from_request()
-        tg_user = _validate_init_data(init_data)
-        if not tg_user:
-            return jsonify({"ok": False, "error": "init_data_invalid"}), 401
-
-        try:
-            req_id = int(telegram_id)
-        except Exception:
-            return jsonify({"ok": False, "error": "telegram_id_invalid"}), 400
-
-        # user can read only own profile; admins may read any
-        try:
-            caller_id = int(tg_user.get("id"))
-        except Exception:
-            caller_id = 0
-
-        if caller_id != req_id and not _is_admin(init_data):
-            return jsonify({"ok": False, "error": "forbidden"}), 403
-
         user_profile = asyncio.run(db.get_user_profile(user_id=telegram_id))
         pets = asyncio.run(db.get_pets(user_id=telegram_id, is_multiple=True))
 
@@ -423,7 +322,7 @@ def get_user_data(telegram_id):
             return jsonify({"data": None})
     except Exception as e:
         logger.error(f"Ошибка в get_user_data: {e}")
-        return jsonify({"ok": False, "error": "server_error"}), 500
+        return jsonify({"data": None})
 
 
 # --- Online booking (single profile) ---
@@ -479,8 +378,8 @@ def admin_panel_page():
 @app.route("/api/admin/me", methods=["POST"])
 def api_admin_me():
     payload = request.get_json(silent=True) or {}
-    init_data = _get_init_data_from_request(payload)
-    tg_user = _validate_init_data(init_data) or {}
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _tg_user_from_init_data(init_data) or {}
     uid = tg_user.get("id")
     try:
         uid = int(uid) if uid is not None else None
@@ -491,8 +390,8 @@ def api_admin_me():
 
 def _admin_or_403() -> tuple[bool, dict | None]:
     payload = request.get_json(silent=True) or {}
-    init_data = _get_init_data_from_request(payload)
-    tg_user = _validate_init_data(init_data)
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _tg_user_from_init_data(init_data)
     if not tg_user or not tg_user.get("id"):
         return False, None
     try:
@@ -749,198 +648,6 @@ def api_admin_booking_cancel():
         pass
 
     return jsonify({"ok": True, "booking": cancelled})
-
-
-@app.route('/api/admin/booking/create_external', methods=['POST'])
-def api_admin_booking_create_external():
-    ok, _ = _admin_or_403()
-    if not ok:
-        return jsonify({'ok': False, 'error': 'forbidden'}), 403
-
-    payload = request.get_json(silent=True) or {}
-    date_str = (payload.get('date') or '').strip()
-    time_str = (payload.get('time') or '').strip()
-    comment = (payload.get('comment') or '').strip()
-
-    if not date_str or not time_str:
-        return jsonify({'ok': False, 'error': 'date_time_required'}), 400
-    if not _is_date_in_booking_window(date_str):
-        return jsonify({'ok': False, 'error': 'date_out_of_window'}), 400
-
-    # Validate time format + step
-    if not re.match(r'^\d{2}:\d{2}$', time_str):
-        return jsonify({'ok': False, 'error': 'bad_time'}), 400
-    try:
-        hh, mm = [int(x) for x in time_str.split(':', 1)]
-    except Exception:
-        return jsonify({'ok': False, 'error': 'bad_time'}), 400
-    if hh < 0 or hh > 23 or mm < 0 or mm > 59:
-        return jsonify({'ok': False, 'error': 'bad_time'}), 400
-    if mm % int(BOOKING_STEP_MIN) != 0:
-        return jsonify({'ok': False, 'error': 'bad_step'}), 400
-    # working hours: starts between 10:00 and 20:30
-    if hh < 10 or hh > 20 or (hh == 20 and mm > 30):
-        return jsonify({'ok': False, 'error': 'out_of_work_hours'}), 400
-
-    from telegram_bot.env import local_timezone
-    try:
-        dt_local = datetime.strptime(f'{date_str} {time_str}', '%Y-%m-%d %H:%M')
-        dt_local = dt_local.replace(tzinfo=local_timezone)
-        start_ts = dt_local.timestamp()
-    except Exception:
-        return jsonify({'ok': False, 'error': 'bad_datetime'}), 400
-
-    # По умолчанию внешний слот занимает 60 минут
-    external_minutes = int(os.getenv('EXTERNAL_BOOKING_MINUTES', '60') or 60)
-    end_ts = start_ts + external_minutes * 60
-
-    # Conflicts
-    conflicts = asyncio.run(db.get_bookings_in_range(start_ts, end_ts)) or []
-    if conflicts:
-        return jsonify({'ok': False, 'error': 'slot_busy'}), 409
-
-    external_service = {
-        'id': -1,
-        'name': 'Внешняя запись',
-        'duration_min': external_minutes,
-        'price': 0,
-        'description': 'Запись добавлена администратором вне бота',
-    }
-
-    created = asyncio.run(
-        db.add_booking(
-            user_id=0,
-            start_ts=start_ts,
-            end_ts=end_ts,
-            services=[external_service],
-            total_price=0,
-            specialist=str(BOOKING_PROFILE.get('specialist') or ''),
-            comment=comment,
-            promo_code='',
-        )
-    )
-    if not created:
-        return jsonify({'ok': False, 'error': 'create_failed'}), 500
-
-    return jsonify({'ok': True, 'booking': created})
-
-
-def _parse_time_hhmm(value: str) -> tuple[int, int] | None:
-    """Parse time in HH:MM."""
-    m = re.match(r"^(\d{2}):(\d{2})$", value or "")
-    if not m:
-        return None
-    hh = int(m.group(1))
-    mm = int(m.group(2))
-    if hh < 0 or hh > 23 or mm < 0 or mm > 59:
-        return None
-    return hh, mm
-
-
-def _allowed_hhmm_for_services(date_str: str, service_ids: list[int]) -> list[str]:
-    """Intersection of allowed HH:MM for all selected services.
-
-    Правило:
-    - если администратор *не настраивал* дату — используем дефолт (10:00–21:00, шаг 30 мин)
-    - если администратор *закрыл* дату (слоты = []) — времени нет
-    """
-
-    if not date_str or not service_ids:
-        return []
-
-    # Ограничиваем окно записи: только ближайшие BOOKING_HORIZON_DAYS (включая сегодня)
-    try:
-        from telegram_bot.env import local_timezone
-        req_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        base = datetime.now(local_timezone).date()
-    except Exception:
-        try:
-            req_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        except Exception:
-            return []
-        base = datetime.now().date()
-
-    if req_date < base or req_date > (base + timedelta(days=int(BOOKING_HORIZON_DAYS))):
-        return []
-
-    date_safe = date_str.replace("'", "''")
-    ids_sql = ",".join(str(int(x)) for x in service_ids)
-    try:
-        rows = asyncio.run(
-            db.create_request(
-                f"SELECT service_id, slots FROM booking_service_availability WHERE date = '{date_safe}' AND service_id IN ({ids_sql}) ORDER BY service_id",
-                is_multiple=True,
-            )
-        ) or []
-    except Exception:
-        rows = []
-
-    by_id: dict[int, list[str] | None] = {}
-    for r in rows:
-        try:
-            sid = int(r.get('service_id'))
-        except Exception:
-            continue
-        s = r.get("slots")
-        if isinstance(s, str):
-            try:
-                s = json.loads(s)
-            except Exception:
-                s = []
-        if not isinstance(s, list):
-            s = []
-        by_id[sid] = [str(x) for x in s]
-
-    sets: list[set[str]] = []
-    default_slots = _default_slot_hhmm()
-    for sid in service_ids:
-        # если запись есть в таблице — используем её (в том числе пустой список = закрыто)
-        if int(sid) in by_id:
-            raw = by_id.get(int(sid)) or []
-            if not raw:
-                return []
-            src = raw
-        else:
-            # нет настройки — дефолтный полностью свободный день
-            src = default_slots
-
-        norm: set[str] = set()
-        for x in src:
-            t = _parse_time_hhmm(str(x))
-            if not t:
-                continue
-            hh, mm = t
-            norm.add(f"{hh:02d}:{mm:02d}")
-        sets.append(norm)
-
-    if not sets:
-        return []
-    inter = set.intersection(*sets)
-    return sorted(inter)
-
-
-def _allowed_start_ts_for_services(date_str: str, service_ids: list[int]) -> list[int]:
-    """Allowed start timestamps (seconds) for a given date and services."""
-    from telegram_bot.env import local_timezone
-
-    allowed = _allowed_hhmm_for_services(date_str, service_ids)
-    if not allowed:
-        return []
-
-    try:
-        base = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=local_timezone)
-    except Exception:
-        return []
-
-    out: list[int] = []
-    for hhmm in allowed:
-        t = _parse_time_hhmm(hhmm)
-        if not t:
-            continue
-        hh, mm = t
-        ts = int(base.replace(hour=hh, minute=mm, second=0, microsecond=0).timestamp())
-        out.append(ts)
-    return sorted(set(out))
 
 
 @app.route("/api/admin/booking/update", methods=["POST"])
@@ -1260,10 +967,10 @@ def api_admin_availability_delete():
 @app.route("/api/auth/ensure_user", methods=["POST"])
 def api_ensure_user():
     payload = request.get_json(silent=True) or {}
-    init_data = _get_init_data_from_request(payload)
-    tg_user = _validate_init_data(init_data)
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _tg_user_from_init_data(init_data)
     if not tg_user or not tg_user.get("id"):
-        return jsonify({"ok": False, "error": "init_data_invalid"}), 401
+        return jsonify({"ok": False, "error": "telegram_user_missing"}), 400
 
     user_id = int(tg_user["id"])
     username = tg_user.get("username") or ""
@@ -1283,46 +990,16 @@ def api_ensure_user():
 @app.route("/api/profile/has_form/<telegram_id>", methods=["GET"])
 def api_has_form(telegram_id):
     try:
-        init_data = _get_init_data_from_request()
-        tg_user = _validate_init_data(init_data)
-        if not tg_user:
-            return jsonify({"ok": False, "error": "init_data_invalid"}), 401
-        try:
-            caller_id = int(tg_user.get("id"))
-        except Exception:
-            caller_id = 0
-        try:
-            req_id = int(telegram_id)
-        except Exception:
-            return jsonify({"ok": False, "error": "telegram_id_invalid"}), 400
-        if caller_id != req_id and not _is_admin(init_data):
-            return jsonify({"ok": False, "error": "forbidden"}), 403
-
         value = asyncio.run(db.is_user_have_form(user_id=telegram_id))
         return jsonify({"ok": True, "has_form": bool(value)})
     except Exception as e:
         logger.error(f"has_form failed: {e}")
-        return jsonify({"ok": False, "error": "server_error"}), 500
+        return jsonify({"ok": True, "has_form": False})
 
 
 @app.route("/api/profile/details/<telegram_id>", methods=["GET"])
 def api_profile_details(telegram_id):
     try:
-        init_data = _get_init_data_from_request()
-        tg_user = _validate_init_data(init_data)
-        if not tg_user:
-            return jsonify({"ok": False, "error": "init_data_invalid"}), 401
-        try:
-            caller_id = int(tg_user.get("id"))
-        except Exception:
-            caller_id = 0
-        try:
-            req_id = int(telegram_id)
-        except Exception:
-            return jsonify({"ok": False, "error": "telegram_id_invalid"}), 400
-        if caller_id != req_id and not _is_admin(init_data):
-            return jsonify({"ok": False, "error": "forbidden"}), 403
-
         user_profile = asyncio.run(db.get_user_profile(user_id=telegram_id))
         pets = asyncio.run(db.get_pets(user_id=telegram_id, is_multiple=True)) or []
 
@@ -1464,21 +1141,6 @@ def api_booking_slots():
 
 @app.route("/api/booking/list/<telegram_id>", methods=["GET"])
 def api_booking_list(telegram_id):
-    init_data = _get_init_data_from_request()
-    tg_user = _validate_init_data(init_data)
-    if not tg_user:
-        return jsonify({"ok": False, "error": "init_data_invalid"}), 401
-    try:
-        caller_id = int(tg_user.get("id"))
-    except Exception:
-        caller_id = 0
-    try:
-        req_id = int(telegram_id)
-    except Exception:
-        return jsonify({"ok": False, "error": "telegram_id_invalid"}), 400
-    if caller_id != req_id and not _is_admin(init_data):
-        return jsonify({"ok": False, "error": "forbidden"}), 403
-
     kind = (request.args.get("kind") or "upcoming").strip()
     if kind not in {"upcoming", "past"}:
         kind = "upcoming"
@@ -1516,12 +1178,12 @@ def api_booking_list(telegram_id):
 @app.route("/api/booking/create", methods=["POST"])
 def api_booking_create():
     payload = request.get_json(silent=True) or {}
-    init_data = _get_init_data_from_request(payload)
-    tg_user = _validate_init_data(init_data)
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _tg_user_from_init_data(init_data)
     booking = payload.get("booking") or {}
 
     if not tg_user or not tg_user.get("id"):
-        return jsonify({"ok": False, "error": "init_data_invalid"}), 401
+        return jsonify({"ok": False, "error": "telegram_user_missing"}), 400
 
     user_id = int(tg_user["id"])
     service_ids = booking.get("service_ids") or []
@@ -1642,12 +1304,12 @@ def api_booking_create():
 @app.route("/api/booking/cancel", methods=["POST"])
 def api_booking_cancel():
     payload = request.get_json(silent=True) or {}
-    init_data = _get_init_data_from_request(payload)
-    tg_user = _validate_init_data(init_data)
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _tg_user_from_init_data(init_data)
     booking_id = payload.get("booking_id")
 
     if not tg_user or not tg_user.get("id"):
-        return jsonify({"ok": False, "error": "init_data_invalid"}), 401
+        return jsonify({"ok": False, "error": "telegram_user_missing"}), 400
 
     try:
         booking_id = int(booking_id)
@@ -1723,12 +1385,12 @@ def api_booking_cancel():
 @app.route("/api/booking/reschedule", methods=["POST"])
 def api_booking_reschedule():
     payload = request.get_json(silent=True) or {}
-    init_data = _get_init_data_from_request(payload)
-    tg_user = _validate_init_data(init_data)
+    init_data = (payload.get("initData") or "").strip()
+    tg_user = _tg_user_from_init_data(init_data)
     b = payload.get("booking") or {}
 
     if not tg_user or not tg_user.get("id"):
-        return jsonify({"ok": False, "error": "init_data_invalid"}), 401
+        return jsonify({"ok": False, "error": "telegram_user_missing"}), 400
 
     try:
         booking_id = int(b.get("id"))
@@ -1852,22 +1514,19 @@ def api_booking_reschedule():
         logger.warning(f"reschedule notification failed: {e}")
 
     return jsonify({"ok": True, "booking": updated})
-
-
 @app.route("/webapp_data", methods=["POST"])
 def handle_webapp_data():
     logger.info("POST /webapp_data")
     try:
         content = request.json
-        init_data = _get_init_data_from_request(content)
+        init_data = content.get("initData")
         form_data = content.get("formData")
 
         logger.info(f"Получены данные формы: {form_data}")
 
-        tg_user = _validate_init_data(init_data)
-        if not tg_user:
-            logger.error("initData invalid")
-            return jsonify({"ok": False, "error": "init_data_invalid"}), 401
+        if not init_data:
+            logger.error("initData отсутствует")
+            return jsonify({"ok": False, "error": "initData отсутствует"})
 
         # Валидируем данные формы
         validated_data = asyncio.run(db.validate_user_form_data(form_data))
@@ -1878,16 +1537,7 @@ def handle_webapp_data():
             return jsonify({"ok": False, "error": "Данные формы не прошли валидацию"})
 
         # Если валидация прошла успешно, используем validated_data
-        # Never trust user_id from the client payload
-        user_id = int(tg_user["id"])
-
-        try:
-            payload_user_id = int(validated_data.get('human', {}).get('user_id'))
-        except Exception:
-            payload_user_id = None
-        if payload_user_id is not None and payload_user_id != user_id:
-            return jsonify({"ok": False, "error": "forbidden"}), 403
-
+        user_id = validated_data['human']['user_id']
         logger.info(f"Обработка данных пользователя: {user_id}")
 
         # Обновляем профиль пользователя
@@ -1915,12 +1565,7 @@ def handle_webapp_data():
             ))
 
         # Отправляем сообщение пользователю
-        token = (os.getenv("BOT_TOKEN") or "").strip()
-        if not token:
-            logger.error("BOT_TOKEN not configured")
-            return jsonify({"ok": False, "error": "BOT_TOKEN not configured"}), 500
-
-        answer_url = f"https://api.telegram.org/bot{token}/sendMessage"
+        answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/sendMessage"
         answer_payload = {
             "chat_id": user_id,
             "text": f"Спасибо, {human['full_name']}! Мы получили ваши данные.",
@@ -1929,7 +1574,7 @@ def handle_webapp_data():
         }
 
         logger.info(f"Отправка сообщения пользователю {user_id}")
-        response = requests.post(answer_url, json=answer_payload, timeout=10)
+        response = requests.post(answer_url, json=answer_payload)
 
         if response.status_code == 200:
             logger.info("Сообщение успешно отправлено")
@@ -1967,16 +1612,19 @@ def number_to_emoji(number):
 async def handle_survey_data():
     logger.info("POST /survey_data")
     try:
-        content = request.json or {}
-        init_data = _get_init_data_from_request(content)
-        survey_data = content.get("surveyData") or {}
+        content = request.json
+        init_data = content.get("initData")
+        survey_data = content.get("surveyData")
 
         logger.info(f"Получены данные опроса: {survey_data}")
 
-        tg_user = _validate_init_data(init_data)
-        if not tg_user:
-            logger.error("initData invalid")
-            return jsonify({"ok": False, "error": "init_data_invalid"}), 401
+        if not init_data:
+            logger.error("initData отсутствует")
+            return jsonify({"ok": False, "error": "initData отсутствует"})
+
+        if not isinstance(init_data, str):
+            logger.error("initData должен быть строкой")
+            return jsonify({"ok": False, "error": "initData должен быть строкой"})
 
         try:
             parsed = parse_qs(init_data)
@@ -1985,24 +1633,9 @@ async def handle_survey_data():
             logger.error(f"Ошибка парсинга init_data: {e}")
             pass
 
-        # Never trust user_id from the client payload
-        user_id = int(tg_user["id"])
-        try:
-            payload_user_id = int(survey_data.get('user_id')) if survey_data.get('user_id') is not None else None
-        except Exception:
-            payload_user_id = None
-        if payload_user_id is not None and payload_user_id != user_id:
-            return jsonify({"ok": False, "error": "forbidden"}), 403
-
-        try:
-            service_id = int(survey_data.get('service_id'))
-        except Exception:
-            return jsonify({"ok": False, "error": "service_id_invalid"}), 400
-
-        if service_id not in SERVICES:
-            return jsonify({"ok": False, "error": "service_not_found"}), 404
-
+        service_id = survey_data['service_id']
         service_name = SERVICES[service_id]['name']
+        user_id = survey_data['user_id']
 
         logger.info(f"Обработка опроса: услуга {service_id}, пользователь {user_id}")
 
