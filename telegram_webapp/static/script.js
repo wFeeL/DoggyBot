@@ -17,7 +17,8 @@ window.onload = async function() {
     setMaxDates();
 };
 
-let allPetIndex = 1;
+// Счётчик для уникальных имён radio-групп (gender_#, pet_type_#).
+let allPetIndex = 0;
 window.submitForm = submitForm;
 window.addPet = addPet;
 window.removePet = removePet;
@@ -39,37 +40,45 @@ async function loadUserData() {
         const response = await fetch(`/get_user_data/${userId}`, {
             headers: initData ? { 'X-Tg-Init-Data': initData } : {},
         });
-        return await response.json()
+        const payload = await response.json();
+        // Сервер может вернуть {data: null} для нового пользователя.
+        if (payload && Object.prototype.hasOwnProperty.call(payload, 'data')) {
+            return payload.data;
+        }
+        return payload;
     } catch (error) {
         console.error("Ошибка загрузки данных:", error);
         return null;
     }
 }
 
-function addPetFromData(pet, index) {
+function addPetFromData(pet) {
+    // Создаём новый блок питомца и заполняем его данными.
     addPet();
 
     const petEntries = document.querySelectorAll("#pets_entries .pet_entry");
     const petEntry = petEntries[petEntries.length - 1];
-
     if (!petEntry) return;
 
     petEntry.querySelector('input[name="name"]').value = pet.name || "";
-    petEntry.querySelector('input[name="weight"]').value = pet.approx_weight || "";
+    petEntry.querySelector('input[name="weight"]').value = pet.approx_weight ?? "";
     petEntry.querySelector('input[name="birth_date"]').value = pet.birth_date || "";
     petEntry.querySelector('input[name="breed"]').value = pet.breed || "";
+
     const aboutPetField = petEntry.querySelector('textarea[name="about_pet"]');
-    if (aboutPetField) {
-        aboutPetField.value = pet.about_pet || "";
-    }
+    if (aboutPetField) aboutPetField.value = pet.about_pet || "";
 
     if (pet.gender) {
-        const genderInput = petEntry.querySelector(`input[name^="gender_${allPetIndex}"][value="${pet.gender}"]`);
+        const genderInput = petEntry.querySelector(
+            `input[type="radio"][name^="gender_"][value="${pet.gender}"]`
+        );
         if (genderInput) genderInput.checked = true;
     }
 
     if (pet.type) {
-        const typeInput = petEntry.querySelector(`input[name^="pet_type_${allPetIndex}"][value="${pet.type}"]`);
+        const typeInput = petEntry.querySelector(
+            `input[type="radio"][name^="pet_type_"][value="${pet.type}"]`
+        );
         if (typeInput) typeInput.checked = true;
     }
 }
@@ -86,8 +95,8 @@ function parseFormToJson(user_id) {
         const petWeight = petWeightRaw ? parseFloat(petWeightRaw) : null;
         const petBirthDate = petEntry.querySelector('input[name="birth_date"]').value || null;
         const petBreed = petEntry.querySelector('input[name="breed"]').value || "";
-        const petType = petEntry.querySelector(`input[name^="pet_type"]:checked`)?.value;
-        const petGender = petEntry.querySelector(`input[name^="gender"]:checked`)?.value;
+        const petType = petEntry.querySelector('input[type="radio"][name^="pet_type_"]:checked')?.value;
+        const petGender = petEntry.querySelector('input[type="radio"][name^="gender_"]:checked')?.value;
         const petAbout = petEntry.querySelector('textarea[name="about_pet"]')?.value || "";
 
         if (petName) {
@@ -114,7 +123,7 @@ function parseFormToJson(user_id) {
     };
 }
 
-function submitForm() {
+async function submitForm() {
     const petCount = document.querySelectorAll('.pet_entry').length;
     if (petCount === 0) {
         alert("Добавьте хотя бы одного питомца!");
@@ -130,23 +139,46 @@ function submitForm() {
         const jsonData = parseFormToJson(tg.initDataUnsafe.user.id);
         const initData = tg.initData;
 
-        fetch('/webapp_data', {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                ...(initData ? { 'X-Tg-Init-Data': initData } : {})
-            },
-            body: JSON.stringify({
-                initData: initData,
-                formData: jsonData
-            })
-        })
-        .then(response => response.json())
-        .catch(error => {
+        try {
+            tg.MainButton.disable();
+            tg.MainButton.showProgress?.(true);
+
+            const response = await fetch('/webapp_data', {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(initData ? { 'X-Tg-Init-Data': initData } : {})
+                },
+                body: JSON.stringify({
+                    initData: initData,
+                    formData: jsonData
+                })
+            });
+
+            let payload = null;
+            try {
+                payload = await response.json();
+            } catch (_) {
+                payload = null;
+            }
+
+            if (!response.ok || !payload?.ok) {
+                const errText = payload?.error || 'Не удалось сохранить анкету. Проверьте заполнение полей.';
+                alert(errText);
+                return;
+            }
+
+            // Закрываем Mini App только после успешного ответа сервера.
+            tg.close();
+        } catch (error) {
             console.error("Ошибка запроса:", error);
-            alert("Ошибка при отправке данных.");
-        });
-        (window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp.close() : null);
+            alert("Ошибка при отправке данных. Проверьте интернет и попробуйте ещё раз.");
+        } finally {
+            try {
+                tg.MainButton.hideProgress?.();
+                tg.MainButton.enable();
+            } catch (_) {}
+        }
     } else {
         form.reportValidity();
     }
@@ -297,16 +329,19 @@ function addPet() {
 }
 
 function fillForm(data) {
-    if (!data) return;
-    document.querySelector('input[name="full_name"]').value = data.full_name || "";
-    document.querySelector('input[name="phone_number"]').value = data.phone_number || "";
-    document.querySelector('input[name="birth_date"]').value = data.birth_date || "";
+    const d = data || {};
+    document.querySelector('input[name="full_name"]').value = d.full_name || "";
+    document.querySelector('input[name="phone_number"]').value = d.phone_number || "";
+    document.querySelector('input[name="birth_date"]').value = d.birth_date || "";
 
     const petsContainer = document.getElementById("pets_entries");
     petsContainer.innerHTML = "";
 
-    if (data.pets && data.pets.length > 0) {
-        data.pets.forEach((pet, index) => addPetFromData(pet, index + 1));
+    // Сбрасываем счётчик радио-групп, чтобы имена были стабильными при повторной загрузке.
+    allPetIndex = 0;
+
+    if (d.pets && d.pets.length > 0) {
+        d.pets.forEach((pet) => addPetFromData(pet));
     } else {
         // Добавить минимум одного питомца
         addPet();

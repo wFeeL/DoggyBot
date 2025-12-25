@@ -219,13 +219,106 @@ async def add_pet(
         pet_breed: str,
         about_pet: str = ""
 ):
-    weight_value = approx_weight if approx_weight is not None else "NULL"
-    birth_date_value = birth_date if birth_date is not None else "NULL"
-    about_pet_value = about_pet or ""
+    """Добавляет питомца.
+
+    Важно: используем параметризованный запрос, чтобы не ломаться на кавычках
+    и не рисковать SQL-инъекциями.
+    """
+
+    await ensure_pets_schema()
+
     await create_request(
-        "INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed, about_pet) "
-        f"VALUES ('{user_id}', {weight_value}, '{name}', {birth_date_value}, '{gender}', '{pet_type}', '{pet_breed}', '{about_pet_value}')",
-        is_return=False)
+        """
+        INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed, about_pet)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        is_return=False,
+        params=(
+            str(user_id),
+            approx_weight,
+            name,
+            birth_date,
+            gender,
+            pet_type,
+            pet_breed,
+            about_pet or "",
+        ),
+    )
+
+
+_PETS_SCHEMA_READY = False
+
+
+async def ensure_pets_schema() -> None:
+    """Ленивая миграция схемы питомцев.
+
+    На проектах, где БД создавалась раньше, колонки about_pet может не быть.
+    Это приводит к падению сохранения анкеты (после delete_pets питомцы исчезают).
+    """
+
+    global _PETS_SCHEMA_READY
+    if _PETS_SCHEMA_READY:
+        return
+
+    # ALTER TABLE безопасен: IF NOT EXISTS не трогает существующую схему.
+    await create_request(
+        "ALTER TABLE pets ADD COLUMN IF NOT EXISTS about_pet TEXT",
+        is_return=False,
+    )
+    _PETS_SCHEMA_READY = True
+
+
+async def replace_pets(user_id: int | str, pets: list[dict]) -> bool:
+    """Атомарно заменяет список питомцев пользователя.
+
+    Раньше мы делали delete_pets() и потом add_pet() в цикле отдельными коннектами.
+    Если любая вставка падала — пользователь оставался вообще без питомцев.
+
+    Здесь всё делается в одной транзакции: либо всё обновится, либо ничего.
+    """
+
+    await ensure_pets_schema()
+
+    conn = create_connection()
+    if conn is None:
+        return False
+
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM pets WHERE user_id = %s", (str(user_id),))
+                cur.executemany(
+                    """
+                    INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed, about_pet)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    [
+                        (
+                            str(user_id),
+                            p.get("weight"),
+                            p.get("name"),
+                            p.get("birth_date"),
+                            p.get("gender"),
+                            p.get("type"),
+                            p.get("breed", ""),
+                            p.get("about_pet", ""),
+                        )
+                        for p in pets
+                    ],
+                )
+        return True
+    except Exception:
+        logger.exception("replace_pets failed")
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return False
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 async def delete_pets(user_id: int | str, **kwargs):

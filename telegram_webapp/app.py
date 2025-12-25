@@ -1556,19 +1556,24 @@ def handle_webapp_data():
         ))
         asyncio.run(db.update_user(user_id=user_id, form_value=1))
 
-        # Удаляем старых питомцев и добавляем новых
-        asyncio.run(db.delete_pets(user_id))
+        # Атомарно заменяем питомцев (в одной транзакции).
+        # Это защищает от ситуации, когда delete прошёл, а insert упал — и питомцы пропали.
+        pets_payload = []
         for pet in validated_data["pets"]:
-            asyncio.run(db.add_pet(
-                user_id=user_id,
-                birth_date=str_to_timestamp(pet["birth_date"]),
-                approx_weight=pet["weight"],
-                name=pet["name"],
-                gender=pet["gender"],
-                pet_type=pet["type"],
-                pet_breed=pet["breed"],
-                about_pet=pet.get("about_pet", "")
-            ))
+            pets_payload.append({
+                "name": pet.get("name"),
+                "weight": pet.get("weight"),
+                "birth_date": str_to_timestamp(pet.get("birth_date")),
+                "gender": pet.get("gender"),
+                "type": pet.get("type"),
+                "breed": pet.get("breed", ""),
+                "about_pet": pet.get("about_pet", ""),
+            })
+
+        ok = asyncio.run(db.replace_pets(user_id, pets_payload))
+        if not ok:
+            logger.error("Не удалось сохранить питомцев (replace_pets)")
+            return jsonify({"ok": False, "error": "Не удалось сохранить питомцев. Попробуйте ещё раз."})
 
         # Отправляем сообщение пользователю
         answer_url = f"https://api.telegram.org/bot{str(os.environ['BOT_TOKEN'])}/sendMessage"
