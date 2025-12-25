@@ -58,6 +58,10 @@ function addPetFromData(pet, index) {
     petEntry.querySelector('input[name="weight"]').value = pet.approx_weight || "";
     petEntry.querySelector('input[name="birth_date"]').value = pet.birth_date || "";
     petEntry.querySelector('input[name="breed"]').value = pet.breed || "";
+    const aboutPetField = petEntry.querySelector('textarea[name="about_pet"]');
+    if (aboutPetField) {
+        aboutPetField.value = pet.about_pet || "";
+    }
 
     if (pet.gender) {
         const genderInput = petEntry.querySelector(`input[name^="gender_${allPetIndex}"][value="${pet.gender}"]`);
@@ -74,16 +78,17 @@ function parseFormToJson(user_id) {
     const fullName = document.querySelector('input[name="full_name"]').value;
     const phoneNumber = document.querySelector('input[name="phone_number"]').value;
     const humanBirthDate = document.querySelector('input[name="birth_date"]').value;
-    const aboutMe = document.querySelector('textarea[name="about_me"]').value;
 
     const pets = [];
     document.querySelectorAll('.pet_entry').forEach(petEntry => {
         const petName = petEntry.querySelector('input[name="name"]').value;
-        const petWeight = parseFloat(petEntry.querySelector('input[name="weight"]').value) || 0;
-        const petBirthDate = petEntry.querySelector('input[name="birth_date"]').value;
-        const petBreed = petEntry.querySelector('input[name="breed"]').value;
+        const petWeightRaw = petEntry.querySelector('input[name="weight"]').value;
+        const petWeight = petWeightRaw ? parseFloat(petWeightRaw) : null;
+        const petBirthDate = petEntry.querySelector('input[name="birth_date"]').value || null;
+        const petBreed = petEntry.querySelector('input[name="breed"]').value || "";
         const petType = petEntry.querySelector(`input[name^="pet_type"]:checked`)?.value;
         const petGender = petEntry.querySelector(`input[name^="gender"]:checked`)?.value;
+        const petAbout = petEntry.querySelector('textarea[name="about_pet"]')?.value || "";
 
         if (petName) {
             pets.push({
@@ -92,7 +97,8 @@ function parseFormToJson(user_id) {
                 birth_date: petBirthDate,
                 breed: petBreed,
                 gender: petGender,
-                type: petType
+                type: petType,
+                about_pet: petAbout
             });
         }
     });
@@ -101,9 +107,8 @@ function parseFormToJson(user_id) {
         pets: pets,
         human: {
             full_name: fullName,
-            birth_date: humanBirthDate,
+            birth_date: humanBirthDate || null,
             phone_number: phoneNumber,
-            about_me: aboutMe,
             user_id: user_id
         }
     };
@@ -177,6 +182,10 @@ function formatPhoneNumber(input) {
 
 function validateBreed(input) {
     const regex = /^[А-Яа-яA-Za-z\s]+$/;
+    if (!input.value) {
+        input.setCustomValidity("");
+        return;
+    }
     input.setCustomValidity(regex.test(input.value) ? "" : "Порода не должна содержать цифры или спец. символы.");
 }
 
@@ -215,7 +224,7 @@ function addPet() {
         </div>
         <div class="pet_content">
             <div class="entry" style="margin-top: 15px;">
-                <label for="name">Кличка</label>
+                <label for="name">Кличка *</label>
                 <div class="input_container">
                     <input name="name" maxlength="32" required>
                     <span class="validation-icon"></span>
@@ -224,26 +233,26 @@ function addPet() {
             <div class="entry">
                 <label for="weight">Примерный вес (кг.)</label>
                 <div class="input_container">
-                    <input name="weight" type="number" min="0" max="100" step="0.1" required>
+                    <input name="weight" type="number" min="0" max="100" step="0.1">
                     <span class="validation-icon"></span>
                 </div>
             </div>
             <div class="entry">
                 <label for="pet_birth_date">Дата рождения</label>
                 <div class="input_container">
-                    <input name="birth_date" type="date" min="1900-01-01" required>
+                    <input name="birth_date" type="date" min="1900-01-01">
                     <span class="validation-icon date-icon"></span>
                 </div>
             </div>
             <div class="entry">
                 <label for="breed">Порода</label>
                 <div class="input_container">
-                    <input name="breed" maxlength="32" required>
+                    <input name="breed" maxlength="32" oninput="validateBreed(this)">
                     <span class="validation-icon"></span>
                 </div>
             </div>
             <div class="entry">
-                <label for="gender">Пол</label>
+                <label for="gender">Пол *</label>
                 <div class="radio-group">
                     <label class="radio-option">
                         <input type="radio" name="gender_${allPetIndex}" value="male" required>
@@ -258,7 +267,7 @@ function addPet() {
                 </div>
             </div>
             <div class="entry">
-                <label for="pet_type">Вид питомца</label>
+                <label for="pet_type">Вид питомца *</label>
                 <div class="radio-group">
                     <label class="radio-option">
                         <input type="radio" name="pet_type_${allPetIndex}" value="dog" required>
@@ -270,6 +279,13 @@ function addPet() {
                         <span class="radio-custom"></span>
                         <span class="radio-label">Кот</span>
                     </label>
+                </div>
+            </div>
+            <div class="entry">
+                <label for="about_pet">О питомце (по желанию)</label>
+                <div class="input_container">
+                    <textarea name="about_pet" placeholder="Особенности поведения, отношение к другим животным, питание и всё важное." maxlength="2048"></textarea>
+                    <span class="validation-icon"></span>
                 </div>
             </div>
         </div>
@@ -285,7 +301,6 @@ function fillForm(data) {
     document.querySelector('input[name="full_name"]').value = data.full_name || "";
     document.querySelector('input[name="phone_number"]').value = data.phone_number || "";
     document.querySelector('input[name="birth_date"]').value = data.birth_date || "";
-    document.querySelector('textarea[name="about_me"]').value = data.about_me || "";
 
     const petsContainer = document.getElementById("pets_entries");
     petsContainer.innerHTML = "";

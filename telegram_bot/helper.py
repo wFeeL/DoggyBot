@@ -40,7 +40,9 @@ async def get_task_text(task: dict) -> str:
     return text
 
 
-def str_to_timestamp(date_string: str) -> float:
+def str_to_timestamp(date_string: str) -> float | None:
+    if not date_string:
+        return None
     return datetime.strptime(date_string, "%Y-%m-%d").timestamp()
 
 
@@ -54,40 +56,46 @@ def get_pets_stroke(pets_list) -> str:
         year_forms = ("год", "лет", "года")
         month_forms = ("месяц", "месяцев", "месяца")
         days_forms = ("день", "дней", "дня")
-        years, months, days = 0, 0, 0
-        years = round((time.time() - float(pet["birth_date"])) // (86400 * 365))
-        days = round((time.time() - float(pet["birth_date"])) // 86400)
+        birth_date_value = pet.get("birth_date")
+        if birth_date_value:
+            years, months, days = 0, 0, 0
+            years = round((time.time() - float(birth_date_value)) // (86400 * 365))
+            days = round((time.time() - float(birth_date_value)) // 86400)
 
-        month_now = int(datetime.now().month)
-        birth_date_month = int(datetime.fromtimestamp(float(pet["birth_date"]), env.local_timezone).month)
+            month_now = int(datetime.now().month)
+            birth_date_month = int(datetime.fromtimestamp(float(birth_date_value), env.local_timezone).month)
 
-        if month_now > birth_date_month:
-            months = month_now - birth_date_month
-        elif month_now < birth_date_month:
-            months = 12 - birth_date_month + month_now
-        years_text = f"{years} {inflector.inflect_with_num(years, year_forms)}"
-        month_text = f"{months} {inflector.inflect_with_num(months, month_forms)}"
-        days_text = f"{days} {inflector.inflect_with_num(days, days_forms)}"
+            if month_now > birth_date_month:
+                months = month_now - birth_date_month
+            elif month_now < birth_date_month:
+                months = 12 - birth_date_month + month_now
+            years_text = f"{years} {inflector.inflect_with_num(years, year_forms)}"
+            month_text = f"{months} {inflector.inflect_with_num(months, month_forms)}"
+            days_text = f"{days} {inflector.inflect_with_num(days, days_forms)}"
 
-        if months == 0 and years == 0:
-            age_text = days_text
-        elif months > 0 and years > 0:
-            age_text = f'{years_text} {month_text}'
-        elif months == 0:
-            age_text = years_text
-        elif years == 0:
-            age_text = month_text
+            if months == 0 and years == 0:
+                age_text = days_text
+            elif months > 0 and years > 0:
+                age_text = f'{years_text} {month_text}'
+            elif months == 0:
+                age_text = years_text
+            elif years == 0:
+                age_text = month_text
+            else:
+                age_text = 'Error!'
+            birth_date_text = datetime.fromtimestamp(float(birth_date_value)).strftime('%d %B %Y')
         else:
-            age_text = 'Error!'
+            age_text = "не указан"
+            birth_date_text = "не указана"
 
         pet_text = PET_PROFILE_TEXT.format(
-            count=pets_list.index(pet) + 1, name=pet['name'], approx_weight=pet["approx_weight"],
+            count=pets_list.index(pet) + 1, name=pet['name'], approx_weight=pet.get("approx_weight") or "не указан",
             emoji='🐶' if pet['type'] == 'dog' else '🐱',
             age=age_text,
-            birth_date=datetime.fromtimestamp(float(pet["birth_date"])).strftime('%d %B %Y'),
+            birth_date=birth_date_text,
             type='собака' if pet['type'] == 'dog' else 'кот',
             gender='мальчик' if pet['gender'] == 'male' else 'девочка',
-            breed=pet['breed'])
+            breed=pet.get('breed') or "не указана")
         result.append(pet_text)
 
     return '\n'.join(result)
