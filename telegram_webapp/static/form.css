@@ -70,8 +70,13 @@
     background-color: rgba(252, 129, 129, 0.05);
 }
 
-.entry input:valid:not(:placeholder-shown),
-.entry textarea:valid:not(:placeholder-shown) {
+/*
+  IMPORTANT UX RULE:
+  - Optional fields should NOT show the “success/green” state.
+  - Green state is shown only for REQUIRED fields when they are valid.
+*/
+.entry input:required:valid:not(:placeholder-shown),
+.entry textarea:required:valid:not(:placeholder-shown) {
     border-color: #48bb78;
     background-color: rgba(72, 187, 120, 0.05);
 }
@@ -81,7 +86,7 @@
     background-color: rgba(252, 129, 129, 0.05);
 }
 
-.entry input.phone-input:valid:not(:placeholder-shown) {
+.entry input.phone-input:required:valid:not(:placeholder-shown) {
     border-color: #48bb78;
     background-color: rgba(72, 187, 120, 0.05);
 }
@@ -144,8 +149,8 @@
     font-size: 16px;
 }
 
-.entry input:valid:not(:placeholder-shown) ~ .validation-icon::after,
-.entry textarea:valid:not(:placeholder-shown) ~ .validation-icon::after {
+.entry input:required:valid:not(:placeholder-shown) ~ .validation-icon::after,
+.entry textarea:required:valid:not(:placeholder-shown) ~ .validation-icon::after {
     content: "✓";
     color: #48bb78;
     font-size: 16px;
@@ -158,7 +163,7 @@
     font-size: 16px;
 }
 
-.entry input.phone-input:valid:not(:placeholder-shown) ~ .validation-icon::after {
+.entry input.phone-input:required:valid:not(:placeholder-shown) ~ .validation-icon::after {
     content: "✓";
     color: #48bb78;
     font-size: 16px;
@@ -414,8 +419,8 @@
     background-color: rgba(252, 129, 129, 0.05);
 }
 
-.pet_content input:valid:not(:placeholder-shown),
-.pet_content textarea:valid:not(:placeholder-shown) {
+.pet_content input:required:valid:not(:placeholder-shown),
+.pet_content textarea:required:valid:not(:placeholder-shown) {
     border-color: #48bb78;
     background-color: rgba(72, 187, 120, 0.05);
 }
