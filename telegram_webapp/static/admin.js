@@ -366,7 +366,7 @@
             const chip = document.createElement('button');
             chip.type = 'button';
             chip.className = `chip ${d === activeDate ? 'is-active' : ''}`;
-            chip.textContent = formatDDMMYYYY(d);
+            chip.textContent = formatDateWithWeekday(d);
             chip.addEventListener('click', () => {
                 const dateEl = document.getElementById('avail-date');
                 if (dateEl) {

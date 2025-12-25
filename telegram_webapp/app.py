@@ -303,17 +303,23 @@ def get_user_data(telegram_id):
             if len(pets) > 0:
                 pets = list(map(lambda elem: dict(elem), pets))
                 for pet in pets:
-                    pet['birth_date'] = datetime.fromtimestamp(float(pet["birth_date"])).strftime('%Y-%m-%d')
+                    if pet.get("birth_date"):
+                        pet['birth_date'] = datetime.fromtimestamp(float(pet["birth_date"])).strftime('%Y-%m-%d')
+                    else:
+                        pet['birth_date'] = ""
                 logger.info(f"Найдено питомцев: {len(pets)}")
             else:
                 pets = []
                 logger.info("Питомцы не найдены")
 
+            birth_date = ""
+            if user_profile.get("birth_date"):
+                birth_date = datetime.fromtimestamp(float(user_profile["birth_date"])).strftime('%Y-%m-%d')
+
             data = {
                 'full_name': user_profile['full_name'],
                 'phone_number': user_profile['phone_number'],
-                'birth_date': datetime.fromtimestamp(float(user_profile["birth_date"])).strftime('%Y-%m-%d'),
-                'about_me': user_profile['about_me'],
+                'birth_date': birth_date,
                 'pets': pets,
             }
             return jsonify(data)
@@ -1546,8 +1552,7 @@ def handle_webapp_data():
             user_id=user_id,
             birth_date=str_to_timestamp(human["birth_date"]),
             full_name=human["full_name"],
-            phone_number=human["phone_number"],
-            about_me=human["about_me"]
+            phone_number=human["phone_number"]
         ))
         asyncio.run(db.update_user(user_id=user_id, form_value=1))
 
@@ -1561,7 +1566,8 @@ def handle_webapp_data():
                 name=pet["name"],
                 gender=pet["gender"],
                 pet_type=pet["type"],
-                pet_breed=pet["breed"]
+                pet_breed=pet["breed"],
+                about_pet=pet.get("about_pet", "")
             ))
 
         # Отправляем сообщение пользователю

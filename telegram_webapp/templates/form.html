@@ -24,14 +24,14 @@
         <form id="form_body">
             <h2>Личные данные</h2>
             <div class="entry">
-                <label for="full_name">Фамилия Имя Отчество</label>
+                <label for="full_name">Имя владельца *</label>
                 <div class="input_container">
-                    <input name="full_name" type="text" maxlength="150" required placeholder="Введите ваше полное имя" oninput="this.value = this.value.replace(/[^А-Яа-яA-Za-z\s\-]/g, '');">
+                    <input name="full_name" type="text" maxlength="150" required placeholder="Введите имя владельца" oninput="this.value = this.value.replace(/[^А-Яа-яA-Za-z\s\-]/g, '');">
                     <span class="validation-icon"></span>
                 </div>
             </div>
             <div class="entry">
-                <label for="phone_number">Номер телефона</label>
+                <label for="phone_number">Номер телефона *</label>
                 <div class="input_container">
                     <input name="phone_number" class="phone-input" type="tel" placeholder="+7 XXX XXX XX XX" pattern="\+7 \d{3} \d{3} \d{2} \d{2}" value="+7" oninput="formatPhoneNumber(this);" minlength="18" maxlength="18" required>
                     <span class="validation-icon"></span>
@@ -40,15 +40,8 @@
             <div class="entry">
                 <label for="birth_date">Дата рождения</label>
                 <div class="input_container">
-                    <input name="birth_date" type="date" min="1900-01-01" required>
+                    <input name="birth_date" type="date" min="1900-01-01">
                     <span class="validation-icon date-icon"></span>
-                </div>
-            </div>
-            <div class="entry">
-                <label for="about_me">Дополнительно о себе (по желанию)</label>
-                <div class="input_container">
-                    <textarea name="about_me" placeholder="Расскажите о своих интересах, опыте с животными, пожеланиях..." maxlength="2048"></textarea>
-                    <span class="validation-icon"></span>
                 </div>
             </div>
 
@@ -77,7 +70,7 @@
                     </div>
                     <div class="pet_content">
                         <div class="entry" style="margin-top: 15px;">
-                            <label for="name">Кличка</label>
+                            <label for="name">Кличка *</label>
                             <div class="input_container">
                                 <input name="name" maxlength="32" oninput="this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1).trim();" required>
                                 <span class="validation-icon"></span>
@@ -86,26 +79,26 @@
                         <div class="entry">
                             <label for="weight">Примерный вес (кг.)</label>
                             <div class="input_container">
-                                <input name="weight" type="number" min="0" max="100" step="0.1" required>
+                                <input name="weight" type="number" min="0" max="100" step="0.1">
                                 <span class="validation-icon"></span>
                             </div>
                         </div>
                         <div class="entry">
                             <label for="pet_birth_date">Дата рождения</label>
                             <div class="input_container">
-                                <input name="birth_date" type="date" min="1900-01-01" required>
+                                <input name="birth_date" type="date" min="1900-01-01">
                                 <span class="validation-icon date-icon"></span>
                             </div>
                         </div>
                         <div class="entry">
                             <label for="breed">Порода</label>
                             <div class="input_container">
-                                <input name="breed" maxlength="32" oninput="validateBreed(this)" required>
+                                <input name="breed" maxlength="32" oninput="validateBreed(this)">
                                 <span class="validation-icon"></span>
                             </div>
                         </div>
                         <div class="entry">
-                            <label for="gender">Пол</label>
+                            <label for="gender">Пол *</label>
                             <div class="radio-group">
                                 <label class="radio-option">
                                     <input type="radio" name="gender_1" value="male" required>
@@ -120,7 +113,7 @@
                             </div>
                         </div>
                         <div class="entry">
-                            <label for="pet_type">Вид питомца</label>
+                            <label for="pet_type">Вид питомца *</label>
                             <div class="radio-group">
                                 <label class="radio-option">
                                     <input type="radio" name="pet_type_1" value="dog" required>
@@ -132,6 +125,13 @@
                                     <span class="radio-custom"></span>
                                     <span class="radio-label">Кот</span>
                                 </label>
+                            </div>
+                        </div>
+                        <div class="entry">
+                            <label for="about_pet">О питомце (по желанию)</label>
+                            <div class="input_container">
+                                <textarea name="about_pet" placeholder="Особенности поведения, отношение к другим животным, питание и всё важное." maxlength="2048"></textarea>
+                                <span class="validation-icon"></span>
                             </div>
                         </div>
                     </div>
