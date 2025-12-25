@@ -209,10 +209,22 @@ async def get_reminders(
     return await create_request(sql_query, is_multiple=is_multiple)
 
 
-async def add_pet(user_id: int | str, approx_weight: int | float, name: str, birth_date: int | float, gender: str,
-                  pet_type: str, pet_breed: str):
+async def add_pet(
+        user_id: int | str,
+        approx_weight: int | float | None,
+        name: str,
+        birth_date: int | float | None,
+        gender: str,
+        pet_type: str,
+        pet_breed: str,
+        about_pet: str = ""
+):
+    weight_value = approx_weight if approx_weight is not None else "NULL"
+    birth_date_value = birth_date if birth_date is not None else "NULL"
+    about_pet_value = about_pet or ""
     await create_request(
-        f"INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed) VALUES ('{user_id}', {approx_weight}, '{name}', '{birth_date}', '{gender}', '{pet_type}', '{pet_breed}')",
+        "INSERT INTO pets (user_id, approx_weight, name, birth_date, gender, type, breed, about_pet) "
+        f"VALUES ('{user_id}', {weight_value}, '{name}', {birth_date_value}, '{gender}', '{pet_type}', '{pet_breed}', '{about_pet_value}')",
         is_return=False)
 
 
@@ -223,7 +235,9 @@ async def delete_pets(user_id: int | str, **kwargs):
 async def update_user_profile(user_id: int | str, **kwargs):
     result = []
     for key, value in kwargs.items():
-        if isinstance(value, str):
+        if value is None:
+            result.append(f"{key} = NULL")
+        elif isinstance(value, str):
             result.append(f"{key} = '{value}'")
         else:
             result.append(f"{key} = {value}")
@@ -254,6 +268,8 @@ async def validate_user_form_data(web_app_data):
         return re.match(pattern, phone_number) is not None
 
     def validate_birth_date(birth_date):
+        if not birth_date:
+            return True
         try:
             date_obj = datetime.strptime(birth_date, '%Y-%m-%d')
             return date_obj < datetime.now()
@@ -261,13 +277,16 @@ async def validate_user_form_data(web_app_data):
             return False
 
     def validate_breed(breed):
+        if not breed:
+            return True
         return bool(re.match(r'^[^\d]+$', breed))
 
     def validate_pet(pet):
         if not isinstance(pet['name'], str) or not pet['name']:
             return False
-        if not isinstance(pet['weight'], (int, float)) or not (0 <= pet['weight'] <= 100):
-            return False
+        if pet['weight'] is not None:
+            if not isinstance(pet['weight'], (int, float)) or not (0 <= pet['weight'] <= 100):
+                return False
         if not validate_birth_date(pet['birth_date']):
             return False
         if pet['gender'] not in ['male', 'female']:
