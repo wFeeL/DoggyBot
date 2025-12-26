@@ -194,10 +194,12 @@
 
     function formatDDMMYYYY(isoDate) {
         // isoDate: YYYY-MM-DD
+        // NOTE: функция исторически называлась formatDDMMYYYY(),
+        // но по требованиям UI выводим компактный формат: DD.MM
+        // (год не показываем в селекторах/чипах дат).
         const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(isoDate || ''));
         if (!m) return String(isoDate || '');
-        // DD.MM.YYYY
-        return `${m[3]}.${m[2]}.${m[1]}`;
+        return `${m[3]}.${m[2]}`;
     }
 
     function weekdayShort(isoDate) {
