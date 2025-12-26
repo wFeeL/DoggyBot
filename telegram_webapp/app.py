@@ -137,6 +137,104 @@ def _default_slot_hhmm() -> list[str]:
     return out
 
 
+def _parse_time_hhmm(value: str):
+    """Parse time like '10:00' or '10:00:00' -> (hh, mm) or None."""
+    s = (value or '').strip()
+    if not s:
+        return None
+    # Accept HH:MM or HH:MM:SS
+    m = re.match(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?$', s)
+    if not m:
+        return None
+    try:
+        hh = int(m.group(1))
+        mm = int(m.group(2))
+    except Exception:
+        return None
+    if not (0 <= hh <= 23 and 0 <= mm <= 59):
+        return None
+    return hh, mm
+
+
+def _coerce_slots_list(raw) -> list[str]:
+    """Normalize DB slots JSON to list[str] of HH:MM."""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            return []
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    for x in raw:
+        t = _parse_time_hhmm(str(x))
+        if not t:
+            continue
+        hh, mm = t
+        out.append(f"{hh:02d}:{mm:02d}")
+    return sorted(set(out))
+
+
+def _allowed_hhmm_for_services(date_str: str, service_ids: list[int]) -> list[str]:
+    """Allowed start times (HH:MM) for given services on date.
+
+    Logic:
+    - If admin did not configure a date for a service -> use default slots.
+    - If admin configured empty slots -> day is закрыт for this service.
+    - For multiple services -> intersection across services.
+    """
+
+    if not service_ids:
+        return []
+
+    allowed: set[str] | None = None
+    for sid in service_ids:
+        row = None
+        try:
+            row = asyncio.run(db.get_service_availability(service_id=int(sid), date=date_str))
+        except Exception as e:
+            logger.error(f"get_service_availability failed: {e}")
+            row = None
+
+        if row is None:
+            slots = _default_slot_hhmm()
+        else:
+            slots = _coerce_slots_list(row.get('slots'))
+
+        # Empty list means "closed" for this service
+        cur = set(slots)
+        if allowed is None:
+            allowed = cur
+        else:
+            allowed &= cur
+
+        if not allowed:
+            return []
+
+    return sorted(allowed or [])
+
+
+def _allowed_start_ts_for_services(date_str: str, service_ids: list[int]) -> list[int]:
+    """Allowed start timestamps for given services on date in local TZ."""
+    from telegram_bot.env import local_timezone
+
+    hhmm_list = _allowed_hhmm_for_services(date_str, service_ids)
+    try:
+        base = datetime.strptime(date_str, '%Y-%m-%d').replace(tzinfo=local_timezone)
+    except Exception:
+        return []
+
+    out: list[int] = []
+    for t in hhmm_list:
+        parsed = _parse_time_hhmm(t)
+        if not parsed:
+            continue
+        hh, mm = parsed
+        out.append(int(base.replace(hour=hh, minute=mm, second=0, microsecond=0).timestamp()))
+    return out
+
 def _is_date_in_booking_window(date_str: str) -> bool:
     """True if date_str is within [today, today+BOOKING_HORIZON_DAYS] in local TZ."""
     try:
